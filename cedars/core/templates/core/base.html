@@ -1,0 +1,95 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>{% block title %}CEDARS{% endblock %} · CEDARS</title>
+<link rel="stylesheet" href="{% static 'core/app.css' %}">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+<div class="gov"><p><strong>California Public Utilities Commission</strong> <span>California Energy Data And Reporting System</span></p>
+  {% if environment == "sandbox" %}<p class="env-banner">Sandbox: test data only. Nothing here is filed with the CPUC.</p>{% endif %}
+  {% if not mfa_pending %}{# Site search (core/search.py), on every page but the second-factor set-up. The landmark is a div so pages' own search forms keep form[role=search] to themselves. #}
+  <div class="site-search" role="search" aria-label="Site" data-tour="search"><form method="get" action="{% url 'core:search' %}">
+    <label for="site-search-q" class="sr-only">Search CEDARS</label><input id="site-search-q" type="search" name="q" maxlength="200" placeholder="Search CEDARS"><button type="submit">Search</button>
+  </form></div>{% endif %}
+</div>
+<div class="top">
+  <a class="brand" href="{% url 'core:home' %}">{# The mark is a cedar: three flat, drooping tiers of boughs on one trunk. Decorative (the link is named by its text), so hidden from assistive technology. #}<svg class="logo" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true" focusable="false"><rect class="logo-bg" width="28" height="28" rx="6"/><g class="logo-tree"><path d="M13.2 6h1.6l.35 18.5h-2.3z"/><path d="M14 3.2c.9 1.3 1.5 2.5 1.7 3.6-1.1.3-2.3.3-3.4 0 .2-1.1.8-2.3 1.7-3.6z"/><path d="M9.2 10.8C11.4 9.5 12.8 7.9 14 7.9S16.6 9.5 18.8 10.8C16.4 10.7 11.6 10.7 9.2 10.8Z"/><path d="M6.4 15.3C9.8 13.7 12.1 11.9 14 11.9S18.2 13.7 21.6 15.3C17.8 15.1 10.2 15.1 6.4 15.3Z"/><path d="M3.6 20.2C8.3 18.4 11.4 16.3 14 16.3S19.7 18.4 24.4 20.2C19.2 19.9 8.8 19.9 3.6 20.2Z"/></g></svg><span>CEDARS</span></a>
+  {% block header_controls %}{% comment %}The 500 page replaces these with Help alone: it renders with no context (core/errors.py).{% endcomment %}
+  {% if user.is_authenticated and not mfa_pending %}
+  {% comment %}The menus are built from what the account may do (core/nav.py). Each menu is a native disclosure (works without scripts);
+     the menu holding the open page is marked .current and its item carries aria-current. app.js adds Escape, one-open-at-a-time and the
+     narrow-screen Menu button. On a narrow screen the person's own controls (.who) fold behind Menu with the navigation, and the top row
+     keeps the brand, the notification count (.bell-compact, shown only there) and Menu.{% endcomment %}
+  <a class="bell bell-compact" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}><svg class="bell-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M10 2.2a1 1 0 0 1 1 1v.7a5.4 5.4 0 0 1 4.4 5.3v3.3l1.4 2.1a.8.8 0 0 1-.7 1.2H3.9a.8.8 0 0 1-.7-1.2l1.4-2.1V9.2A5.4 5.4 0 0 1 9 3.9v-.7a1 1 0 0 1 1-1zM8 16.9h4a2 2 0 0 1-4 0z"/></svg><span class="sr-only">Notifications</span>{% if unread_notifications %} <span class="count">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span><span class="sr-only"> unread</span>{% endif %}</a>
+  <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav header-person" data-tour="menu" hidden>Menu</button>
+  {% include "core/_nav.html" %}
+  <div class="who" id="header-person">
+    {% if request.user_organisations|length > 1 %}
+    <form method="post" action="{% url 'administration:switch_organisation' %}" class="org-switch" data-tour="acting-for">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label for="org-switch">Acting for</label>
+      <select id="org-switch" name="organisation">{% for o in request.user_organisations %}<option value="{{ o.code }}"{% if o == request.organisation %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select>
+      <button type="submit">Switch</button>
+    </form>
+    {% elif request.organisation %}<span class="org-badge" data-tour="acting-for"><span class="label">Acting for</span> <b>{{ request.organisation.code }}</b></span>{% endif %}
+    {% if nav.member %}<a class="queue-link util" href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue{% if queue_count %} <span class="count wait">{% if queue_count > 99 %}99+{% else %}{{ queue_count }}{% endif %}</span><span class="sr-only"> waiting</span>{% endif %}</a>{% endif %}
+    <a class="bell" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}>Notifications{% if unread_notifications %} <span class="count">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span><span class="sr-only"> unread</span>{% endif %}</a>
+    <a class="util" href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a>
+    <a class="util" href="{% url 'administration:account' %}" data-tour="account"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
+    <form method="post" action="{% url 'account_logout' %}" class="util">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
+  </div>
+  {% elif user.is_authenticated %}
+  {# Signed in with a password only while a second factor is required (mfa_pending): every page but the set-up sends them back to it (RequireMFAMiddleware), so the header offers only Sign out. #}
+  <div class="who"><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form></div>
+  {% else %}
+  {# The public header has the same narrow-screen Menu button as the signed-in one (UI review 2, #42). #}
+  <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
+  {% include "core/_nav.html" %}
+  <div class="who"><a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a> <a class="button primary" href="{{ sign_in_url }}" data-tour="sign-in">Sign in</a></div>
+  {% endif %}{% endblock %}
+</div>
+</header>
+<main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
+{% for bar in bars %}{% comment %}The bars at the top of every page: a CPUC system administrator's dated notice (releases.SiteNotice), from its start to
+   its end, and the changes announced in the release notes, until they take effect. One rule for both (releases/banners.py): a bar can be
+   put away once its note has been read, and a new note brings it back.{% endcomment %}
+<div class="coming-changes{% if bar.kind == 'notice' %} site-notice{% endif %}">{% if bar.kind == "notice" %}{% with n=bar.notice %}<p><strong>Notice:</strong> {{ n.text }}{% if n.link %} <a href="{{ n.link }}">More about this notice</a>.{% endif %}</p>{% endwith %}{% else %}{% with cc=bar.notes %}<p><strong>Coming change{{ cc|length|pluralize }}:</strong> {% for n in cc|slice:":2" %}<a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a>, {{ n.effective_on|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if cc|length > 2 %}; and <a href="{% url 'releases:index' %}">{{ cc|length|add:"-2" }} more</a>{% endif %}.</p>{% endwith %}{% endif %}
+  {% if bar.can_put_away %}<form method="post" action="{% url 'releases:put_away' %}" class="put-away">{% csrf_token %}<input type="hidden" name="bar" value="{{ bar.name }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="link">Put away<span class="sr-only"> {% if bar.kind == "notice" %}this notice{% else %}the coming changes{% endif %}</span></button></form>{% endif %}
+</div>
+{% endfor %}
+{% if messages %}{# Errors (e.g. "Set up your second factor first.") are alerts, the rest status messages. #}{% for message in messages %}{% if message.level_tag == "error" %}<p class="alert" role="alert">{{ message }}</p>{% endif %}{% endfor %}<ul class="messages" role="status">{% for message in messages %}{% if message.level_tag != "error" %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endif %}{% endfor %}</ul>{% endif %}
+{% block content %}{% endblock %}
+</main>
+{# One page-wide live region: scripts announce through window.cedarsAnnounce, never a new live region (ReCET 0.1.70: NVDA missed role=status beside a control). #}
+<div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<footer class="foot">
+  <span>California Public Utilities Commission · Energy Division</span>
+  <ul class="links">
+    <li><a href="{% url 'core:help' %}">Help</a></li>
+    <li><a href="{% url 'core:about' %}">About CEDARS</a></li>
+    <li><a href="{% url 'core:help_guide' 'accessibility' %}">Accessibility</a></li>
+    <li><a href="{% url 'releases:index' %}">Release notes</a></li>
+    <li><a href="{% url 'known:problems' %}">Known problems</a></li>
+    <li><a href="{% url 'limits:index' %}">Limits</a></li>
+    <li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a></li>
+    <li><a href="{% url 'feedback:form' %}?from={{ request.get_full_path|urlencode }}{% if request.page_help %}&amp;help={{ request.page_help.key|urlencode }}{% endif %}">Feedback on this page</a></li>
+    {% if user.is_authenticated and not mfa_pending %}<li><a href="{% url 'feedback:mine' %}">My requests</a></li>{% endif %}
+    <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li>
+  </ul>
+  {% if platform_version %}<span>CEDARS platform {{ platform_version }}</span>{% endif %}
+</footer>
+{# The page's help and tour, opened by the (?) beside its heading (cedars/core/page_help.py); with them, core/tour.js. #}
+{% page_help_dialog %}
+<script src="{% static 'core/app.js' %}" defer></script>
+<script src="{% static 'core/tick_lists.js' %}" defer></script>
+<script src="{% static 'core/pickers.js' %}" defer></script>
+<script src="{% static 'core/field_picker.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

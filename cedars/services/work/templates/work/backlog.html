@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% load work_tags %}
+{% block title %}Work items{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Work items</h1>{% page_help "work/backlog" %}</div>
+<p>Each work item is one problem to fix or one improvement to make, with the requests that asked for it. The backlog is the accepted items in one order: what is first is built first. A proposed item waits to be accepted or declined; declining an item and making one public take the CPUC's approval.</p>
+<p class="actions">{% if can_propose %}<a class="button" href="{% url 'work:new' %}">Propose a work item</a> {% endif %}<a href="{% url 'work:releases' %}" id="plans-link">Release plans</a> <a href="{% url 'work:measures' %}" id="measures-link">Measures</a></p>
+<form method="get" class="filters" aria-label="Filter the work items">
+  <div><label for="show">Show</label>
+  <select id="show" name="show">
+    {% for key, words in shows %}<option value="{{ key }}"{% if show == key %} selected{% endif %}>{{ words }}</option>{% endfor %}
+  </select></div>
+  <button type="submit">Apply</button>
+</form>
+{% pager page query=work_query label="Pages of work items" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Work items">
+<table class="list" id="work-items">
+  <caption class="sr-only">{% if show == "backlog" %}The backlog, in order: the first is built first{% elif show == "planned" %}Work items planned for a release, the soonest release first{% elif show == "proposed" %}Proposed work items, the oldest first{% elif show == "approval" %}Work items with a proposal waiting for the CPUC's approval, the oldest first{% elif show == "declined" %}Declined work items, the most recent first{% elif show == "done" %}Work items that went out in a release, the most recent first{% else %}Every work item, the newest first{% endif %}</caption>
+  <thead><tr>
+    {% if show == "backlog" %}<th scope="col">Place</th>{% endif %}
+    <th scope="col">Work item</th><th scope="col">Kind</th><th scope="col">Evidence</th><th scope="col">Size</th><th scope="col">Status</th>
+    {% if show == "backlog" and can_manage %}<th scope="col">Move</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for it in page %}
+  <tr>
+    {% if show == "backlog" %}<td>{{ it.position }}</td>{% endif %}
+    <th scope="row"><a href="{% url 'work:item' it.pk %}">{{ it.number }}: {{ it.title }}</a></th>
+    <td>{{ it.get_kind_display }}{% if it.severity %}<br><span class="small">{{ it.get_severity_display }}</span>{% endif %}</td>
+    <td>{{ it.requests }} request{{ it.requests|pluralize }}{% if it.organisations %} from {{ it.organisations }} organization{{ it.organisations|pluralize }}{% endif %}{% if it.urgent %} <strong class="status warn">{{ it.urgent }} urgent</strong>{% endif %}</td>
+    <td>{% if it.size %}{{ it.get_size_display }}{% else %}<span class="muted">Not set</span>{% endif %}</td>
+    <td><span class="status {{ it.status|work_class }}">{% if it.status == "planned" %}Planned for release {{ it.release.name }}{% elif it.status == "done" %}Done in release {{ it.release.name }}{% else %}{{ it.get_status_display }}{% endif %}</span>{% if it.public %} <span class="status info">Public</span>{% endif %}{% if it.awaits_approval %} <span class="status warn">Waiting for approval</span>{% endif %}</td>
+    {% if show == "backlog" and can_manage %}
+    <td class="nowrap">
+      <form method="post" action="{% url 'work:act' it.pk %}" class="inline-form">{% csrf_token %}
+        <input type="hidden" name="do" value="move"><input type="hidden" name="back" value="backlog">
+        {% if it.position > 1 %}<button type="submit" name="to" value="up" aria-label="Move {{ it.number }} up">Up</button>{% endif %}
+        {% if not it.is_last %}<button type="submit" name="to" value="down" aria-label="Move {{ it.number }} down">Down</button>{% endif %}
+      </form>
+    </td>
+    {% endif %}
+  </tr>
+  {% empty %}<tr><td colspan="7">{% if show == "backlog" %}Nothing is in the backlog yet. Accept a proposed work item to start it.{% elif show == "approval" %}Nothing is waiting for approval.{% else %}Nothing here.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page query=work_query label="Pages of work items" where="below" %}
+{% endblock %}

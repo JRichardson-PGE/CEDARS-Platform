@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}Work item for a request{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'feedback:inbox' %}">Feedback</a></li><li><a href="{% url 'feedback:detail' fb.pk %}">{{ fb.get_kind_display }} of {{ fb.created_at|date_words }}</a></li></ol></nav>
+<div class="page-title"><h1>Work item for a request</h1>{% page_help "work/from_request" %}</div>
+<dl class="facts" id="the-request">
+  <dt>Request</dt><dd>{{ fb.get_kind_display }} of {{ fb.created_at|datetime_words }}{% if fb.organisation %}, sent for {{ fb.organisation.code }}{% endif %}</dd>
+  <dt>Page</dt><dd><code>{{ fb.page }}</code></dd>
+  <dt>Message</dt><dd class="prewrap">{{ fb.message }}</dd>
+</dl>
+{% if joined %}
+<p id="already">This request is joined to <a href="{% url 'work:item' joined.pk %}">{{ joined.number }}: {{ joined.title }}</a>. Take it off that work item, on its page, to join it to another.</p>
+{% else %}
+{% if any_items %}
+<section class="card" aria-labelledby="join-h">
+  <h2 id="join-h">Join it to a work item</h2>
+  <p>When a work item already covers this request, join the request to it. Many requests, one work item.</p>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="join">
+    {{ join_form.non_field_errors }}
+    {% for field in join_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Join the request</button></div>
+  </form>
+</section>
+{% endif %}
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">Propose a new work item</h2>
+  <p>Write it in your own words, not the sender's: a work item names no person, organization or filing. The request is joined to it.</p>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="new">
+    {{ form.non_field_errors }}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Propose it</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

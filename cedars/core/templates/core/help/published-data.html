@@ -1,0 +1,23 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Everything published is open to everyone, with no account needed. Only confirmed filings are published.</p>
+<h2>First steps</h2>
+<ol>
+  <li>Open the <a href="{% url 'data:dashboards' %}">portfolio dashboard</a>, choose the years, metric and view at the top, then
+  <strong>Apply</strong>. The page's address keeps your choices, so a copied link shows the same numbers.</li>
+  <li>Select a row to drill down (PA, sector, program, measure). What is left out is always stated on the page.</li>
+  <li>Download the rows you see, or the records behind them, as CSV, Excel or Parquet.</li>
+</ol>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'data:records' %}">Record downloads</a>: the published measure-level records, with the columns you choose.</li>
+  <li><a href="{% url 'data:views' %}">Saved views</a>: save, share or ask to publish a dashboard or records view (signed in).</li>
+  <li><a href="{% url 'documents:library' %}">Document library</a>: PA documents, CPUC guidance, DEER resources and EM&amp;V studies (the
+  <a href="{% url 'core:help_guide' 'documents' %}">Documents and EM&amp;V</a> guide).</li>
+  <li><a href="{% url 'dictionary:index' %}">Data dictionary</a> and its <a href="{% url 'dictionary:changes' %}">change log</a>: every field and the name CET used for it.</li>
+  <li><a href="{% url 'rules:index' %}">Validation rules</a>: what each filing is checked against (signed in).</li>
+  <li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a>: decisions that change CEDARS' data or calculations.</li>
+  <li><a href="{% url 'data:metrics_csv' %}">Metric catalog</a> (CSV) and the open data API at <code>/api/v1/data/</code>
+  (<a href="/api/v1/schema">API description</a>).</li>
+</ul>
+{% endblock %}

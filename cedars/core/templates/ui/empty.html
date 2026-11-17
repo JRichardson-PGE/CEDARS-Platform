@@ -1,0 +1,7 @@
+{% comment %}An empty state in place of a list: what the list will hold, why it is empty, and the one action that fills it.
+Use: {% include "ui/empty.html" with title="No runs yet" text="..." action_url=... action="Start a run" %} (action optional).{% endcomment %}
+<div class="empty">
+  <p class="empty-title">{{ title }}</p>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+  {% if action_url %}<p><a class="button{% if action_primary %} primary{% endif %}" href="{{ action_url }}">{{ action }}</a></p>{% endif %}
+</div>

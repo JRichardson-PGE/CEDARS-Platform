@@ -1,0 +1,302 @@
+# Help for each page (cedars/core/page_help.py): the front page, the portfolio dashboard and record downloads.
+
+data/front:
+  title: The front page
+  guide:
+    - Signed in, Your work comes first, above the portfolio. It is the short version of My queue (the top three items and how many
+      wait), your organization's next filing of each kind with its status and the one thing to do, your last three runs and any access
+      request you are waiting on. Each card links to its full list.
+    - What CEDARS is, how the portfolio is doing, and Help. "How the portfolio is doing" adds up the published claims of every PA,
+      year by year, leaving out what the dashboards leave out by default (the note under the charts names it).
+    - The five figures at the top are total system benefit, electricity saved, peak demand avoided, gas saved and spending in the
+      chosen year, each with its change from the year before (an arrow and the words, not color alone) and a line of every year.
+    - The charts show the chosen metric by year with the change from each year before and the average, the metric against
+      spending (each as a share of its first year), the largest PAs from the first year to the chosen one, and the total system
+      benefit per dollar spent. Years before a metric was published are marked as such, not shown as zero.
+    - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
+  how:
+    - Choose a metric (the buttons, or select a figure), a group of program administrators (All, IOU, REN or CCA), or a year and
+      Apply. Every choice is a link, so the page works without scripts and the address can be shared.
+    - Point at a chart to see each value. With the keyboard, Tab to the chart and use the arrow keys, Home and End; Escape hides
+      the values. Show as a table under each chart lists them all.
+    - The links under each chart open the dashboard page that breaks its numbers down; Portfolio Dashboard opens the full dashboard.
+    - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
+    - Sign in, or Create an account; the published data need neither.
+  see: published-data
+  tour_from: front
+
+# The dashboard's pages share one tour; each has its own guide.
+data/dashboard: &dashboard
+  title: The portfolio dashboard
+  guide:
+    - Forecast and claimed results from the confirmed filings, side by side, for every PA. Each page of the dashboard looks at them one
+      way; the tabs at the top move between pages and keep your years and filters.
+    - Every number is summed from the published records, and every row links to the records behind it, so you can download exactly what
+      a row adds up.
+  how: &dashboard_how
+    - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
+      then Apply.
+    - Narrow to PAs, sectors, programs or measures under Filters. Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs)
+      or single PAs inside one. Statewide programs count under the PAs that fund them; the records page has them on their own. Applied
+      filters show as chips; Remove takes one off. Pick programs from the list under Program (type a PrgID or part of a name).
+    - Point at a chart's row to see its values. With the keyboard, Tab to the chart and use the up and down arrow keys; Escape hides
+      the values. The table under each chart lists them all.
+    - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
+    - Select a row's name to drill down one level; Program page opens the program.
+    - Download these rows gives the rows you see as CSV, Excel or Parquet, forecast and claimed together in one file when both are
+      shown; Download the records behind these rows gives the measure-level records they add up, one download per series.
+  see: published-data
+  tour: &dashboard_tour
+    - target: main nav.subnav
+      title: The dashboard's pages
+      text: Each page looks at the same published data another way. Your years and filters go with you from page to page.
+    - target: form.dash-controls
+      title: What to show
+      text: The series, the filing a forecast comes from, the years, the metric and how to break the rows down. Choose, then Apply.
+        Select Filters and view to fold these away; the page remembers it, as it does for each chart and table.
+    - target: details.dash-filters
+      title: Filters
+      text: Narrow to PAs (or every PA of a type), sectors, programs or measures. The count says how many are applied.
+    - target: dl.tiles
+      title: The totals
+      text: The totals of the rows below for each series, and the share of the forecast claimed so far.
+      optional: true
+    - target: main .chart, main svg[role=img]
+      title: The chart
+      text: The same numbers as the table under it. Point at a row, or Tab to the chart and use the arrow keys, to see its values. The
+        table is the full record; the chart is for the shape.
+      optional: true
+    - target: main table.data, main table.list
+      title: The rows
+      text: One row per group. Select a name to drill down, and use the column headings to sort. Zero and blank differ; blank means
+        nothing is filed.
+      optional: true
+    - heading: Download these rows
+      title: Download these rows
+      text: Exactly the rows you see, as CSV, Excel or Parquet, each file saying which release and filters it came from. With forecast
+        and claimed both shown, one file holds both, with a Series column.
+      optional: true
+    - target: "#record-downloads"
+      title: The records behind them
+      text: The measure-level records these rows add up, with the same filters. A large set is made in the background and you are told
+        when it is ready.
+      optional: true
+    - target: section.saved-views
+      title: Saved views
+      text: Views of this page you can open, yours, shared with you or published. Signed in, save this page's choices under a name to open
+        it again on the data published then, or to share it.
+
+data/dashboard/overview:
+  <<: *dashboard
+  title: "Dashboard: overview"
+  guide:
+    - Forecast and claimed results side by side by PA, segment, sector, implementer type or measure use category, with the share of the
+      forecast achieved. Start here and drill down from any row.
+    - The forecast is each PA's latest confirmed budget filing unless you choose one under Filing; claims are the confirmed claims to
+      date.
+
+data/dashboard/goals:
+  <<: *dashboard
+  title: "Dashboard: goals"
+  guide:
+    - Results against the CPUC's energy efficiency goals for each IOU territory, as annual targets or cumulative cycle goals. A CCA's or
+      REN's results count toward a territory only as the goal decision's counting rules say.
+    - Codes and standards, Energy Savings Assistance and pension and benefits are left out, as goals count them. The goals come from the
+      confirmed goal set in force; until one covers the years, the page says there is no goal to compare with.
+
+data/dashboard/total-system-benefit:
+  <<: *dashboard
+  title: "Dashboard: total system benefit"
+  guide:
+    - Total system benefit (TSB), the CPUC's measure of a portfolio's value to the grid, by sector and year, each PA's split across
+      sectors, and every program.
+
+data/dashboard/programs:
+  <<: *dashboard
+  title: "Dashboard: program detail"
+  guide:
+    - Programs ranked by the metric you choose. Each program links to its program page and drills down to its measures by use category.
+
+data/dashboard/measures:
+  <<: *dashboard
+  title: "Dashboard: measure detail"
+  guide:
+    - Results by measure use category and by measure. Each measure links to the claim or filing records behind it. Opened from a program,
+      the page is filtered to that program.
+
+data/dashboard/budget:
+  <<: *dashboard
+  title: "Dashboard: budget and spending"
+  guide:
+    - The operating budget (the approved filing with the fund shifts in effect) against the forecast budget, the spending the PAs report
+      monthly and the expenditure they claim, by year and by program, and the cost elements by sector.
+    - Monthly reports are the PAs' own figures and are not validated the way claims are; the page labels them preliminary.
+
+data/dashboard/cost-effectiveness:
+  <<: *dashboard
+  title: "Dashboard: cost effectiveness"
+  guide:
+    - Cost-test ratios (TRC, PAC, RIM and the societal tests) by sector, year and program. Each ratio is summed benefits over summed costs,
+      never an average of ratios. Without admin leaves administration costs out of the cost.
+    - Programs flagged as excluded from cost effectiveness, codes and standards, Energy Savings Assistance and pension and benefits are
+      left out unless you include them.
+
+data/dashboard/energy-savings:
+  <<: *dashboard
+  title: "Dashboard: energy savings"
+  guide:
+    - Electric energy (kWh), demand (kW) and gas (therms) savings by sector, year and program. Choose net or gross, and first year or
+      lifecycle; demand savings are first year only.
+
+data/dashboard/environmental-impact:
+  <<: *dashboard
+  title: "Dashboard: environmental impact"
+  guide:
+    - >-
+      Emissions avoided, in metric tons, by sector, year and program: greenhouse gases and the criteria pollutants, net or gross, first
+      year or lifecycle.
+
+data/records:
+  title: Record downloads
+  guide:
+    - The published measure-level records for every PA in one file. Choose which records (data set, filing, years, PAs, programs,
+      measures, exclusions) and which columns, look through them on the page, then download them as CSV, Excel or Parquet.
+    - Records hold every published program unless you leave some out. A set larger than can be made while you wait is made in the
+      background once you are signed in; you are told when it is ready and it waits under Your downloads.
+  how:
+    - Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs) or single PAs inside one, and statewide programs. Nothing
+      ticked keeps every PA.
+    - Under Program, type a PrgID or part of a program's name and pick it from the list; pick as many as you need, and untick one to
+      drop it. A PrgID that is not in the registry is named, with the programs closest to it.
+    - Start from a column preset, then choose columns in the two lists. On the left, narrow the list with Show (a group) or the search
+      box (names and definitions), select columns and press Add (or Enter); the list on the right is what the download holds, in the
+      order the file has them. Select columns there and press Remove (or Delete) to take them out. Selecting a column shows its
+      definition below the lists. Without scripts, open a group to tick its columns instead. Every column is defined in the data
+      dictionary.
+    - Signed in, make the columns you chose your default, or save the whole choice of records and columns as a view under Saved views.
+    - Each file records its release, when its data last changed, the filters, what was left out and the columns under their canonical
+      names.
+  see: published-data
+  tour:
+    - target: form.records-form
+      title: Which records
+      text: The data set, the forecast filing, the years, the PAs and any programs or measures. Choose, then Show these records.
+    - heading: More filters and exclusions
+      title: More filters and exclusions
+      text: Sectors, delivery and the programs left out (codes and standards, ESA, pension and benefits, programs excluded from cost
+        effectiveness).
+    - target: fieldset.column-picker
+      title: Columns
+      text: Start from a preset, then add columns from the list on the left to the list on the right, searching by name or
+        definition. The count says how many you have chosen.
+      optional: true
+    - heading: Download
+      title: Download
+      text: How many records match, their totals, and the files. A large set is made in the background.
+      optional: true
+    - target: form.default-columns
+      title: Your default columns
+      text: Signed in, make the columns you chose your own default, so the page starts from them instead of the key columns.
+      optional: true
+    - heading: The records
+      title: The records
+      text: The chosen columns, a page at a time, so you can check them before you download.
+      optional: true
+    - target: section.saved-views
+      title: Saved views
+      text: Views of the records page you can open. Signed in, save these records and columns under a name to open again or share.
+
+data/views:
+  title: Saved views
+  guide:
+    - Dashboard pages and the records page saved with their choices (years, filters, metric, and for records the columns). A view keeps
+      the choices, not the numbers, so it always opens on the data published now.
+    - Your views are yours to change, share with named people or your organization, or ask the CPUC to publish. Views others shared
+      with you, and views the CPUC published for everyone, are listed too; anyone can open a published view without signing in.
+  how:
+    - Save a view from the Saved views part at the bottom of any dashboard page or the records page.
+    - Select a view's name for its details, sharing and publication; Open goes straight to the page with its choices.
+  see: published-data
+  tour:
+    - target: "#waiting"
+      title: Waiting to be published
+      text: For CPUC system administrators, the views their owners asked to publish. Select one to publish it or decline.
+      optional: true
+    - target: "#yours"
+      title: Your views
+      text: The views you saved, who can open each, and when each last changed.
+      optional: true
+    - target: "#shared"
+      title: Shared with you
+      text: Views others shared with you by name or with your organization. Save a copy to change one.
+      optional: true
+    - target: "#published"
+      title: Published views
+      text: Views the CPUC published for everyone.
+
+data/view:
+  title: A saved view
+  guide:
+    - One saved view: the page it opens and its choices. Open this view shows the page with those choices on the data published now.
+    - Its owner renames it, shares it with named people or with the members of one of their organizations, asks the CPUC to publish it,
+      or deletes it. A CPUC system administrator publishes or unpublishes it with a reason. A published view does not change until it
+      is unpublished. Every change is recorded, and the owner sees the history here.
+  how:
+    - Open this view to see it; Save a copy to your views to keep one of your own to change.
+    - "Owner: Share with takes the email address of a CEDARS account; Stop sharing takes it back."
+    - To change a view's choices, open it, change them, and save over it with "Or replace one of yours".
+  see: published-data
+  tour:
+    - target: main a.button.primary
+      title: Open this view
+      text: The page with the saved choices, on the data published now.
+    - target: main dl.view-facts
+      title: What it holds
+      text: The page and each choice in words. Signed in, also who saved it and who can open it.
+    - target: "#sharing"
+      title: Sharing
+      text: Share it with people by their account's email address, or with your organization's members.
+      optional: true
+    - target: "#publication, #publish-request"
+      title: Publication
+      text: The owner asks the CPUC to publish a view; a CPUC system administrator publishes it, declines, or unpublishes it, with a
+        reason.
+      optional: true
+    - target: "#history"
+      title: History
+      text: Every change to the view, who made it and why.
+      optional: true
+
+data/downloads:
+  title: Your downloads
+  guide:
+    - Record downloads too large to make while you wait. Each is made in the background; you are told on your notifications page and by
+      email when it is ready, and the file is kept here for a set number of days.
+  see: published-data
+  tour:
+    - target: main table.list, main p.none-yet
+      title: Your downloads
+      text: When you asked for each, how many records, the format and its status. Download the file once it is done; select the date for
+        its details.
+
+data/download_job:
+  title: A background download
+  guide:
+    - >-
+      One record download made in the background: its status, how many records it holds, and once done its size and SHA-256 checksum, so
+      you can confirm the file arrived whole.
+    - A queued download says how many are ahead of it. You can leave the page; you are told when it is ready.
+  how:
+    - Download gets the file once it is ready; compare its SHA-256 with the one shown to check it arrived whole.
+  see: published-data
+  tour:
+    - target: main dl.facts
+      title: Status and details
+      text: Queued, running, done or failed, when you asked, the records, and once done the file's size and checksum.
+    - target: main a.button.primary
+      title: Download the file
+      text: Shown once the file is made.
+      optional: true
+    - target: main a[href*="/data/records/"]:not(nav a)
+      title: What it holds
+      text: Opens the records page with the same records and columns.

@@ -1,0 +1,18 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Set: {{ build }}</h1>{% page_help "refdata/builder/set" %}</div>{% endblock %}
+{% block step %}
+<p>What the set is and the program years it is in force for. The id is made from the workstream, the first program year and an
+optional ending: {{ build.data.id|default:"not set yet" }}. A registered set's id and version name one file for good, so a changed set
+takes a new version.</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <fieldset><legend>Id</legend>
+    {{ form.workstream.as_field_group }}{{ form.first_year.as_field_group }}{{ form.tail.as_field_group }}
+  </fieldset>
+  {{ form.label.as_field_group }}{{ form.description.as_field_group }}{{ form.version.as_field_group }}
+  <fieldset><legend>Program years</legend>{{ form.years_from.as_field_group }}{{ form.years_to.as_field_group }}</fieldset>
+  {{ form.draft.as_field_group }}
+  {% if form.share %}{{ form.share.as_field_group }}{% endif %}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary" name="then" value="next">Save and go on</button><button type="submit" name="then" value="stay">Save</button></div>{% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,386 @@
+# Help for each page (cedars/core/page_help.py): budget filings, versions, comparisons, fund shifts and the operating budget.
+
+budgets/index:
+  title: Budgets
+  guide:
+    - Budget filings follow the four-year program cycle, a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice
+      letters. This page lists each cycle's filings with their due dates, where your PA's filings stand when you act for one, and the
+      budgets that stand for each PA.
+    - The newest cycle is open; earlier cycles are folded under their headings. Open a filing to upload, check, price and confirm it.
+    - Every confirmed version is kept and can be compared with any other; a correction is a new version, published with a change letter
+      in the change log. A cycle's budgets that stand are each PA's most recent confirmed filing in it. Confirmed filings, their inputs
+      and results are open to every signed-in user.
+  how:
+    - Budget filing template (Excel) is the workbook to fill in, Measure and ProgramCost with a Fields sheet defining every column.
+    - Compare two versions shows any two budget versions you can read side by side, by program.
+    - Fund shifts move budget between programs within a cycle; the standing filing plus the shifts in effect is the operating budget.
+  see: budgets
+  tour:
+    - target: main .head-row .actions, main .head-row .button
+      title: Compare, fund shifts, the change log and the template
+      text: Compare any two versions, open the fund shifts, see every correction to a published filing in the change log, or
+        download the budget filing template. CPUC administrators set up new filings here too.
+    - target: main section.cycle
+      title: The current cycle
+      text: Each filing of the cycle with its due date and, when you act for a PA, its status. Select a filing to open it (CPUC staff
+        then choose the PA).
+    - heading: Budgets that stand
+      title: Budgets that stand
+      text: Each PA's confirmed budget for the cycle, the version every comparison and the operating budget start from.
+      optional: true
+    - target: main details.section
+      title: Earlier cycles
+      text: Open a cycle to see its filings.
+      optional: true
+
+budgets/filing:
+  title: A budget filing
+  guide:
+    - One PA's filing for one due date. Upload the filing (a .zip with Measure.csv and ProgramCost.csv, or an Excel workbook with those
+      sheets), and CEDARS checks every record against the budget filing rules. Fix what is rejected and upload again; the new upload
+      replaces the version's earlier one.
+    - Once nothing is rejected, price the version (the cost-effectiveness run on the cycle's ACC and allocation version), review the
+      results, and Confirm and publish. Before the due date you can un-confirm; after it, a correction is a new version, so Ask to reopen
+      and give the reason. Every confirmed version is kept.
+  how:
+    - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
+    - By program and year opens the priced version, with the excluded programs and the reconciliation.
+  see: budgets
+  tour:
+    - target: main dl.facts
+      title: Due date and pricing
+      text: When this filing is due, and the ACC, allocation version and cost tests it is priced on.
+    - target: "#choose-pa-h"
+      title: Choose a program administrator
+      text: >-
+        Each PA files its own filing. CPUC staff, and anyone not acting for a PA, choose one here to see its filing; others' published
+        versions are open to everyone signed in.
+      optional: true  # only when you are not acting for a PA
+    - target: "#nothing-yet"
+      title: Not started yet
+      text: The PA has not started this filing, and you cannot upload it; its filers do that here.
+      optional: true
+    - target: "#filing-steps"
+      title: Where the filing stands
+      text: The five steps from upload to publication, with the one it is at said in words.
+      optional: true
+    - target: "#now-h"
+      title: The outcome and the next step
+      text: >-
+        What the last check or pricing found, and the one thing to do next: upload or correct, price, confirm, or ask to reopen after the
+        due date. While it is priced the page follows the run and shows the results when it finishes.
+      optional: true
+    - target: "#findings-h"
+      title: Findings by rule
+      text: >-
+        Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
+        correct that record.
+      optional: true
+    - target: "#upload"
+      title: Upload
+      text: The filing as one .zip or workbook, or several files chosen together. It replaces this version's earlier upload.
+      optional: true
+    - target: "#versions-h"
+      title: Versions
+      text: Every version of this filing, newest first, with its status and reason.
+      optional: true
+
+budgets/filing_new:
+  title: Setting up a budget filing
+  guide:
+    - For CPUC system administrators. A filing is due from the PAs ticked under Who files (every PA unless some are unticked) on one date for its program years, any number of them (four for
+      most applications, eight for some, one for an annual advice letter). Choose its type, an application or an advice letter, and
+      its name. An advice letter's name says which one it is (a TUAL, an MCAL, or any later kind), so a new kind needs no change to
+      CEDARS. Then its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
+    - Setting it up puts it on the filing calendar. From then on it is changed there, on its deadline's page (its name, dates and
+      notes, and its program years until a PA starts filing).
+    - It is priced on the ACC chosen here, with statewide programs allocated by the allocation version chosen (or the most recent
+      confirmed one for each program year).
+    - Every filing in the set follows the filing specification version chosen here, for every upload, check and correction. The current
+      version is offered; an older one still in effect may be chosen, if its engine release has the ACC the set is priced on. The set can
+      move to a later version from its set-up page.
+  how:
+    - Choose the type and name it (an advice letter needs a name, e.g. 2028-2031 True-up advice letter (TUAL); an application may
+      go without), enter the first and last program years, the due date, the ACC and the allocation version, then Set up the filing.
+  see: budgets
+  tour:
+    - target: main form
+      title: The filing
+      text: Type, name, program years, dates and how it is priced. Every PA sees it on Budgets and the filing calendar once it is set up.
+    - target: "#id_filers"
+      title: Who files
+      text: Every PA is ticked; untick those not expected to file. Only those ticked can start a filing and are on the Filings page's status.
+
+budgets/setup:
+  title: A budget filing's set-up
+  guide:
+    - The ACC and the statewide allocation version the next pricing of this filing uses. Versions already priced keep the ones they were
+      priced with; their run records both. Its notes change in the same form, with the reason for the change, which the audit trail keeps.
+    - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
+      reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
+      Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
+    - Not every program administrator files every filing. Who files lists those expected to, and only they can start a filing for it, and
+      only they are listed on the Filings page's status. A PA that has started filing stays on it, since what it filed is kept.
+    - >-
+      Filings in this set lists each filing the set-up put on the calendar and whether it is on the calendar or canceled. Any one of
+      them that no organization has started can be canceled with a reason, leaving the rest of the set as it is: no filing starts for
+      it and no reminders are sent. A canceled filing is restored the same way.
+  how:
+    - The links at the top go to each part of the page. Each part saves on its own, with its own reason.
+    - Choose the ACC and the allocation version, give the reason, then Save how it is priced. The next pricing uses them.
+    - To move due dates, change them under Due dates, give the reason and Save the due dates.
+    - To remove the set-up, open Remove under Remove this set-up, give the reason and press its button. It can be set up again
+      afterward.
+    - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
+      started filing stays on it.
+    - To cancel one filing, open Cancel one filing under Filings in this set, choose it, give the reason and press Cancel the filing;
+      to bring one back, choose it under Restore a canceled filing.
+  see: budgets
+  tour:
+    - target: "#setup-pricing"
+      title: Pricing settings
+      text: Choose the ACC and allocation version and Save.
+    - target: "#setup-specification"
+      title: Filing specification
+      text: The filing specification version every filing in the set follows, and a link to move the set when a later version is in effect.
+      optional: true
+    - target: "#setup-filings"
+      title: Filings in this set
+      text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.
+    - target: "#setup-due-dates"
+      title: Due dates
+      text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#setup-filers"
+      title: Who files
+      text: Tick the program administrators expected to file; only they can start a filing and only they are on the Filings page's status.
+    - target: "#remove-setup"
+      title: Remove this set-up
+      text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
+
+budgets/version:
+  title: A budget version
+  guide:
+    - One version of a PA's budget filing, by program and year, with the priced results once it is priced. A confirmed version is
+      published, and its inputs and run settings are published with it so anyone can reproduce its results.
+    - Choose program years and whether to show the excluded programs, then Apply. The reconciliation shows the filed budget adds up to the
+      totals; the files are the tables as filed.
+  how:
+    - Download this table (CSV) gives the rows you see. Column definitions explains each column.
+    - Compare with another version opens the comparison with this version chosen.
+    - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
+  see: budgets
+  tour:
+    - target: "#confirm-here-h"
+      title: Ready to confirm
+      text: Once this version is priced, review its results here and confirm them to publish, without going back to the filing page.
+      optional: true  # the latest version, priced, for someone who may confirm it
+    - target: main form.filters
+      title: What to show
+      text: Program years and the excluded programs (programs flagged to be left out of budget totals).
+    - target: dl.tiles, main .tile
+      title: Totals
+      text: The totals of the programs shown.
+      optional: true
+    - target: "#programs-h"
+      title: By program
+      text: Each program's budget and results, with a CSV of the rows and the column definitions.
+    - target: "#rec-h"
+      title: Reconciliation
+      text: That the filed budget adds up, program by program, to the version's totals.
+      optional: true
+    - target: "#files-h"
+      title: Files
+      text: The filed tables and, once confirmed, the run settings that priced them.
+      optional: true
+    - target: main .head-row .button
+      title: Compare
+      text: Compare this version with any other you can read.
+    - target: "#comments-h"
+      title: Comments
+      text: Your organization and CPUC staff discuss the filing here, with files attached. Not public; a comment is never edited.
+      optional: true
+
+budgets/compare:
+  title: Comparing budget versions
+  guide:
+    - Any two budget versions you can read, side by side by program, such as a business plan and its TUAL, two versions of one filing, or two
+      PAs' filings. Neither version changes.
+    - It opens on four figures (budget, total system benefit, TRC and PAC) so the table fits the page; tick others under Figures and
+      Compare to add their columns.
+  see: budgets
+  tour:
+    - target: main form.filters
+      title: The two versions
+      text: Choose version a and version b, the program years and the figures (four to start with), then Compare.
+    - target: main table.data
+      title: Side by side
+      text: Each program's values in a and b and the difference.
+      optional: true
+
+budgets/shifts:
+  title: Fund shifts
+  guide:
+    - A fund shift moves dollars between programs within a cycle, across its program years if need be. It is not a budget filing; the
+      standing filing plus the shifts in effect is the operating budget.
+    - A shift that touches a statewide program is entered as the change to the whole statewide budget; CEDARS splits it among the funding
+      PAs by their allocation factors. Each funder with a net gap says where it comes from or goes among its own programs and acknowledges;
+      the shift takes effect once all have. No shift may take a program's operating budget below zero.
+  how:
+    - New fund shift starts one for the organization you act for.
+    - The operating budget for each cycle is linked under the description: your PA's, or for CPUC staff every PA's to choose from.
+  see: budgets
+  tour:
+    - target: main .head-row .actions
+      title: New fund shift
+      text: Name the shift and say why, then enter the amounts.
+      optional: true
+    - target: "#waiting-h"
+      title: Waiting for you
+      text: Shifts by other PAs that change your portion of a statewide program, to acknowledge.
+      optional: true
+    - target: "#all-h"
+      title: Shifts you can see
+      text: Every shift you can read, newest first, with its status.
+
+budgets/shift_new:
+  title: Starting a fund shift
+  guide:
+    - Name the shift, choose its cycle (it starts on the current one) and say why the money moves. The amounts come next, line by line.
+  how:
+    - Name the shift, choose its cycle and say why, then Start the shift and enter its lines.
+  see: budgets
+  tour:
+    - target: main form
+      title: The shift
+      text: Its title, cycle and reason. Start the shift, then enter the amounts.
+
+budgets/shift_lines:
+  title: A fund shift's amounts
+  guide:
+    - One line per program and year. A negative amount moves money out of that program year and a positive one moves it in; the lines must
+      add up to zero. Blank lines are ignored.
+    - A statewide program's line is the change to the whole program. Each funding PA's portion of it changes by its allocation factor.
+      Two statewide lines move money between statewide programs; where their rates differ, each funder covers its net gap from its own programs.
+    - No line may take a program's operating budget below zero; a shift that would is rejected.
+  how:
+    - Type a PrgID or part of a program's name and pick it from the list (only the programs you can name in this shift are offered),
+      then the year and the amount. Beside each line is what that program-year's operating budget holds now.
+    - As you type, a line says what is wrong with it (a program you cannot name, an amount that is not a figure, a line that would take
+      a program-year below zero), and the net updates. Add a line gives another blank line; Save and add more lines does the same
+      without scripts.
+    - To enter many lines at once, open Paste lines and paste the PrgID, year and amount columns from a spreadsheet.
+    - Save when the net is zero, then submit the shift from its page.
+  see: budgets
+  tour:
+    - target: table.shift-lines
+      title: The lines
+      text: Program, year and amount, with each program-year's operating budget beside the line and the net below.
+    - target: details.paste-lines
+      title: Paste lines
+      text: Paste many lines at once from a spreadsheet; they are added when you save.
+    - target: main form .actions
+      title: Save
+      text: Save, or Save and add more lines for another set of blank lines.
+
+budgets/shift:
+  title: A fund shift
+  guide:
+    - What a fund shift moves, each PA's part, and where it stands. A draft can be changed and submitted; a submitted shift waits for each
+      co-funding PA with a net gap to place it and acknowledge, then takes effect. The split table shows every funder's factor, portion and net.
+    - Problems that stop it being submitted are listed above the Submit button; warnings do not block it. The PA that made it may withdraw
+      it until it takes effect.
+  how:
+    - While the shift is a draft, enter or change its amounts, then Submit the shift.
+    - A co-funding PA places its portion and acknowledges from here; the PA that made it may Withdraw the shift until it takes effect.
+  see: budgets
+  tour:
+    - target: "#lines-h"
+      title: What it moves
+      text: The lines by PA, program and year, and each PA's part.
+    - target: "#shares-h"
+      title: How the statewide amounts split
+      text: Each funding PA's factor and portion of every statewide line, the net it covers, and whether it has acknowledged.
+      optional: true
+    - target: main form.actions, main a.button.primary
+      title: Submit or acknowledge
+      text: Submit a draft, or, as a co-funder, place your portion and acknowledge.
+      optional: true
+
+budgets/shift_acknowledge:
+  title: Acknowledging a fund shift
+  guide:
+    - Another PA's shift changes your portion of a statewide program by your allocation factors. The table shows each statewide line, your
+      factor, your portion and the net. Place the net among your own programs, so your operating budget stays whole, and acknowledge; no
+      line may take a program below zero. The shift takes effect once every co-funder has.
+  how:
+    - Spread your portion over your own programs and years, then place your portion and acknowledge.
+  see: budgets
+  tour:
+    - target: main form
+      title: Your portion
+      text: Where your portion goes among your programs and years. The amounts must add up to the portion shown above.
+
+budgets/operating:
+  title: The operating budget
+  guide:
+    - A PA's operating budget for a cycle, the approved budget (its standing filing) plus the fund shifts in effect, by year and by
+      program. Shifts that took effect before the approved budget was confirmed are not added; a later filing is taken to carry them.
+    - A statewide program's row is the PA's portion, its weighted allocation factor of the whole program's approved budget as the lead PA
+      filed it, with the fund shifts' portions added.
+    - The CPUC has no operating budget of its own. CPUC staff first choose the PA whose operating budget to see.
+  see: budgets
+  tour:
+    - target: "#operating-pas"
+      title: Choose a PA
+      text: The PAs with a budget filing or a fund shift in the cycle. Choose one to see its operating budget.
+      optional: true
+    - target: main form.filters
+      title: PA and year
+      text: Choose the PA (CPUC users) and a program year to see that year by program.
+      optional: true
+    - heading: By year
+      title: By year
+      text: The approved budget, the shifts and the operating budget for each program year.
+      optional: true
+    - heading: By program
+      title: By program
+      text: The same by program, with a CSV of the view.
+      optional: true
+    - heading: Shifts in effect
+      title: Shifts in effect
+      text: The shifts added, each linked to its page.
+      optional: true
+
+budgets/changes:
+  title: Budgets change log
+  guide:
+    - Every correction to a published budget filing, newest first. A correction is a new version of a filing made after it was published;
+      the version it replaces stays as it was confirmed. Each correction is published with a change letter giving the date, the reason and
+      each program whose budget or results changed.
+    - Choose a program administrator or a filing cycle, then Apply, to narrow the list.
+  see: budgets
+  tour:
+    - target: main form.filters
+      title: Which corrections
+      text: One PA or every PA, one filing cycle or every cycle.
+      optional: true
+    - target: main table.list
+      title: The corrections
+      text: When each was published, the version it replaces, its reason and how many programs changed. Select one to read its change letter.
+
+budgets/change_letter:
+  title: A budget change letter
+  guide:
+    - What a correction to a published budget filing changed. The facts give when it was published, the version it corrects (kept as it
+      was confirmed), the correction and its reason.
+    - The table lists each program whose budget or priced results changed, before and after, over every program year, with the total. A
+      version that was not priced shows its results blank.
+  see: budgets
+  tour:
+    - target: main dl.facts
+      title: The correction
+      text: Published when, which version it corrects, and why.
+    - target: "#programs-h"
+      title: Programs that changed
+      text: Each program's budget, total system benefit, ratios and savings before and after, and the difference.
+

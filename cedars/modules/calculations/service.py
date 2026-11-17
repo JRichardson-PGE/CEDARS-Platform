@@ -1,0 +1,1471 @@
+"""Calculation runs: who may start and see them, how a job is put together for the ReCET worker, and what a run's record says as it
+moves from queued to finished. Pages and the API call these functions; every change is an audit event.
+
+Who sees what (Jake 2026-10-29): a run made for an organization belongs to it, and its members with calculations.read or
+calculations.submit see it, so it stays with the organization when its owner leaves; a run with no organization (a community account's
+own) is its owner's alone. Starting a run for an organization takes calculations.submit there; stopping one takes being its owner (still
+a member) or calculations.admin / org.admin there."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import shutil
+import tempfile
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
+from datetime import timedelta
+from pathlib import Path
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+
+from cedars.core import storage
+from cedars.services import audit
+from cedars.services.accounts import permissions as perms
+from cedars.services.accounts import service as access
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import cost_tests
+from cedars.services.refdata import service as refdata
+from cedars.services.refdata.models import PackVersion
+from cedars.services.registry import service as registry
+from cedars.services.registry.models import AllocationVersion
+from cedars.services.releases import limits
+from cedars.services.submissions.service import PricingUnavailable
+
+from . import jobfiles, jobspec
+from .models import EngineRelease, Run
+
+RECET = "recet"
+# A job workbook's sheets a CET replica refuses (ReCET cet_versions/job.REFUSED: supplied run parameters, statewide factors and profiles)
+REPLICA_REFUSED_SHEETS = ("RunParameters", "SWAllocation", "GasProfiles", "Profiles8760")
+OUTPUT_FORMATS = {"csv.zip": "CSV in zip files", "parquet": "Parquet", "xlsx": "Excel (up to 50,000 measures)"}
+FILING_CHECKS = {"": "None", "claims": "Claims rules", "budget_filing": "Budget filing rules"}
+# Settings a replica (a past CET release) does not take: ReCET's engine refuses them for replicas (cet_versions/job.REFUSED).
+REPLICA_REFUSES = ("allocate_statewide", "filing_validation", "preflight_only", "compare_with", "components", "portfolio_8760")
+MARKET_EFFECTS = (0.0, 0.05)  # CET's Market Effects: none, or 5% of benefits and costs (ReCET RunConfig.market_effects)
+
+
+def acc_purposes() -> list[tuple[str, str]]:
+    """New run's "Priced for" choices: any filing, claims, or one budget filing, from the engine's filing table (recet.versions) when it
+    is installed here; any filing or claims otherwise."""
+    try:
+        from recet import versions
+    except ImportError:
+        return [("", "Any filing"), ("claims", "Claims")]
+    named = [(k, v) for k, v in versions.acc_purposes() if k not in ("", "claims")]
+    return [("", "Any filing"), ("claims", "Claims")] + named  # the platform's own words for these two (UAT 2, U10)
+
+
+def acc_table(releases) -> list[dict]:
+    """ "Which ACC applies to my filing?": one row per ACC from the engine's table (recet.versions.acc_summary: its budget filings and
+    the program years whose claims use it), `available` when an active release prices ReCET's own calculation on it. [] without the
+    engine installed here."""
+    try:
+        from recet import versions
+    except ImportError:
+        return []
+    have = {a for r in releases for a in accs_for(r, RECET)}
+    return [{**row, "available": str(row["acc"]) in have} for row in versions.acc_summary()]
+
+
+# Seconds per 1,000,000 measures (server, 2026-10-28/29: ReCET 392 s with SCT; a replica 427 s on the laptop), before calibration.
+SECONDS_PER_MILLION = {RECET: 400, "replica": 430}
+BASE_SECONDS = 10
+
+
+def max_records() -> int:
+    return int(getattr(settings, "CALCULATIONS_MAX_RECORDS", 2_000_000))
+
+
+def small_run_records() -> int:
+    return int(getattr(settings, "CALCULATIONS_SMALL_RUN_RECORDS", 10_000))
+
+
+# --- engine releases (configured on the admin page, never in code)
+
+
+def releases():
+    return EngineRelease.objects.filter(active=True)
+
+
+def default_release() -> EngineRelease | None:
+    return releases().filter(default=True).first() or releases().first()
+
+
+def release_list() -> list[dict]:
+    """Every registered release that offers ReCET's own calculation (filings are priced only with it), for a filing specification
+    version to name: its number, whether it is active and the default, and its ACCs."""
+    return [
+        {"release": r.release, "active": r.active, "default": r.default, "accs": accs_for(r, RECET)}
+        for r in EngineRelease.objects.order_by("-default", "-added_at")
+        if RECET in (r.calculations or [])
+    ]
+
+
+def calculation_label(calc: str) -> str:
+    return "ReCET" if calc in ("", RECET) else f"CET {calc.removeprefix('cet-')} replica"
+
+
+def accs_for(release: EngineRelease, calculation: str) -> list[str]:
+    return [str(a) for a in (release.accs or {}).get(calculation, [])]
+
+
+# A release is named by its version number only ("0.1.90"): a job asks for exactly that, and the worker reports it (`recet --version`)
+RELEASE_NUMBER = re.compile(r"\d+\.\d+\.\d+(?:[.+-][0-9A-Za-z.]+)?")
+RELEASE_FIELDS = ["release", "calculations", "accs", "image", "batch_job_definition", "notes", "default", "active"]
+
+
+def release_number(text: str) -> str:
+    """ "0.1.90" from "0.1.90", "v0.1.90" or "ReCET 0.1.90" (the name the releases table shows); "" when it is not a release number."""
+    t = re.sub(r"^\s*recet\s*", "", text or "", flags=re.I).strip()
+    t = t[1:] if t[:1] in ("v", "V") else t
+    return t if RELEASE_NUMBER.fullmatch(t) else ""
+
+
+def calculation_code(name: str) -> str:
+    """A calculation's code from its code or from the name the pages show it by: "recet" or "ReCET" -> "recet"; "cet-25.1", "CET 25.1"
+    or "CET 25.1 replica" -> "cet-25.1". "" for anything else."""
+    n = " ".join((name or "").replace("\u2019", "'").split()).lower()
+    if n in (RECET, "recet's own", "recet own"):
+        return RECET
+    m = re.fullmatch(r"cet[\s_-]*(\d+\.\d+)(?:\s+replica)?", n)
+    return f"cet-{m.group(1)}" if m else ""
+
+
+def calculations_text(r: EngineRelease | None) -> str:
+    """A release's calculations as the Add and Change forms take them, one per line: "recet: 2024, 2026"."""
+    if r is None:
+        return ""
+    return "\n".join(f"{c}: {', '.join(accs_for(r, c))}" for c in r.calculations)
+
+
+def _checked_calculations(calculations: list[str], accs: dict) -> tuple[list[str], dict]:
+    if RECET not in calculations:
+        raise AccessDenied('A release offers ReCET\'s own calculation: add a line "recet: " followed by its ACCs, e.g. recet: 2024, 2026.')
+    bad = [c for c in calculations if c != RECET and not re.fullmatch(r"cet-\d+\.\d+", c)]
+    if bad:
+        raise AccessDenied(f"Not calculations: {', '.join(bad)}. Use recet or cet-<release>, e.g. cet-25.1.")
+    missing = [c for c in calculations if not accs.get(c)]
+    if missing:
+        raise AccessDenied(f"Name the ACCs each calculation has; none given for {', '.join(missing)}.")
+    return list(calculations), {c: [str(a) for a in accs[c]] for c in calculations}
+
+
+@transaction.atomic
+def add_release(
+    actor,
+    *,
+    release: str,
+    calculations: list[str],
+    accs: dict,
+    image="",
+    batch_job_definition="",
+    notes="",
+    default=False,
+    retire_previous=False,
+    reason="",
+):
+    """Register a release. With `default` it becomes what New run offers first and filings price on; with `retire_previous` too, the
+    release that was the default is retired in the same step (its runs keep naming it). A release already on the list is changed or
+    returned to service there, never added twice: runs name their release by its number."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator adds engine releases.")
+    number = release_number(release)
+    if not number:
+        raise AccessDenied(f"Name the release by its version number, e.g. 0.1.90 (got {release.strip()!r}).")
+    if existing := EngineRelease.objects.filter(release=number).first():
+        if existing.active:
+            raise AccessDenied(f"{existing} is already on the list. Change its calculations, ACCs or image with its Change button.")
+        raise AccessDenied(f"{existing} is on the list, retired. Use its Return to service button to offer it again.")
+    calculations, accs = _checked_calculations(calculations, accs)
+    previous = EngineRelease.objects.filter(default=True).first()
+    if default:
+        EngineRelease.objects.filter(default=True).update(default=False)
+    r = EngineRelease.objects.create(
+        release=number,
+        calculations=calculations,
+        accs=accs,
+        image=image,
+        batch_job_definition=batch_job_definition,
+        notes=notes,
+        default=default or not releases().exists(),
+        added_by=actor,
+    )
+    audit.record(
+        "engine_release.added",
+        obj=r,
+        after=audit.snapshot(r, ["release", "calculations", "accs", "image", "default"]),
+        reason=reason,
+        actor=actor,
+    )
+    if default and retire_previous and previous is not None and previous.active:
+        previous.refresh_from_db()
+        retire_release(actor, previous, f"Replaced by {r} as the default." + (f" {reason}" if reason else ""))
+    return r
+
+
+@transaction.atomic
+def change_release(actor, r: EngineRelease, *, calculations: list[str], accs: dict, image="", batch_job_definition="", notes="", reason=""):
+    """Change what a release offers (its calculations and ACCs), its worker image, Batch job definition or notes. Its number never
+    changes, so every run on it still names it; a run's own record keeps the calculation and ACC it ran with."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator changes engine releases.")
+    if not (reason or "").strip():
+        raise AccessDenied("Say why the release is changed; it is kept in the audit trail.")
+    calculations, accs = _checked_calculations(calculations, accs)
+    before = audit.snapshot(r, RELEASE_FIELDS)
+    EngineRelease.objects.filter(pk=r.pk).update(
+        calculations=calculations, accs=accs, image=image, batch_job_definition=batch_job_definition, notes=notes
+    )
+    r.refresh_from_db()
+    after = audit.snapshot(r, RELEASE_FIELDS)
+    if after != before:
+        audit.record("engine_release.changed", obj=r, before=before, after=after, reason=reason, actor=actor)
+    return r
+
+
+def missing_accs(r: EngineRelease) -> list[tuple[str, str]]:
+    """The filings still to come that the release could not price, as (what, ACC): their ACC is not among its own calculation's."""
+    from cedars.services.submissions import service as submissions
+
+    have = set(accs_for(r, RECET)) if RECET in (r.calculations or []) else set()
+    return [(what, acc) for what, acc in submissions.acc_needs() if acc not in have]
+
+
+@transaction.atomic
+def set_default_release(actor, r: EngineRelease) -> EngineRelease:
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator changes the default release.")
+    if not r.active:
+        raise AccessDenied("A retired release cannot be the default.")
+    before = EngineRelease.objects.filter(default=True).first()
+    EngineRelease.objects.filter(default=True).update(default=False)
+    EngineRelease.objects.filter(pk=r.pk).update(default=True)
+    audit.record("engine_release.default", obj=r, before={"default": str(before) if before else None}, actor=actor)
+    r.refresh_from_db()
+    return r
+
+
+@transaction.atomic
+def retire_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
+    """Offer a release for no new runs. It stays on the list, and its runs keep naming it."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator retires engine releases.")
+    if r.default:
+        raise AccessDenied("Make another release the default first.")
+    from cedars.services.specifications import service as specifications
+
+    naming = specifications.naming_release(r.release)
+    if naming:
+        raise AccessDenied(
+            f"ReCET {r.release} prices the filings of {', '.join(str(v) for v in naming)}: a release a specification version in use "
+            "names cannot be retired."
+        )
+    EngineRelease.objects.filter(pk=r.pk).update(active=False)
+    audit.record("engine_release.retired", obj=r, reason=reason, actor=actor)
+    r.refresh_from_db()
+    return r
+
+
+@transaction.atomic
+def restore_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
+    """Offer a retired release for new runs again."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator returns engine releases to service.")
+    if not r.active:
+        EngineRelease.objects.filter(pk=r.pk).update(active=True)
+        audit.record("engine_release.restored", obj=r, reason=reason, actor=actor)
+        r.refresh_from_db()
+    return r
+
+
+# --- who may do what
+
+
+def can_submit(user, organisation) -> bool:
+    if organisation is None:
+        return user is not None and user.is_authenticated
+    return access.has_permission(user, organisation, "calculations.submit")
+
+
+def readable_organisations(user):
+    return [
+        o
+        for o in access.organisations_of(user)
+        if access.has_permission(user, o, "calculations.read") or access.has_permission(user, o, "calculations.submit")
+    ]
+
+
+def visible_runs(user, organisations=None):
+    """The runs a user sees: their own community runs and their organizations' runs (for one organization when given)."""
+    orgs = readable_organisations(user)
+    if organisations is not None:
+        orgs = [o for o in orgs if o in organisations]
+    q = Q(organisation__isnull=True, owner=user) | Q(organisation__in=orgs)
+    return Run.objects.filter(q).select_related("organisation", "owner", "allocation_version")
+
+
+def can_read(user, run: Run) -> bool:
+    """The owner of their own run, the organization's readers and submitters, and a CPUC system administrator (who follows the
+    links on Jobs and health)."""
+    if access.is_system_admin(user):
+        return True
+    if run.organisation is None:
+        return run.owner_id == user.pk
+    return access.has_permission(user, run.organisation, "calculations.read") or access.has_permission(
+        user, run.organisation, "calculations.submit"
+    )
+
+
+def can_cancel(user, run: Run) -> bool:
+    if run.organisation is None:
+        return run.owner_id == user.pk
+    if run.owner_id == user.pk and access.has_permission(user, run.organisation, "calculations.submit"):
+        return True
+    return access.has_permission(user, run.organisation, "calculations.admin") or access.is_org_admin(user, run.organisation)
+
+
+# --- starting a run
+
+
+@dataclass
+class RunRequest:
+    """What a person (New run) or a system (the API) asks for. `settings` are RunConfig settings the job spec may carry."""
+
+    name: str
+    release: EngineRelease
+    calculation: str
+    acc_version: str
+    output_format: str = "csv.zip"
+    settings: dict | None = None
+    allocation_version: AllocationVersion | None = None
+    cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
+    cost_test_set: PackVersion | None = None  # a cost_tests pack (blank: the set in force for the job's first program year)
+    record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column, pinned like the run's
+    # a supplied 8,760-profile file (ReCET's profiles_8760, Parquet): the profile versions true-ups are priced against
+    profiles_8760: bytes | None = None
+    # ReCET's optional input files uploaded on their own (New run, the API): {input name (jobfiles.OPTIONAL): a local path or an
+    # UploadedFile}. They win over the same table in the job zip or workbook, as a file given separately wins over its sheet in ReCET.
+    supplied: dict | None = None
+    # an analysis run's own cost-test set file (a local path or an UploadedFile; ReCET's --cost-tests FILE): never a filing's, which
+    # takes a published set. Sent as inputs.cost_tests with its SHA-256, which the receipt must repeat.
+    cost_tests_file: object = None
+    cost_test_build: object = None  # the set builder's working copy the file was written from (refdata CostTestBuild), recorded
+
+
+def run_name(job_name: str, acc_version: str) -> str:
+    """The name a run left unnamed gets, as ReCET's web app names one: the job file's (or draft's) name, then its ACC."""
+    stem = (job_name or "").strip()
+    if Path(stem).suffix.lower() in (".zip", ".xlsx"):
+        stem = Path(stem).stem.strip()
+    return f"{stem or 'Job'} · {acc_version} ACC"[:200]
+
+
+def custom_cost_tests(req: RunRequest, st: dict, *, filing: bool) -> tuple[bytes, dict] | None:
+    """The request's own cost-test set file and its header, checked (None when it has none). Refused for a replica, a filing, a run
+    with CEDARS filing checks or priced for a filing (each takes a published set), and beside a named set."""
+    if req.cost_tests_file is None:
+        return None
+    if req.calculation != RECET:
+        raise AccessDenied("A CET replica prices on its release's own cost tests; a cost-test set file is for ReCET's own calculation.")
+    if filing or st.get("filing_validation") or st.get("acc_purpose"):
+        raise AccessDenied(
+            "A cost-test set file of your own is for analysis runs only: a filing, or a run with CEDARS filing checks or priced for a "
+            "filing, takes a published cost-test set."
+        )
+    if req.cost_test_set is not None or st.get("cost_test_set"):
+        raise AccessDenied("Choose a registered cost-test set or upload a file of your own, not both.")
+    with local_copy(req.cost_tests_file, ".yaml") as f:
+        data = Path(f).read_bytes()
+    try:
+        head = cost_tests.read(data)
+    except cost_tests.SetError as e:
+        raise AccessDenied(f"The cost-test set file: {e}") from None
+    return data, head
+
+
+def _check(req: RunRequest) -> dict:
+    if not req.release.active:
+        raise AccessDenied(f"ReCET {req.release.release} is retired; choose another release.")
+    if req.calculation not in req.release.calculations:
+        raise AccessDenied(f"ReCET {req.release.release} does not offer {calculation_label(req.calculation)}.")
+    if req.acc_version not in accs_for(req.release, req.calculation):
+        raise AccessDenied(
+            f"{calculation_label(req.calculation)} has no {req.acc_version} ACC in ReCET {req.release.release}; it has "
+            + ", ".join(accs_for(req.release, req.calculation))
+            + "."
+        )
+    other = sorted(set(req.record_accs) - {req.acc_version})
+    missing = [a for a in other if a not in accs_for(req.release, req.calculation)]
+    if missing:
+        raise AccessDenied(
+            f"Records name the {', '.join(missing)} ACC, which {calculation_label(req.calculation)} in ReCET {req.release.release} "
+            "does not have."
+        )
+    if other and req.calculation != RECET:
+        raise AccessDenied("A CET replica prices every record on one ACC; an ACC per record is ReCET's own calculation.")
+    if req.output_format not in OUTPUT_FORMATS:
+        raise AccessDenied(f"Output format {req.output_format} is not offered.")
+    st = {k: v for k, v in (req.settings or {}).items() if v not in (None, "")}
+    unknown = sorted(set(st) - set(jobspec.SETTINGS))
+    if unknown:
+        raise AccessDenied(f"Not run settings: {', '.join(unknown)}.")
+    if req.calculation != RECET:
+        if req.cost_test_set is not None:
+            st["cost_test_set"] = req.cost_test_set.label
+        refused = [k for k in (*REPLICA_REFUSES, "cost_test_set") if st.get(k)]
+        if refused:
+            raise AccessDenied(
+                f"A CET replica does not take {', '.join(jobspec.SETTINGS[k] for k in refused).lower()}: it prices the job as that CET "
+                "release did. Use ReCET's own calculation for these."
+            )
+    if st.get("compare_with"):
+        other = str(st["compare_with"])
+        if other == req.acc_version:
+            raise AccessDenied("Compare with names the run's own ACC; choose another ACC, or no comparison.")
+        if req.calculation == RECET and other not in accs_for(req.release, RECET):
+            raise AccessDenied(f"ReCET {req.release.release} has no {other} ACC to compare with.")
+        st["compare_with"] = other
+    if st.get("market_effects") is not None and float(st["market_effects"]) not in MARKET_EFFECTS:
+        raise AccessDenied("Market effects are 0% or 5%.")
+    if st.get("profile_years") and not st.get("portfolio_8760"):
+        raise AccessDenied("Years of the combined 8,760 profile apply only when the combined profile is asked for.")
+    if st.get("filing_validation") and st["filing_validation"] not in FILING_CHECKS:
+        raise AccessDenied(f"Filing checks {st['filing_validation']} are not offered.")
+    if req.allocation_version is not None:
+        if not st.get("allocate_statewide"):
+            raise AccessDenied("An allocation version applies only when statewide programs are allocated.")
+        if req.allocation_version.status != AllocationVersion.Status.CONFIRMED:
+            raise AccessDenied(f"{req.allocation_version} is a draft; only confirmed allocation versions price runs.")
+    return st
+
+
+def input_hash(
+    inputs: dict, req_settings: dict, release: str, calculation: str, acc: str, allocation_sha: str | None, packs: dict | None = None
+) -> str:
+    payload = {
+        "inputs": {k: v["sha256"] for k, v in sorted(inputs.items())},
+        "settings": req_settings,
+        "release": release,
+        "calculation": calculation,
+        "acc": acc,
+        "allocation": allocation_sha,
+    }
+    if packs:  # the reference data packs pinned (their fingerprints), so the same job on other data does not share the hash
+        payload["packs"] = {k: v["fingerprint"] for k, v in sorted(packs.items())}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
+# --- the reference data a run is pinned to
+
+# The reference-folder files each pack kind holds for ReCET's own calculation, by their paths in the engine's reference folder (ReCET
+# ARCHITECTURE 7.1: manifest.json keys every file by that path, and a job spec's packs.files pins those keys). A pack's manifest entries
+# under another path are recorded with the run but not pinned, since the worker could not find them.
+REFERENCE_PREFIXES = {PackVersion.Kind.ACC_ELECTRIC: "acc/{acc}/", PackVersion.Kind.IMPACT_PROFILES: "impact_profiles/"}
+
+
+def packs_for(req: RunRequest, *, filing: bool) -> list[PackVersion]:
+    """The registered packs a run uses: the electric ACC pack of its ACC year and the impact-profile library in force. A filing takes
+    only published packs; an analysis run takes the newest published one, or a draft when nothing is published. A replica
+    reads its own release's tables, so it is pinned to none. Kinds with no registered pack are not pinned (the worker's folder is used
+    as it is), and the run record says which kinds were pinned."""
+    if req.calculation != RECET:
+        return []
+    out = []
+    for kind in REFERENCE_PREFIXES:
+        packs = PackVersion.objects.filter(kind=kind).exclude(status=PackVersion.Status.WITHDRAWN)
+        if kind == PackVersion.Kind.ACC_ELECTRIC:
+            packs = packs.filter(acc_year=int(req.acc_version)) if req.acc_version.isdigit() else packs.none()
+        published = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at", "-registered_at").first()
+        pack = published or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            continue
+        ok, why = refdata.usable(pack, "filing" if filing else "analysis")
+        if not ok:
+            raise AccessDenied(f"{why} Publish it first, or price this as an analysis run.")
+        out.append(pack)
+    return out
+
+
+def record_acc_packs(req: RunRequest, *, filing: bool) -> list[PackVersion]:
+    """The electric ACC packs of the other ACCs the job's records name (RunRequest.record_accs), chosen as packs_for chooses the run's;
+    an ACC with no registered pack is not pinned."""
+    if req.calculation != RECET:
+        return []
+    out = []
+    # an ACC comparison (settings compare_with) prices the job on that ACC too, so its pack is pinned like a record's
+    compare = {str((req.settings or {}).get("compare_with") or "")} - {""}
+    for acc in sorted((set(req.record_accs) | compare) - {req.acc_version}):
+        if not acc.isdigit():
+            continue
+        packs = PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year=int(acc))
+        packs = packs.exclude(status=PackVersion.Status.WITHDRAWN)
+        pack = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at", "-registered_at").first()
+        pack = pack or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            continue
+        ok, why = refdata.usable(pack, "filing" if filing else "analysis")
+        if not ok:
+            raise AccessDenied(f"{why} Publish it first, or price this as an analysis run.")
+        out.append(pack)
+    return out
+
+
+def cost_test_pack(req: RunRequest, st: dict, first_year: int | None, *, filing: bool) -> PackVersion | None:
+    """The cost-test set a ReCET run is priced on (ReCET COST_TESTS.md): the pack the request names (by pack, or by
+    its id in settings.cost_test_set), else the set in force for the job's first program year. A filing, or a run with CEDARS filing
+    checks or priced for a filing, takes a published set only (the engine refuses anything else for them); an analysis run may take a
+    draft. None when no set is registered: the engine's own default set is used, as for any kind with no pack. Takes cost_test_set out
+    of `st`; create_run puts back the id it sends."""
+    named = st.pop("cost_test_set", None)
+    if req.calculation != RECET:
+        return None
+    strict = filing or bool(st.get("filing_validation") or st.get("acc_purpose"))
+    pack = req.cost_test_set
+    if pack is None and named:
+        packs = PackVersion.objects.filter(kind=cost_tests.KIND, label=str(named).strip()).exclude(status=PackVersion.Status.WITHDRAWN)
+        pack = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at").first()
+        pack = pack or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            raise AccessDenied(f"No cost-test set {named} is registered (Reference data, Cost-test sets).")
+    if pack is None:
+        return cost_tests.for_year(first_year, include_drafts=not strict)
+    if pack.kind != cost_tests.KIND:
+        raise AccessDenied(f"{pack} is not a cost-test set.")
+    ok, why = refdata.usable(pack, "filing" if strict else "analysis")
+    if not ok:
+        raise AccessDenied(f"{why} A filing, or a run with CEDARS filing checks or priced for a filing, takes a published cost-test set.")
+    return pack
+
+
+def cost_tests_record(pack: PackVersion) -> dict:
+    """What the run's spec context (and so its receipt) and its filing record say about its set; the SHA-256 is checked against the
+    receipt's when the run ends."""
+    return {"id": pack.label, "version": pack.version, "status": pack.status, "sha256": cost_tests.sha256(pack), "pack": pack.pk}
+
+
+def pack_files(packs, acc: str) -> dict:
+    """The job spec's packs.files: {reference-folder path: {sha256, version}} for the files of `packs` under their kind's folder."""
+    files = {}
+    for p in packs:
+        if p.kind not in REFERENCE_PREFIXES:  # a cost-test set is sent by its id or as an input, not as a reference-folder file
+            continue
+        own = p.kind == PackVersion.Kind.ACC_ELECTRIC and p.acc_year  # a record ACC's pack (record_acc_packs) keeps its own folder
+        prefix = REFERENCE_PREFIXES[p.kind].format(acc=p.acc_year if own else acc)
+        for rel, entry in sorted(p.manifest.items()):
+            if rel.startswith(prefix):
+                files[rel] = {"sha256": entry["sha256"], "version": f"{p.label} {p.version}".strip()}
+    return files
+
+
+def waiting_runs(user) -> int:
+    """The runs a person started that are waiting or running, a filing's pricing runs left out."""
+    return Run.objects.filter(owner=user, status__in=[Run.Status.QUEUED, Run.Status.RUNNING], submission_version__isnull=True).count()
+
+
+def check_waiting_runs(user) -> None:
+    """Refuses a new run when the person already has as many waiting or running as one account may (the queued_runs limit, which a
+    CPUC system administrator sets). The person's row is locked first, so two runs sent at once are counted one after the other."""
+    from django.contrib.auth import get_user_model
+
+    get_user_model().objects.select_for_update().filter(pk=user.pk).values_list("pk", flat=True).first()
+    most, now = limits.value("queued_runs"), waiting_runs(user)
+    if now >= most:
+        raise AccessDenied(
+            f"You have {now:,} run{'s' if now != 1 else ''} waiting or running; one account may have at most {most:,} at once "
+            "(see Limits, /limits/). Start this one when one of yours finishes, or stop one you no longer need."
+        )
+
+
+@transaction.atomic
+def create_run(
+    actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None, job_name: str = ""
+) -> Run:
+    """Check the request and the upload, put the inputs in storage, write the job spec and queue the run. `job_zip` is a local file
+    (an upload's temporary file): a job zip or a job workbook; it is copied, never moved. A run with no name is named after
+    `job_name` (the uploaded file's or the draft's name) and its ACC."""
+    from . import dispatch
+
+    # a filing's run: the submissions service has checked <module>.submit
+    if submission_version is None and not can_submit(actor, organisation):
+        raise AccessDenied(f"You need the {perms.label('calculations.submit')} permission in {organisation.code} to start a run for it.")
+    if submission_version is None:
+        check_waiting_runs(actor)
+    if not req.name.strip():
+        req = replace(req, name=run_name(job_name, req.acc_version))
+    st = _check(req)
+    custom = custom_cost_tests(req, st, filing=submission_version is not None)
+    if submission_version is not None and req.calculation != RECET:
+        raise AccessDenied("A filing is priced only with ReCET's own calculation; a CET replica is never a filing's engine.")
+    if req.cet_outputs is not None and req.calculation != RECET:
+        raise AccessDenied("A CET replica does not take a CET outputs comparison: compare the replica's run with ReCET's on Compare.")
+    try:
+        info = jobfiles.inspect(Path(job_zip))
+    except jobfiles.JobFileError as e:
+        raise AccessDenied(str(e)) from None
+    if info.records == 0:
+        raise AccessDenied("Measure.csv has no records.")
+    if info.kind == jobfiles.WORKBOOK:
+        if submission_version is not None:
+            raise AccessDenied("A filing's run prices the filing's own tables, not a job workbook.")
+        refused = [s for s in info.sheets if s in REPLICA_REFUSED_SHEETS]
+        if refused and req.calculation != RECET:
+            raise AccessDenied(
+                f"A CET replica prices a job on its release's own tables, so it cannot use the workbook's "
+                f"{', '.join(refused)} sheet{'s' if len(refused) > 1 else ''}: remove {'them' if len(refused) > 1 else 'it'}, "
+                "or price the job with ReCET's own calculation."
+            )
+    supplied = {k: v for k, v in (req.supplied or {}).items() if v}
+    unknown = sorted(set(supplied) - set(jobfiles.OPTIONAL))
+    if unknown:
+        raise AccessDenied(f"Not optional input files: {', '.join(unknown)}.")
+    if (supplied or info.optional) and submission_version is not None:
+        raise AccessDenied("A filing's run prices the filing's own tables; it takes no optional input files.")
+    twice = sorted(set(supplied) & set(info.optional or {}))
+    if twice:
+        raise AccessDenied(
+            f"{', '.join(jobfiles.OPTIONAL[n][1] for n in twice)} given twice, in the job zip and as a file of its own: keep one."
+        )
+    if info.records > max_records():
+        raise AccessDenied(f"The job has {info.records:,} measure records; a run takes at most {max_records():,}. Split it.")
+
+    run = Run(
+        organisation=organisation,
+        owner=actor,
+        name=req.name.strip()[:200],
+        engine_release=req.release.release,
+        calculation=req.calculation,
+        acc_version=req.acc_version,
+        settings=st,
+        output_format=req.output_format,
+        measure_count=info.records,
+        lane=Run.Lane.SMALL if info.records <= small_run_records() else Run.Lane.LARGE,
+        submission_version=submission_version,
+        backend=backend or dispatch.default_backend_name(),
+    )
+    run.storage_prefix = f"runs/{run.id}/"
+    uploads, results = storage.store("uploads"), storage.store("results")
+    inputs = {}
+    if req.cet_outputs is not None:  # a parallel run: the engine writes cet_comparison_* (ReCET's RunConfig.cet_outputs)
+        with local_copy(req.cet_outputs, ".csv") as cet:
+            try:
+                jobfiles.check_cet_outputs(cet)
+            except jobfiles.JobFileError as e:
+                raise AccessDenied(str(e)) from None
+            key = run.storage_prefix + "cet_outputs.csv"
+            inputs["cet_outputs"] = {"key": key, "sha256": storage.sha256_of(cet), "bytes": uploads.put_file(key, cet).size}
+    notes: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        files = {}
+        if info.optional:
+            try:
+                files = jobfiles.extract_optional(Path(job_zip), info, Path(tmp))
+            except jobfiles.JobFileError as e:
+                raise AccessDenied(str(e)) from None
+            # the worker's job zip holds only Measure.csv and ProgramCost.csv (ReCET's jobzip refuses any other file); the optional
+            # files go as inputs of their own, and the upload's own SHA-256 is kept beside the job zip's
+            job = jobfiles.job_only_zip(Path(job_zip), info, Path(tmp) / "job.zip")
+        else:
+            job = Path(job_zip)
+        for n, f in supplied.items():
+            with local_copy(f, ".csv") as src:
+                suffix = Path(getattr(f, "name", None) or str(src)).suffix.lower()
+                if suffix not in jobfiles.UPLOAD_SUFFIXES:
+                    raise AccessDenied(f"{jobfiles.OPTIONAL[n][1]}: upload a .csv, .parquet or .xlsx file.")
+                dest = Path(tmp) / f"{n}{'.csv' if suffix == '.txt' else suffix}"
+                shutil.copyfile(src, dest)
+                files[n] = dest
+        inputs.update(_optional_inputs(req, info, files, st, run.storage_prefix, uploads, notes))
+        # the worker's input: "job_zip" (Measure.csv + ProgramCost.csv) or "workbook" (ReCET's job workbook, its sheets read by the engine)
+        name, key = ("workbook", "job.xlsx") if info.kind == jobfiles.WORKBOOK else ("job_zip", "job.zip")
+        inputs[name] = {"key": run.storage_prefix + key, "sha256": storage.sha256_of(job)}
+        inputs[name]["bytes"] = uploads.put_file(inputs[name]["key"], job).size
+        if job != Path(job_zip):
+            inputs[name]["upload_sha256"] = storage.sha256_of(Path(job_zip))
+    if req.profiles_8760:
+        if "profiles_8760" in inputs:
+            raise AccessDenied("This run already has its true-ups' parent profiles as its 8,760 profiles; it takes no other.")
+        if req.calculation != RECET:
+            raise AccessDenied("A CET replica prices each record on its own profile only; supplied 8,760 profiles are ReCET's.")
+        key = run.storage_prefix + "profiles_8760.parquet"
+        inputs["profiles_8760"] = {
+            "key": key,
+            "sha256": hashlib.sha256(req.profiles_8760).hexdigest(),
+            "bytes": uploads.put_bytes(key, req.profiles_8760).size,
+        }
+    allocation_sha = None
+    if st.get("allocate_statewide"):
+        version = req.allocation_version or (registry.most_recent_allocation(info.first_year) if info.first_year else None)
+        if version is None:
+            raise AccessDenied(
+                f"No confirmed statewide allocation version has factors for {info.first_year or 'the job'}'s program year; "
+                "choose one, or price without allocation."
+            )
+        factors = registry.allocation_csv(version).encode()
+        allocation_sha = hashlib.sha256(factors).hexdigest()
+        key = run.storage_prefix + "sw_factors.csv"
+        inputs["sw_factors"] = {"key": key, "sha256": allocation_sha, "bytes": uploads.put_bytes(key, factors).size}
+        run.allocation_version = version
+    # the registry's programs for the job's program year as the engine's WHOLE program table (programs_replace, set in the
+    # spec): the Prg_ columns, Exclude_From_CE and the PrgID checks read the registry, never the engine's shipped copy of CEDARS' list
+    programs = registry.run_programs(info.first_year)
+    table = programs.csv.encode()
+    key = run.storage_prefix + "programs.csv"
+    inputs["programs"] = {
+        "key": key,
+        "sha256": hashlib.sha256(table).hexdigest(),
+        "bytes": uploads.put_bytes(key, table).size,
+        "program_year": programs.year,
+        "programs": programs.programs,
+    }
+    packs = packs_for(req, filing=submission_version is not None)
+    cset = None if custom else cost_test_pack(req, st, info.first_year, filing=submission_version is not None)
+    if custom:  # an analysis run's own file, pinned like any input (N12)
+        data = custom[0]
+        key = run.storage_prefix + "cost_tests.yaml"
+        inputs["cost_tests"] = {"key": key, "sha256": hashlib.sha256(data).hexdigest(), "bytes": uploads.put_bytes(key, data).size}
+    if cset is not None:
+        packs.append(cset)
+        if cset.status == PackVersion.Status.PUBLISHED:  # by its id: the engine prices its built-in set and records the file's SHA-256
+            st["cost_test_set"] = cset.label
+        else:  # a draft (analysis runs only): the file itself, pinned like any input
+            data = cost_tests.file_bytes(cset)
+            key = run.storage_prefix + "cost_tests.yaml"
+            inputs["cost_tests"] = {"key": key, "sha256": hashlib.sha256(data).hexdigest(), "bytes": uploads.put_bytes(key, data).size}
+    extra = record_acc_packs(req, filing=submission_version is not None)
+    run.settings = st
+    run.inputs = inputs
+    pinned = refdata.pin(packs)
+    pinned.update({f"{p.kind}:{p.acc_year}": refdata.pin([p])[p.kind] for p in extra})  # keyed apart from the run's own ACC pack
+    packs = packs + extra
+    run.input_hash = input_hash(inputs, st, req.release.release, req.calculation, req.acc_version, allocation_sha, pinned)
+    run.estimate_seconds = estimate_seconds(run)
+    run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
+    if cset is not None:
+        run.spec["context"]["cost_tests"] = cost_tests_record(cset)
+    if custom:
+        run.spec["context"]["cost_tests"] = {
+            "id": custom[1]["id"],
+            "version": custom[1]["version"],
+            "status": "custom",
+            "sha256": inputs["cost_tests"]["sha256"],
+            "file": Path(getattr(req.cost_tests_file, "name", None) or str(req.cost_tests_file)).name[:200],
+        }
+        if req.cost_test_build is not None:  # one of the user's own sets from the set builder
+            run.spec["context"]["cost_tests"]["build"] = req.cost_test_build.pk
+    if notes:  # echoed into the receipt with the rest of the context, and shown on the run page
+        run.spec["context"]["notes"] = notes
+    run.save()
+    results.put_bytes(run.storage_prefix + "job.json", json.dumps(run.spec, indent=2).encode())
+    audit.record(
+        "calculation_run.queued",
+        obj=run,
+        organisation=organisation,
+        after={
+            "name": run.name,
+            "release": run.engine_release,
+            "calculation": run.calculation,
+            "acc": run.acc_version,
+            "records": run.measure_count,
+            "input_hash": run.input_hash,
+            "allocation_version": str(run.allocation_version) if run.allocation_version else None,
+            "programs": programs_label(run),
+            "packs": {k: f"{v['label']} {v['version']}".strip() for k, v in pinned.items()},
+        },
+        actor=actor,
+    )
+    transaction.on_commit(lambda: dispatch.backend(run.backend).submit(run))
+    return run
+
+
+def _optional_inputs(req: RunRequest, info, files: dict, st: dict, prefix: str, uploads, notes: list) -> dict:
+    """The run's optional input files (a zip's and those uploaded on their own) as job spec inputs, with the platform's rules: the
+    program registry is every run's program table and the allocation version its statewide factors, so a supplied program table or
+    factor table is not used (a note says so); a CET replica takes none of the others (ReCET cet_versions/job.REFUSED)."""
+    out = {}
+    sheets = set(info.sheets or ())
+    for n, (sheet, label, _doc) in jobfiles.OPTIONAL.items():
+        given = n in files
+        in_sheet = sheet in sheets
+        if n == "programs":
+            if given or in_sheet:
+                notes.append(
+                    f"{label} ({'the Programs sheet' if in_sheet and not given else 'the file supplied'}) not used: the program "
+                    "registry is every run's program table."
+                )
+            continue
+        if n == "sw_factors":
+            if given or in_sheet:
+                where = "the SWAllocation sheet" if in_sheet and not given else "the file supplied"
+                why = (
+                    "the run allocates statewide programs with its allocation version"
+                    if st.get("allocate_statewide")
+                    else "the run does not allocate statewide programs (when it does, the allocation version gives the factors)"
+                )
+                notes.append(f"{label} ({where}) not used: {why}.")
+            continue
+        if not given:
+            continue
+        if req.calculation != RECET:
+            raise AccessDenied(
+                f"A CET replica prices a job on its release's own tables, so it cannot use the {label.lower()} file: remove it, "
+                "or price the job with ReCET's own calculation."
+            )
+        if in_sheet:
+            notes.append(f"{label}: the file supplied is used, not the workbook's {sheet} sheet.")
+        f = files[n]
+        key = f"{prefix}{n}{f.suffix}"
+        out[n] = {"key": key, "sha256": storage.sha256_of(f), "bytes": uploads.put_file(key, f).size}
+    return out
+
+
+# a run's inputs a rerun may take again (New run "Rerun with different settings"): its job file, ReCET's optional input files and
+# a parallel run's CET outputs. Program metadata, statewide factors, cost-test sets and true-up profiles are the new run's own.
+REUSABLE = ("job_zip", "workbook", "run_parameters", "profiles_8760", "profiles_gas", "cet_outputs")
+
+
+@contextmanager
+def reused_inputs(run: Run, names=REUSABLE):
+    """Local copies of a run's stored inputs ({name: path}, each under its stored file name), for a rerun that takes them again; the
+    copies go when the block ends. Only the inputs the run has and `names` asks for; a true-up's parent profiles (a filing's
+    profiles_8760 written by the platform, not uploaded) are not offered."""
+    uploads = storage.store("uploads")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = {}
+        for n in names:
+            meta = (run.inputs or {}).get(n)
+            if not meta or not meta.get("key"):
+                continue
+            dest = Path(tmp) / n / Path(meta["key"]).name
+            dest.parent.mkdir()
+            with uploads.open(meta["key"]) as src, open(dest, "wb") as f:
+                shutil.copyfileobj(src, f, 1 << 20)
+            out[n] = dest
+        yield out
+
+
+def reusable_inputs(run: Run) -> list[tuple[str, str]]:
+    """The optional inputs of a run a rerun can keep: [(input name, what it is)] (its job file is always offered)."""
+    labels = {n: jobfiles.OPTIONAL[n][1] for n in jobfiles.OPTIONAL} | {"cet_outputs": "CET outputs to compare with"}
+    if run.submission_version_id is not None:  # a filing's 8,760 profiles are its true-ups' parents', written by the platform
+        labels.pop("profiles_8760", None)
+    return [(n, labels.get(n, n)) for n in REUSABLE[2:] if (run.inputs or {}).get(n) and n in labels]
+
+
+NAME_MAX, NOTE_MAX = 200, 2000
+
+
+def rename_run(actor, run: Run, *, name: str, note: str) -> Run:
+    """Change a run's name and note: only its owner, at any time. Its inputs, settings and results never change."""
+    if actor is None or run.owner_id != actor.pk:
+        raise AccessDenied("Only the person who started the run renames it or changes its note.")
+    name, note = " ".join((name or "").split()), (note or "").strip()
+    if not name:
+        raise AccessDenied("Give the run a name.")
+    if len(name) > NAME_MAX or len(note) > NOTE_MAX:
+        raise AccessDenied(f"A name is at most {NAME_MAX} characters and a note at most {NOTE_MAX}.")
+    if name == run.name and note == run.note:
+        raise AccessDenied("Nothing changed.")
+    before = {"name": run.name, "note": run.note}
+    run.name, run.note = name, note
+    run.save(update_fields=["name", "note"])
+    audit.record(
+        "calculation_run.renamed", obj=run, organisation=run.organisation, before=before, after={"name": name, "note": note}, actor=actor
+    )
+    return run
+
+
+def delete_run(actor, run: Run) -> None:
+    """Delete a person's own run ("Only me") with its files, before retention would (R9): only its owner, only once it has ended,
+    never one a filing was priced with or one under a legal hold. Organization runs stay until retention removes them."""
+    from cedars.services.retention import service as retention
+    from cedars.services.submissions.models import SubmissionVersion
+
+    if run.organisation_id is not None or run.owner_id != actor.pk:
+        raise AccessDenied("Only your own runs (for Only me) can be deleted; an organization's runs stay until retention removes them.")
+    if run.status not in Run.ENDED:
+        raise AccessDenied("Stop the run first: a run is deleted once it has ended.")
+    cited = SubmissionVersion.objects.filter(calculation__run=str(run.pk)).exists()
+    if run.submission_version_id is not None or cited:
+        raise AccessDenied("A filing was priced with this run, so it is kept with the filing.")
+    if retention.held("scratch_run", f"calculation_run:{run.pk}"):
+        raise AccessDenied("This run is under a legal hold, so it cannot be deleted.")
+    audit.record(
+        "calculation_run.deleted",
+        obj=run,
+        organisation=None,
+        before={"name": run.name, "status": run.status, "input_hash": run.input_hash},
+        actor=actor,
+    )
+    prefix = run.storage_prefix
+    run.delete()
+    transaction.on_commit(lambda: [storage.store(a).delete_prefix(prefix) for a in ("uploads", "results")])
+
+
+def job_input(run: Run) -> dict:
+    """The run's job file in the uploads store ({key, sha256, bytes}): its job zip, or the job workbook it was uploaded as."""
+    return run.inputs.get("job_zip") or run.inputs.get("workbook") or {}
+
+
+def programs_label(run: Run) -> str:
+    """How the run's program table was chosen, for the run page and the audit trail."""
+    p = run.inputs.get("programs")
+    if not p:
+        return "The engine's own copy of CEDARS' Programs list (a run queued before the registry was its program table)"
+    year = f"program year {p['program_year']}" if p.get("program_year") else "in force on the day the run was queued"
+    return f"Program registry, {year} ({p['programs']:,} programs)"
+
+
+@contextmanager
+def local_copy(upload, suffix: str = ""):
+    """A local path for a file: a path as it is, a Django UploadedFile's temporary file, or a spooled copy of one held in memory."""
+    if isinstance(upload, (str, Path)):
+        yield Path(upload)
+        return
+    path = getattr(upload, "temporary_file_path", None)
+    if path is not None:
+        yield Path(path())
+        return
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+        for chunk in upload.chunks():
+            tmp.write(chunk)
+        tmp.flush()
+        yield Path(tmp.name)
+
+
+def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -> Run:
+    """create_run for a Django UploadedFile."""
+    with local_copy(upload, Path(getattr(upload, "name", "") or "").suffix or ".zip") as job:
+        return create_run(actor, organisation, req, job, **{"job_name": getattr(upload, "name", "") or "", **kw})
+
+
+# --- the run's life (the worker side: dispatch.py and the worker command)
+
+
+def _event(run: Run, action: str, **after):
+    audit.record(action, obj=run, organisation=run.organisation, after=after or None, actor=None)
+
+
+@transaction.atomic
+def mark_started(run: Run, worker: str = "", backend_job_id: str = "") -> Run:
+    Run.objects.filter(pk=run.pk).update(
+        status=Run.Status.RUNNING, started_at=timezone.now(), worker=worker[:200], backend_job_id=backend_job_id or run.backend_job_id
+    )
+    run.refresh_from_db()
+    _event(run, "calculation_run.started", worker=worker)
+    return run
+
+
+def apply_progress(run: Run, progress: dict) -> None:
+    if progress and progress != run.progress:
+        Run.objects.filter(pk=run.pk).update(progress=progress)
+        run.progress = progress
+
+
+EXIT_STATUS = {0: Run.Status.SUCCEEDED, 1: Run.Status.FAILED, 2: Run.Status.REFUSED}
+
+
+@transaction.atomic
+def finish(run: Run, *, exit_code: int | None, receipt: dict | None = None, error: str = "") -> Run:
+    """Record the worker's end: exit 0 succeeded, 1 the run failed (a receipt says why), 2 the engine refused the spec; a stop asked
+    for while running ends as stopped whatever the exit."""
+    run = Run.objects.select_for_update().get(pk=run.pk)
+    if run.ended:
+        return run
+    if run.cancel_requested_at:
+        status = Run.Status.CANCELLED
+    else:
+        status = EXIT_STATUS.get(exit_code, Run.Status.FAILED)
+    receipt = receipt or {}
+    mismatch = cost_tests_mismatch(run, receipt) if status == Run.Status.SUCCEEDED else ""
+    if mismatch:
+        status, error = Run.Status.FAILED, mismatch
+    run.status, run.finished_at, run.receipt = status, timezone.now(), receipt
+    run.error = (error or receipt.get("error") or "")[:20000]
+    if status == Run.Status.SUCCEEDED and run.progress.get("stage") != "done":
+        run.progress = {**run.progress, "stage": "done", "fraction": 1.0, "seconds_left": 0}
+    run.save()
+    _event(run, f"calculation_run.{status}", exit_code=exit_code, seconds=receipt.get("seconds"), totals=receipt.get("totals") or None)
+    if status == Run.Status.SUCCEEDED and run.submission_version is not None:
+        _record_for_submission(run)
+    if status != Run.Status.CANCELLED and not finished_quickly(run):
+        transaction.on_commit(lambda: _notify_owner(run))
+    return run
+
+
+def finished_quickly(run: Run) -> bool:
+    """Whether a run that succeeded took no longer than the run notice limit (limits "run_notice_seconds"), counted from when it was
+    started (created_at, so time waiting in the queue counts: that is how long its owner waited) to its end. Its owner is then not sent
+    "Your run finished": the page they started it from already shows the results. A failed or refused run is never quick: its notice
+    says what to put right."""
+    if run.status != Run.Status.SUCCEEDED or not (run.created_at and run.finished_at):
+        return False
+    return (run.finished_at - run.created_at).total_seconds() <= limits.value("run_notice_seconds")
+
+
+def cost_tests_mismatch(run: Run, receipt: dict) -> str:
+    """Why a finished run's receipt does not match the cost-test set it was pinned to ("" when it does, or the run pinned none): the
+    engine priced a set whose file differs from the pack's (a built-in set that is not the published file), so its results are not the
+    set's."""
+    want = ((run.spec or {}).get("context") or {}).get("cost_tests") or {}
+    if not want.get("sha256"):
+        return ""
+    got = (receipt.get("cost_tests") or {}).get("sha256") or ""
+    if got == want["sha256"]:
+        return ""
+    return (
+        f"The engine priced a cost-test set whose file (SHA-256 {got[:12] or 'not recorded'}) is not the pinned {want['id']} "
+        f"{want['version']} ({want['sha256'][:12]}), so these results are not that set's. A CPUC system administrator registers the "
+        "engine's own file for the set on Reference data (a set's id and version name one file, so the registered one must be the "
+        "engine's), or the run uses a release that ships the registered file."
+    )
+
+
+NOTICE_TITLES = {
+    Run.Status.SUCCEEDED: "Your run finished: {name}",
+    Run.Status.FAILED: "Your run failed: {name}",
+    Run.Status.REFUSED: "Your run was refused: {name}",
+}
+
+
+def _notify_owner(run: Run) -> None:
+    """Tell the run's owner it ended: on their notifications page, and by email unless they turned that off. The key keeps a
+    retried worker from telling them twice. `finish` calls it only for a run that failed, was refused, or took longer than the run
+    notice limit (finished_quickly)."""
+    from django.urls import reverse
+
+    from cedars.services.notifications import service as notifications
+
+    totals = (run.receipt or {}).get("totals") or {}
+    if run.status == Run.Status.SUCCEEDED:
+        body = ", ".join(f"{k} {v:.2f}" for k, v in totals.items() if k.endswith("Ratio") and isinstance(v, int | float))
+    else:
+        body = (run.error or "").strip().splitlines()[-1][:300] if run.error else ""
+    notifications.notify(
+        run.owner,
+        NOTICE_TITLES[run.status].format(name=run.name),
+        body,
+        reverse("calculations:run", args=[run.pk]),
+        key=f"run:{run.pk}:{run.status}",
+    )
+
+
+def deletion_dates(runs) -> dict:
+    """When retention deletes each run, as the run page and the runs list say it: {run pk: text}. A run that has not ended
+    gets nothing yet (its period runs from its end); a run a filing was priced with is kept with the filing; a run under a legal hold
+    is kept while the hold stands; a class with no period is kept for good; otherwise the day its period ends (the daily purge
+    deletes it on or after that day)."""
+    from cedars.services.retention.models import LegalHold, RetentionPolicy
+    from cedars.services.submissions.models import SubmissionVersion
+
+    runs = list(runs)
+    if not runs:
+        return {}
+    policies = {p.record_class: p for p in RetentionPolicy.objects.filter(record_class__in={r.record_class for r in runs})}
+    holds = LegalHold.objects.filter(record_class__in=policies, released_at__isnull=True).values_list("record_class", "object_ref")
+    whole = {c for c, ref in holds if not ref}
+    one = {(c, ref) for c, ref in holds if ref}
+    ids = {str(r.pk) for r in runs}
+    cited = {str(r) for r in SubmissionVersion.objects.exclude(calculation={}).values_list("calculation__run", flat=True) if str(r) in ids}
+    out = {}
+    for r in runs:
+        policy = policies.get(r.record_class)
+        if r.submission_version_id or str(r.pk) in cited:
+            out[r.pk] = "Kept with the filing it priced"
+        elif r.record_class in whole or (r.record_class, f"calculation_run:{r.pk}") in one:
+            out[r.pk] = "Kept while a legal hold stands"
+        elif policy is None or policy.keep_days is None:
+            out[r.pk] = "Kept permanently"
+        elif r.ended and r.finished_at:
+            day = timezone.localdate(r.finished_at + timedelta(days=policy.keep_days))
+            out[r.pk] = f"Deleted on or after {day:%Y-%m-%d} ({policy.period} after it ended)"
+    return out
+
+
+def expired_runs(cutoff):
+    """Retention purger for record class "scratch_run": runs that ended before the cutoff, with their files, except a run
+    a submission version was priced with (it is kept with that version)."""
+    from cedars.services.submissions.models import SubmissionVersion
+
+    cited = {str(r) for r in SubmissionVersion.objects.exclude(calculation={}).values_list("calculation__run", flat=True) if r}
+    runs = Run.objects.filter(record_class="scratch_run", status__in=Run.ENDED, finished_at__lt=cutoff, submission_version__isnull=True)
+    for run in runs.select_related("organisation"):
+        if str(run.pk) in cited:
+            continue
+
+        def delete(run=run):
+            audit.record(
+                "calculation_run.expired",
+                obj=run,
+                organisation=run.organisation,
+                before={"name": run.name, "finished_at": run.finished_at.isoformat(), "input_hash": run.input_hash},
+                actor=None,
+            )
+            prefix = run.storage_prefix
+            run.delete()
+            transaction.on_commit(
+                lambda: [storage.store(a).delete_prefix(prefix) for a in ("uploads", "results")]
+            )  # once the record is gone
+
+        yield f"calculation_run:{run.pk}", delete
+
+
+def run_state(run_id: str) -> dict | None:
+    """What the submissions service shows a filing page about its pricing run: status, its label, whether it has ended, its error."""
+    try:
+        run = Run.objects.filter(pk=run_id).first()
+    except (ValueError, ValidationError):
+        return None
+    if run is None:
+        return None
+    return {"status": run.status, "label": run.get_status_display(), "ended": run.status in Run.ENDED, "error": run.error or ""}
+
+
+def walkthrough_url(run_id: str) -> str:
+    """The measure walkthrough of a finished run, for the version page of the filing it priced ("" for an unknown or unfinished run)."""
+    try:
+        run = Run.objects.filter(pk=run_id).only("pk", "status").first()
+    except (ValueError, ValidationError):
+        return ""
+    if run is None or run.status != Run.Status.SUCCEEDED:
+        return ""
+    from django.urls import reverse
+
+    return reverse("calculations:walkthrough", args=[run.pk])
+
+
+def price_submission(
+    actor,
+    version,
+    job_zip: Path,
+    *,
+    name: str,
+    acc_version: str,
+    allocation_version=None,
+    settings: dict | None = None,
+    cost_test_set: PackVersion | None = None,
+    profiles_8760: bytes | None = None,
+    release: str = "",
+):
+    """The pricer the submissions service calls (registered in apps.py): a filing version's job on `release`, the engine release the
+    filing's specification version names (blank: the default release), ReCET's own calculation; with settings allocate_statewide,
+    statewide programs are allocated with the filing's allocation version (or the most recent confirmed one for the program year).
+    `cost_test_set`: the published set the filing's specification version or setup requires (blank: the published set in force for the
+    job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
+    named = bool(release)
+    if named:
+        release = releases().filter(release=release).first()
+        if release is None:
+            raise PricingUnavailable(
+                "The filing's specification version names an engine release that is not an active release here; a CPUC system "
+                "administrator registers it, or makes it active, on Engine releases."
+            )
+        if RECET not in (release.calculations or []):
+            raise PricingUnavailable(
+                f"ReCET {release.release}, the engine release the filing's specification version names, does not offer ReCET's own "
+                "calculation."
+            )
+    else:
+        release = default_release()
+    if release is None:
+        raise PricingUnavailable("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
+    which = "The engine release the filing's specification version names" if named else "The default engine release"
+    req = RunRequest(
+        name=name,
+        release=release,
+        calculation=RECET,
+        acc_version=acc_version,
+        settings=settings or {},
+        allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
+        cost_test_set=cost_test_set,
+        profiles_8760=profiles_8760,
+    )
+    # The CPUC's set-up, which the filer cannot change: the release must carry the filing's ACC, and its packs be published.
+    if acc_version not in accs_for(release, RECET):
+        fix = (
+            "Register the ACC with that release on Engine releases." if named else "Make a release with it the default on Engine releases."
+        )
+        raise PricingUnavailable(
+            f"{which}, ReCET {release.release}, has no {acc_version} ACC (it has {', '.join(accs_for(release, RECET)) or 'none'}). {fix}"
+        )
+    try:
+        packs_for(req, filing=True)
+    except AccessDenied as e:
+        raise PricingUnavailable(str(e)) from e
+    return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
+
+
+def restate_options() -> list[dict]:
+    """The releases a restated run may use (registered with the submissions service): active releases with ReCET's own calculation,
+    the default first, each with its ACCs."""
+    return [
+        {"release": r.release, "default": r.default, "accs": accs_for(r, RECET)}
+        for r in releases().filter(active=True)
+        if RECET in (r.calculations or [])
+    ]
+
+
+def restate_version(
+    actor,
+    organisation,
+    version,
+    job_zip: Path,
+    *,
+    name: str,
+    release: str,
+    acc_version: str,
+    record_accs=(),
+    allocation_version=None,
+    settings: dict | None = None,
+    cost_test_set: PackVersion | None = None,
+    profiles_8760: bytes | None = None,
+):
+    """The restater the submissions service calls (registered in apps.py): a published filing's job priced again as an
+    analysis run for `organisation` (None: the actor's own), ReCET's own calculation on `release`. The run is not linked to the version
+    (submission_version stays empty), so its end never records anything on the filing; it is an ordinary run its owner and organization
+    see on Runs. Returns the run's id."""
+    r = EngineRelease.objects.filter(release=release).first()
+    if r is None:
+        raise AccessDenied(f"ReCET {release} is not a registered engine release.")
+    req = RunRequest(
+        name=name,
+        release=r,
+        calculation=RECET,
+        acc_version=acc_version,
+        settings=settings or {},
+        allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
+        cost_test_set=cost_test_set,
+        record_accs=tuple(record_accs),
+        profiles_8760=profiles_8760,
+    )
+    return create_run(actor, organisation, req, job_zip).pk
+
+
+def describe_run(run_id: str) -> dict | None:
+    """What a restatement page shows about one of its runs (registered with the submissions service): its state, its page, what it was
+    priced with, and where its kept results are once it has finished. None for a run that no longer exists (expired)."""
+    from django.urls import reverse
+
+    try:
+        run = Run.objects.select_related("allocation_version").filter(pk=run_id).first()
+    except (ValueError, ValidationError):
+        return None
+    if run is None:
+        return None
+    return {
+        "id": str(run.pk),
+        "status": run.status,
+        "label": run.get_status_display(),
+        "ended": run.ended,
+        "succeeded": run.status == Run.Status.SUCCEEDED,
+        "error": plain_error(run.error) if run.error else "",
+        "url": reverse("calculations:run", args=[run.pk]),
+        "release": run.engine_release,
+        "acc": run.acc_version,
+        "allocation": run.allocation_version.label if run.allocation_version else "",
+        "cost_tests": run.cost_tests,
+        "programs": programs_label(run),
+        "programs_sha256": (run.inputs.get("programs") or {}).get("sha256", ""),
+        "results": results_keys(run) if run.status == Run.Status.SUCCEEDED else {},
+    }
+
+
+GROUP_SUMS = re.compile(r"group_sums(\d+)_")
+
+
+def results_keys(run: Run) -> dict:
+    """Where a finished run's kept results are in the results area: the group sums (one row per PA, program, sector, segment and program
+    year; the newest cube version when there are several) and the measure-level parquet."""
+    out = {"group_sums": None, "measure_level": None}
+    prefix = run.storage_prefix + "out/_results/"
+    names = {f.key.rsplit("/", 1)[-1]: f.key for f in storage.store("results").list(prefix) if f.key.endswith(".parquet")}
+    cubes = {int(m.group(1)): key for name, key in names.items() if (m := GROUP_SUMS.match(name))}
+    out["group_sums"] = cubes[max(cubes)] if cubes else None
+    out["measure_level"] = next((key for name, key in sorted(names.items()) if name.startswith("measure_level_")), None)
+    return out
+
+
+def _record_for_submission(run: Run) -> None:
+    """Tell the submissions service a run on the version's rows has finished, so the version can be confirmed (its hash: the run's), with
+    what it was priced with and where its results are, so the filing module reads them without this module."""
+    from cedars.services.submissions import service as submissions
+
+    packs = {rel: f.get("sha256") for rel, f in ((run.receipt.get("packs") or {}).get("files") or {}).items()}
+    out = run.storage_prefix + "out/"
+    details = {
+        "job_sha256": job_input(run)["sha256"],
+        "job_key": job_input(run)["key"],
+        "release": run.engine_release,
+        "acc": run.acc_version,
+        "allocation_version": {"id": run.allocation_version_id, "label": run.allocation_version.label} if run.allocation_version else None,
+        "allocation_sha256": (run.inputs.get("sw_factors") or {}).get("sha256"),
+        "programs_sha256": (run.inputs.get("programs") or {}).get("sha256"),
+        "cost_tests": ((run.spec or {}).get("context") or {}).get("cost_tests"),
+        "packs": ((run.spec or {}).get("context") or {}).get("packs") or {},  # refdata.pin of the packs, by kind (their ids)
+        "spec_key": run.storage_prefix + "job.json",
+        "receipt_key": out + "receipt.json",
+        "results": results_keys(run),
+    }
+    try:
+        submissions.record_calculation(
+            None, run.submission_version, run=str(run.id), input_hash=run.input_hash, pack_versions=packs, details=details
+        )
+    except AccessDenied as e:
+        Run.objects.filter(pk=run.pk).update(error=f"Finished, but the filing was not updated: {e}")
+
+
+@transaction.atomic
+def cancel_run(actor, run: Run, reason: str = "") -> Run:
+    from . import dispatch
+
+    if not can_cancel(actor, run):
+        raise AccessDenied("Only the run's owner or the organization's calculation admins can stop it.")
+    run = Run.objects.select_for_update().get(pk=run.pk)
+    if run.ended:
+        raise AccessDenied("That run has already ended.")
+    now = timezone.now()
+    run.cancel_requested_at, run.cancelled_by = now, actor
+    if run.status == Run.Status.QUEUED:
+        run.status, run.finished_at = Run.Status.CANCELLED, now
+    run.save()
+    audit.record("calculation_run.cancelled", obj=run, organisation=run.organisation, reason=reason, actor=actor)
+    transaction.on_commit(lambda: dispatch.backend(run.backend).cancel(run))
+    return run
+
+
+# --- reading a run
+
+
+def output_files(run: Run) -> list[dict]:
+    """The run's output files: from the receipt (with their SHA-256) when there is one, else what is in storage so far."""
+    prefix = run.storage_prefix + "out/"
+    listed = {f.key[len(prefix) :]: f.size for f in storage.store("results").list(prefix)}
+    outputs = (run.receipt or {}).get("outputs") or {}
+    names = sorted(set(listed) | set(outputs) | ({"receipt.json"} if "receipt.json" in listed else set()))
+    out = []
+    for name in names:
+        # _results (also each compared ACC's run_acc<ACC>/_results): what the Results pages read
+        if name == "progress.json" or name.startswith("_results/") or "/_results/" in name or name not in listed:
+            continue
+        sha = (outputs.get(name) or {}).get("sha256", "")
+        if not sha and name == "receipt.json":  # the receipt lists the other files' hashes; its own is computed here
+            sha = hashlib.sha256(storage.store("results").get_bytes(prefix + name)).hexdigest()
+        out.append({"name": name, "bytes": listed[name], "sha256": sha})
+    return out
+
+
+_PATH = re.compile(r"(?<![\w.])(?:/[\w.@+-]+){2,}/?|[A-Za-z]:\\(?:[\w.@+ -]+\\)*[\w.@+-]+")
+
+
+def plain_error(text: str) -> str:
+    """What a failed run's page tells the person: the engine's message, whole (UI review 2, #6: it was cut to its last line and 300
+    characters, often mid-sentence), with file paths cut to their names and a plain reading of the common failures. The message is the
+    last exception line and what follows it ("ValueError: ..."), else the last paragraph. The full text stays on the page for the
+    run's owner and administrators (a failure says why in words a filer can act on)."""
+    lines = [line.rstrip() for line in (text or "").strip().splitlines()]
+    if not lines:
+        return ""
+    starts = [i for i, line in enumerate(lines) if _exception_line(line)]
+    if starts:
+        start = starts[-1]
+    else:
+        blanks = [i for i, line in enumerate(lines) if not line.strip()]
+        start = blanks[-1] + 1 if blanks else 0
+    message = " ".join(line.strip() for line in lines[start:] if line.strip())
+    kind, sep, rest = message.partition(": ")
+    if sep and _exception_line(message):
+        message = rest
+        if kind.endswith("FileNotFoundError"):
+            names = sorted({m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1] for m in _PATH.finditer(rest)})
+            what = f" ({', '.join(names)})" if names else ""
+            return (
+                f"A reference file the calculation needs is missing on the worker{what}. Ask a CPUC system administrator to add it to "
+                "the worker's reference data, or run the calculation on a release that has it."
+            )
+        if kind.endswith("MemoryError"):
+            return "The worker ran out of memory on this job. Split the job, or ask a CPUC system administrator for a larger worker."
+    message = _PATH.sub(lambda m: m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1], message)
+    return (message[:1997] + "...") if len(message) > 2000 else message
+
+
+def _exception_line(line: str) -> bool:
+    """Whether a line starts the way Python writes an exception, unindented: "ValueError: ...", "jobs.InputError: ..."."""
+    kind, sep, _ = line.partition(": ")
+    name = kind.rsplit(".", 1)[-1]
+    return bool(sep) and name[:1].isupper() and kind.replace(".", "").replace("_", "").isalnum() and name.endswith(_EXCEPTION_ENDINGS)
+
+
+_EXCEPTION_ENDINGS = ("Error", "Exception", "Exit", "Warning", "Interrupt")
+
+
+def output_key(run: Run, name: str) -> str | None:
+    """The storage key of one of the run's output files, or None when it has no such file."""
+    if any(f["name"] == name for f in output_files(run)):
+        return run.storage_prefix + "out/" + name
+    return None
+
+
+def queue_position(run: Run) -> int | None:
+    """1 = next in its lane; None once it has started."""
+    if run.status != Run.Status.QUEUED:
+        return None
+    return Run.objects.filter(status=Run.Status.QUEUED, lane=run.lane, created_at__lt=run.created_at).count() + 1
+
+
+def calibration() -> float:
+    """Median of actual / estimated seconds over the last ten finished runs of at least 20,000 measures (1.0 before there are any),
+    held between 0.25 and 4, as ReCET's queue estimate (recet/web/eta.py) does."""
+    ratios = []
+    for r in Run.objects.filter(status=Run.Status.SUCCEEDED, measure_count__gte=20_000, estimate_seconds__gt=0).order_by("-finished_at")[
+        :10
+    ]:
+        if r.seconds:
+            ratios.append(r.seconds / r.estimate_seconds)
+    if not ratios:
+        return 1.0
+    ratios.sort()
+    mid = len(ratios) // 2
+    median = ratios[mid] if len(ratios) % 2 else (ratios[mid - 1] + ratios[mid]) / 2
+    return min(4.0, max(0.25, median))
+
+
+def estimate_seconds(run: Run) -> int:
+    rate = SECONDS_PER_MILLION[RECET if run.calculation == RECET else "replica"]
+    if run.settings.get("include_societal") is False:
+        rate *= 0.85  # SCT is about 15% of a run (ReCET 0.1.66)
+    if run.settings.get("preflight_only"):
+        rate *= 0.17
+    return int(BASE_SECONDS + rate * (run.measure_count or 0) / 1_000_000)
+
+
+def _left(run: Run, scale: float) -> float:
+    if run.status == Run.Status.RUNNING:
+        if run.progress.get("seconds_left") is not None:
+            return float(run.progress["seconds_left"])
+        elapsed = (timezone.now() - run.started_at).total_seconds() if run.started_at else 0
+        return max(0.0, (run.estimate_seconds or 0) * scale - elapsed)
+    return (run.estimate_seconds or 0) * scale
+
+
+def eta(run: Run) -> dict:
+    """{"starts_in", "done_in"} in seconds (estimates), from the runs ahead of it in its lane over the lane's workers."""
+    if run.ended:
+        return {}
+    scale = calibration()
+    if run.status == Run.Status.RUNNING:
+        return {"starts_in": 0, "done_in": int(_left(run, scale))}
+    workers = max(1, int(getattr(settings, "CALCULATIONS_WORKERS", {}).get(run.lane, 1)))
+    ahead = Run.objects.filter(lane=run.lane, status__in=[Run.Status.QUEUED, Run.Status.RUNNING], created_at__lt=run.created_at).order_by(
+        "created_at"
+    )
+    slots = [0.0] * workers
+    for other in ahead:
+        i = slots.index(min(slots))
+        slots[i] += _left(other, scale)
+    starts = min(slots)
+    return {"starts_in": int(starts), "done_in": int(starts + _left(run, scale))}

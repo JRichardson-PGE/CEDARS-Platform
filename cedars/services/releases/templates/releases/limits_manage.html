@@ -1,0 +1,63 @@
+{% extends "core/base.html" %}
+{% block title %}Change limits{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:administration' %}">Administration</a></li><li><a href="{% url 'limits:index' %}">Limits</a></li></ol></nav>
+<div class="page-title"><h1>Change limits</h1>{% page_help "releases/limits_manage" %}</div>
+<p>The limits CPUC system administrators can change without a release. A change takes effect at once, for everyone, and is shown on the
+<a href="{% url 'limits:index' %}">Limits page</a>. Each change needs a reason and is kept below and in the audit log. Announce a change
+people will notice in the <a href="{% url 'releases:manage' %}">release notes</a> first.</p>
+
+<section aria-labelledby="editable-h">
+<h2 id="editable-h">Limits you can change</h2>
+{% for lim in editable %}
+<section class="card" id="{{ lim.key }}" aria-labelledby="{{ lim.key }}-h">
+  <h3 id="{{ lim.key }}-h">{{ lim.label }}</h3>
+  <dl class="facts">
+    <dt>Now</dt><dd><strong>{{ lim.current }}</strong></dd>
+    <dt>Default</dt><dd>{{ lim.default }} {{ lim.unit }} (the setting {{ lim.setting }})</dd>
+    <dt>Where it applies</dt><dd>{{ lim.applies }}</dd>
+    <dt>Over the limit</dt><dd>{{ lim.over }}</dd>
+  </dl>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="key" value="{{ lim.key }}">
+    <div class="field">
+      <label for="{{ lim.key }}-value">New value ({{ lim.unit }})</label>
+      <input type="number" id="{{ lim.key }}-value" name="value" min="{{ lim.bounds.0 }}" max="{{ lim.bounds.1 }}" step="1" value="{{ lim.value }}" aria-describedby="{{ lim.key }}-range">
+      <span id="{{ lim.key }}-range" class="small muted">From {{ lim.bounds.0 }} to {{ lim.bounds.1 }} {{ lim.unit }}.</span>
+    </div>
+    <div class="field">
+      <label for="{{ lim.key }}-reason">Reason</label>
+      <textarea id="{{ lim.key }}-reason" name="reason" rows="2" required></textarea>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" name="action" value="set">Save</button>
+      <button type="submit" name="action" value="default">Set back to the default</button>
+    </div>
+  </form>
+</section>
+{% endfor %}
+</section>
+
+<section aria-labelledby="history-h">
+<h2 id="history-h">Changes made</h2>
+{% if history %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Changes made">
+<table class="list">
+  <caption class="sr-only">Each change to a limit, newest first: when, which limit, the value set, who and why</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">Limit</th><th scope="col">Set to</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
+  <tbody>
+  {% for change, lim in history %}<tr>
+    <td>{{ change.changed_at|datetime_words }}</td>
+    <th scope="row">{% if lim %}{{ lim.label }}{% else %}{{ change.key }}{% endif %}</th>
+    <td>{% if change.value is None %}The default{% else %}{{ change.value }} {{ lim.unit }}{% endif %}</td>
+    <td>{{ change.changed_by|person }}</td>
+    <td>{{ change.reason }}</td>
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>No changes yet: every limit here is at its default.</p>
+{% endif %}
+</section>
+{% endblock %}

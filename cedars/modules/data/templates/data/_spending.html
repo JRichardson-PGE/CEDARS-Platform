@@ -1,0 +1,46 @@
+{% load data_tags %}
+{# Each table is a section that folds away; dashboard.js remembers which are folded (dashboard.html). #}
+<details class="section dash-part" open data-part="{{ page.slug }}:elements">
+<summary><h2>Cost elements by primary sector{% if sp.elements %}, {{ sp.elements.query.dataset|series_word }}{% endif %} ($ nominal)</h2></summary>
+<div class="section-body">
+{% if sp.elements %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Cost elements by primary sector">
+<table class="list">
+  <caption class="sr-only">Cost elements by primary sector, in nominal dollars</caption>
+  <thead><tr><th scope="col">Primary sector</th>{% for m in elements %}<th scope="col" class="num">{{ m.label }}</th>{% endfor %}<th scope="col" class="num">Expenditure</th></tr></thead>
+  <tbody>
+  {% for r in sp.elements.rows %}
+  <tr><th scope="row">{{ r.sector|default_if_none:"(blank)" }}</th>{% for m in elements %}<td class="num">{{ r|get_item:m.code|money }}</td>{% endfor %}<td class="num">{{ r.expenditure|money }}</td></tr>
+  {% empty %}<tr><td colspan="9">Nothing matches these filters.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if sp.elements.rows %}<tfoot><tr><th scope="row">Total</th>{% for m in elements %}<td class="num">{{ sp.elements.totals|get_item:m.code|money }}</td>{% endfor %}<td class="num">{{ sp.elements.totals.expenditure|money }}</td></tr></tfoot>{% endif %}
+</table>
+</div>
+{% else %}<p>No cost elements for these choices.</p>{% endif %}
+</div>
+</details>
+
+<details class="section dash-part" open data-part="{{ page.slug }}:programs">
+<summary><h2>Budget and spending by program ($ nominal)</h2></summary>
+<div class="section-body">
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by program">
+<table class="list">
+  <caption class="sr-only">Budget and spending by program, in nominal dollars</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col" class="num">Operating budget</th>
+    {% for s in sp.results %}<th scope="col" class="num">{{ s|series_word|capfirst }} expenditure</th>{% endfor %}
+    <th scope="col" class="num">Monthly reported (preliminary)</th><th scope="col" class="num">Monthly % of budget</th>
+    {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in sp.by_program %}
+  <tr><th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% elif r.key is None %}(blank){% else %}{{ r.key }} <span class="small muted">(not in the program registry)</span>{% endif %}</th><td class="num">{{ r.budget|money }}</td>
+    {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
+    <td class="num">{{ r.monthly|money }}</td><td class="num">{{ r.monthly_share|percent }}</td>
+    {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="7">No budget lines or spending for these choices.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+</details>

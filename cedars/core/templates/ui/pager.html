@@ -1,0 +1,7 @@
+{% if show %}<nav class="pager{% if where %} pager-{{ where }}{% endif %}" aria-label="{{ name }}">
+  {% if first %}<a href="{{ first }}">First<span class="sr-only"> page</span></a>{% endif %}
+  {% if previous %}<a href="{{ previous }}" rel="prev">{{ previous_word }}<span class="sr-only"> page</span></a>{% endif %}
+  <span>Page {{ number }} of {{ pages }} <span class="muted small">({{ start }} to {{ end }} of {{ count }})</span></span>
+  {% if next %}<a href="{{ next }}" rel="next">{{ next_word }}<span class="sr-only"> page</span></a>{% endif %}
+  {% if last %}<a href="{{ last }}">Last<span class="sr-only"> page</span></a>{% endif %}
+</nav>{% endif %}

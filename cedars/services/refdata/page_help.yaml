@@ -1,0 +1,394 @@
+# Help for each page (cedars/core/page_help.py): reference data packs and cost-test sets.
+
+refdata/index:
+  title: Data packs
+  guide:
+    - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
+      run and every filing records the packs it used. A draft can be used for analysis runs but not for filings, and a pack is published
+      only once its checks pass; a published pack is never changed, and a withdrawn one keeps the runs that used it.
+  see: reference-data
+  tour:
+    - heading: In force today
+      title: In force today
+      text: The pack of each kind that filings use today.
+      optional: true
+    - heading: All packs
+      title: All packs
+      text: Every pack, newest first within each kind. Select one for its files and tie-outs.
+
+refdata/detail:
+  title: A data pack
+  guide:
+    - One data pack, its status, what it holds, its files with their SHA-256 checksums, and the tie-outs it must pass before it is
+      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests, a grid of how they
+      are built (each stream's part in each test, and each test as a formula), the set in words as the engine reads it, and a link to
+      download its file.
+    - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed result of each check
+      the kind of pack requires.
+  how:
+    - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.
+    - On a draft, Record the result takes a check's JSON report and keeps the result it gives (for the pack's managers).
+    - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
+    - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set. Its engine check is recorded
+      when it is registered, by the engine installed here; Check it with the engine again records it anew.
+  see: reference-data
+  tour:
+    - target: main dl.facts
+      title: The pack
+      text: Kind, status, ACC, source and notes.
+    - target: "#set-h"
+      title: The set
+      text: For a cost-test set, its tests and value streams, and the link to download its file.
+      optional: true
+    - target: "#words-h"
+      title: The set in words
+      text: For a cost-test set, each test's benefits and costs as the engine adds them up.
+      optional: true
+    - target: "#perm-h"
+      title: Permutations
+      text: For an eTRM pack, look up one permutation's values.
+      optional: true
+    - heading: Tie-outs
+      title: Tie-outs
+      text: The checks this kind of pack must pass, with the latest result of each.
+    - target: "#rec-h"
+      title: Record a result
+      text: For a draft's managers, upload a check's report to record its result.
+      optional: true
+    - heading: Files
+      title: Files
+      text: Every file with its checksum.
+    - target: "#act-h"
+      title: Publish, discard or withdraw
+      text: For the pack's managers.
+      optional: true
+
+refdata/cost_tests:
+  title: Cost-test sets
+  guide:
+    - A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned to
+      one. A filing is priced only on a published set, the one its filing setup names or the one in force for its first program year.
+      An analysis run may also use a draft. A change to a set is a new version, never an edit; the engine's documents (Cost tests as
+      configuration) describe what a set holds.
+    - Anyone may build a set with the set builder and price their own analysis runs on it. Only the CPUC registers a set for everyone,
+      publishes it and pins it to a filing.
+  how:
+    - Build a set starts the set builder, from a copy of a set, a file or nothing.
+    - Register as a draft takes a set's definition file; the engine here records its engine check at once; publish it from its page.
+    - Managers review the sets Offered to the CPUC, then register one from its Review step or decline it with a reason.
+  see: reference-data
+  tour:
+    - heading: Every set
+      title: Every set
+      text: Each set with its program years, tests and status. Select one for its definition.
+    - target: "#mine-h"
+      title: My sets
+      text: The sets you are building and those shared with your organization, with Build a set to start another.
+    - target: "#offered-h"
+      title: Offered to the CPUC
+      text: For the CPUC's managers, the sets their builders offer for everyone.
+      optional: true
+    - target: "#reg-h"
+      title: Register a set
+      text: For CPUC system administrators. A set starts as a draft.
+      optional: true
+
+refdata/builder/start:
+  title: Build a cost-test set
+  guide:
+    - Starts a set on the set builder. The usual start is a copy of a registered set (its file, with today's date as the new version),
+      changed in a step or two. You can also copy one of your own sets or a set the engine ships, read in a set file you have (written by
+      hand or downloaded; one with problems is still read in, and its problems shown), or start from a blank set.
+    - Shared with your organization, the set can be opened and changed by its members who may start runs there.
+    - The CPUC registers and publishes the sets everyone uses and the one a filing is priced on.
+  how:
+    - Choose what to start from in the Start from list. The page then shows only what that choice needs (which set, or the file);
+      without scripts, select Next to show it. Then select Start.
+  see: reference-data
+  tour:
+    - target: "#id_start"
+      title: Start from
+      text: A copy of a set, a file, or a blank set. Once you choose, the page shows the set or file to pick.
+    - target: "main form .actions button.primary"
+      title: Start
+      text: Opens the new set's first step. It shows once you have chosen what to start from.
+      optional: true
+
+refdata/builder/set:
+  title: "Set builder: the set"
+  guide:
+    - The first step of a set being built. The id is made from the workstream, the first program year and an optional ending (EE-2028,
+      EE-2028-neb); the version, usually a date, tells it from other files of the same id. A registered set's id and version name one file
+      for good, so a changed set takes a new version.
+    - The program years say when the set is in force. A draft is never published and never prices a filing.
+    - The steps across the top show how many problems each has. Every save checks the whole set with the engine.
+  how:
+    - Change the fields and select Save and go on, or Save to stay on the step.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - target: "#step-problems"
+      title: Problems
+      text: What the engine says is wrong with this part of the set.
+      optional: true
+    - heading: Id
+      title: Id
+      text: The workstream, the first program year and an optional ending make the set's id.
+    - heading: Program years
+      title: Program years
+      text: The years the set is in force for; blank is open.
+
+refdata/builder/pricings:
+  title: "Set builder: pricings"
+  guide:
+    - A pricing says how a stream is priced for a test, which ACC rows and which discount rates, and the suffix its columns carry. The
+      engine prices its own streams only on its own pricings; a pricing of your own is for streams from input columns and the program costs.
+    - The engine's own pricings are the TRC rows at the primary rates with no suffix, and the SCT Base and High rows at the societal rates
+      with _SB and _SH (participant columns _SCT).
+    - A pricing a stream, aggregate or test uses cannot be removed until they no longer use it.
+  how:
+    - Change a pricing's fields, tick Remove on one nothing uses, or fill in Add a pricing, then select Save.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: Pricing
+      title: A pricing
+      text: Its ACC rows, discount rates and column suffixes.
+      optional: true
+    - heading: Add a pricing
+      title: Add a pricing
+      text: A new pricing's id is typed once and cannot change.
+
+refdata/builder/engine:
+  title: "Set builder: streams the engine prices"
+  guide:
+    - The value streams the engine prices, from its own catalog, as a table. The set's streams come first; the ones it leaves out are folded
+      under Streams not in the set. Include the ones the set's tests and aggregates read and tick the pricings each is read in (only those
+      the engine prices it in are offered). The name, kind, fuel, column naming and gross form are the engine's.
+    - Each stream's unit and definition keep the engine's words unless you change them under Change the wording; the definition is shown
+      in each run's field definitions. A stream's problems are shown in its row.
+    - A value of the set's own, such as a non-energy benefit, is a stream from input columns, the next step.
+  how:
+    - Tick or untick a stream to include it, tick its pricings, and open Change the wording to change its unit or definition. Open Streams
+      not in the set to add one. Then select Save.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: In the set
+      title: In the set
+      text: A row a stream, with its Include box, what it is, the pricings it is read in and its wording.
+      optional: true
+    - target: ".streams-left-out > summary"
+      title: Streams not in the set
+      text: The engine's other streams, folded; tick one to add it.
+      optional: true
+    - heading: The program costs
+      title: The program costs
+      text: Part of every set and not changed here.
+      optional: true
+
+refdata/builder/inputs:
+  title: "Set builder: streams from input columns"
+  guide:
+    - Values the set reads from Measure.csv columns, once or each year of the measure's life, scaled by NumUnits, the NTG and market
+      effects. Non-energy benefits go here. A column that is not one of CET's is the set's own; a job without it prices it as 0.
+  how:
+    - Add a stream from input columns, or Change or Remove one in the list.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's input streams
+      title: The set's input streams
+      text: What each reads and how it is counted.
+
+refdata/builder/input_stream:
+  title: "Set builder: a stream from input columns"
+  guide:
+    - One stream from input columns. Its name is the column it writes and the name tests use. It adds up the per-unit values of the
+      Measure columns you choose (or name), times NumUnits and the NTG plus market effects, once or each year of the measure's life at the
+      pricing's discount rates. A gross form lets a test with the Gross variant use it.
+    - Only CET's per-unit dollar columns are offered (UnitMeaCost1stBaseline, UnitMiscBens, UnitTaxCredits and the like). Counts, rates,
+      years and energy savings, such as NumUnits, NTGRkW, EUL_Yrs or UnitkWh1stBaseline, cannot be added up and are refused if typed in.
+  how:
+    - Choose the Measure columns it adds up in the two lists, and any 2nd-baseline columns in the two lists below them; search by name
+      or definition on the left, select and press Add (or Enter), and Remove (or Delete) on the right. Name a new column of your own in
+      the box under the lists.
+    - Fill in the other fields and select Save the stream.
+  see: reference-data
+  tour:
+    - heading: Measure columns
+      title: Measure columns
+      text: The per-unit columns it adds up, chosen in the two lists; name a new column of your own in the box.
+    - heading: Gross form
+      title: Gross form
+      text: How the stream's gross form is made, for tests with the Gross variant.
+
+refdata/builder/aggregates:
+  title: "Set builder: aggregates"
+  guide:
+    - Columns that add up streams in one pricing, such as TotalSystemBenefit, written per measure. A set needs none; tests do not read
+      them.
+  how:
+    - Add an aggregate, or Change or Remove one in the list.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's aggregates
+      title: The set's aggregates
+      text: What each adds and takes away, and in which pricing.
+
+refdata/builder/aggregate:
+  title: "Set builder: an aggregate"
+  guide:
+    - One aggregate. Its name is the column it writes. It adds the streams you tick under Streams it adds and takes away those under
+      Streams it takes away, each read in the pricing you choose. Ticking Also write it gross adds a column from each stream's gross form.
+  how:
+    - Fill in the fields and select Save the aggregate.
+  see: reference-data
+  tour:
+    - target: "#id_plus"
+      title: Streams it adds
+      text: Each stream with the pricings it is read in.
+
+refdata/builder/tests:
+  title: "Set builder: tests"
+  guide:
+    - The set's cost tests, in the order a run writes them and its pages show them. Each is a ratio of the streams it adds as benefits
+      to those it adds as costs, read in its pricing, with a share of the program costs when it has one; each is shown as its formula.
+    - In a formula, adder(X) is added to the benefits, share x ProgramCosts is the test's own share of the program costs and share(TRC) x
+      ProgramCosts is TRC's.
+  how:
+    - Add a test, or Change, Remove, or move a test Up or Down in the list.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's tests
+      title: The set's tests
+      text: Each test's pricing, formula and variants, in order.
+
+refdata/builder/test:
+  title: "Set builder: a test"
+  guide:
+    - One cost test. Its id names its columns (TRCBen, TRCCost, TRCRatio). Write it as a formula, (benefits) / (costs), or tick its
+      benefits and costs among the set's streams, each read in the test's pricing; choose how it takes the program costs (none, its own
+      share of the program's positive benefits, or another test's share); and choose its variants and outputs.
+    - "In the formula, streams are joined by +. adder(X) adds X to the test's benefits without putting it in the benefits its share of the
+      program costs is divided by (TRC's TaxCredits). share x ProgramCosts is the test's own share of the program costs; share(TRC) x
+      ProgramCosts takes TRC's. Each stream counts once: weights, numbers and minus signs are refused."
+  how:
+    - Type the formula; the names you can write are suggested as you type (Up and Down to choose, Enter or Tab to take one, Escape to close
+      the list), and the check under it says what it reads. The lists below follow it, and ticking a list rewrites it.
+    - Fill in the other fields and select Save the test. When you changed the formula, it decides the streams; otherwise the ticked lists do.
+  see: reference-data
+  tour:
+    - target: "#id_formula"
+      title: Formula
+      text: The test written out, (benefits) / (costs), with suggestions as you type.
+    - target: "#id_benefits"
+      title: The same test as lists
+      text: Each stream with the pricings it is read in; ticking one rewrites the formula.
+    - heading: Outputs
+      title: Outputs
+      text: The lifecycle net benefit, levelized costs, headline and filing choices.
+
+refdata/builder/review:
+  title: "Set builder: review"
+  guide:
+    - The whole set, as the engine writes it out, with every problem left and the set's file to download. Each problem names the field it
+      is about, as its step's form labels it, and links to that field. An analysis run on New run takes the file as your own cost-test set.
+    - How the tests are built is a grid of the set's streams against its tests, each cell saying whether the stream is a benefit, an
+      adder or a cost in that test, with each test's pricing, program-cost share and variants, and each test as a formula. Streams no test
+      uses are folded away below it.
+    - A set copied from another one lists what changed since, part by part.
+    - The CPUC's cost-test pack managers register a set with no problems as a draft pack; the engine installed here records its engine
+      check at once, and it is published on its own page. A registered set no longer changes here; copy it to start the next version.
+  how:
+    - Download the set file, or Copy it to a new set; managers Register as a draft pack. Discard it opens a page that says what goes and
+      asks you to confirm; only the person who started the set, or its organization's administrator, discards it.
+    - Offer it to the CPUC with a note, when everyone could use it; Withdraw the offer while it waits. Managers Decline an offered set
+      with a reason, which its builder is sent.
+  see: reference-data
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: Problems
+      title: Problems
+      text: Every problem left, by step.
+    - heading: What changed
+      title: What changed
+      text: For a copied set, each part added, removed or changed since it was copied.
+      optional: true
+    - heading: The set in words
+      title: The set in words
+      text: Each test's benefits and costs as the engine adds them up.
+      optional: true
+    - heading: The file
+      title: The file
+      text: Download the set's YAML file.
+    - heading: What next
+      title: What next
+      text: Register, copy or discard the set.
+
+refdata/builder/discard:
+  title: Discard a cost-test set
+  guide:
+    - Asks you to confirm before a set you are building is discarded. A discarded set leaves your sets, and your organization's when it is
+      shared, for good; an offer to the CPUC goes with it. Analysis runs already priced on it keep their copy of its file.
+    - To keep the set, download its file first; Build a set can read it in again.
+  how:
+    - Discard the set for good discards it; Keep the set goes back to its Review step.
+  see: reference-data
+  tour:
+    - target: main form.actions
+      title: Discard or keep
+      text: Discard the set for good, or keep it and go back to its Review step.
+
+refdata/checks:
+  title: Pack acceptance checks
+  guide:
+    - The checks each kind of data pack must pass before it is published, so filings can use it, such as reconciling an ACC to its
+      published workbook. A check's result is recorded on the pack's page from the report of the script or calculation that ran it.
+    - CPUC system administrators add a check or retire one, with a reason. A check is never edited, and a published pack keeps the checks
+      it was published under.
+  how:
+    - Add a check names the kind of pack, a short name and what it shows. Drafts of that kind then need it before they are published.
+    - Retire takes a check out of use, with a reason; it stays listed under Retired checks.
+  see: reference-data
+  tour:
+    - target: main section h2
+      title: A kind of pack
+      text: Each kind of pack with the checks in force for it.
+    - target: "#add-h"
+      title: Add a check
+      text: For CPUC system administrators.
+      optional: true
+
+refdata/etrm_upload:
+  title: Upload eTRM permutations
+  guide:
+    - Load eTRM's permutations downloads (CSV) as a draft data pack of published permutations, indexed by Measure Detail ID. Claims check
+      deemed records against the published pack in force.
+    - The CPUC's system administrators load them here and publish the pack on its page once a few permutations look right.
+  how:
+    - Choose the CSV files, give the pack a version (for example the download date) and Load as a draft. The pack's page opens.
+  see: reference-data
+  tour:
+    - target: main form.stack
+      title: The upload
+      text: The downloads, the pack's label and version, and when it applies from.
+    - heading: Recent eTRM permutation packs
+      title: Recent packs
+      text: The last ten loaded, with their status.

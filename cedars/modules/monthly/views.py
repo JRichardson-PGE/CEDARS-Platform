@@ -1,0 +1,737 @@
+import csv
+import mimetypes
+from decimal import Decimal
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from cedars.core import letters, storage
+from cedars.services.accounts import service as access
+from cedars.services.accounts.models import Organisation
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata.models import PackVersion
+from cedars.services.releases import limits
+from cedars.services.specifications import service as specifications
+from cedars.services.submissions import corrections, filing_parts
+from cedars.services.submissions import service as submissions
+from cedars.services.submissions import setup as setup_calendar
+from cedars.services.submissions import status as filing_status
+from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
+
+from . import forms, service
+from . import upload as up
+from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, ChangeLetter, YearSetup
+
+DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
+PRELIMINARY = "Preliminary estimate"
+
+
+def accs() -> list[str]:
+    """The ACC years estimates can be priced on: those with a registered electric ACC pack, else the engine's four."""
+    years = (
+        PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year__isnull=False)
+        .exclude(status=PackVersion.Status.WITHDRAWN)
+        .values_list("acc_year", flat=True)
+    )
+    return sorted({str(y) for y in years}) or DEFAULT_ACCS
+
+
+def _money(x) -> str:
+    if x is None:
+        return ""
+    d = Decimal(x)
+    return f"-${-d:,.0f}" if d < 0 else f"${d:,.0f}"
+
+
+def _fmt(kind: str, x) -> str:
+    if x is None:
+        return ""
+    if kind == "money":
+        return _money(x)
+    if kind == "ratio":
+        return f"{float(x):.2f}"
+    if kind == "share":
+        return f"{float(x):.0%}"
+    return f"{float(x):,.0f}"
+
+
+def _deadline(pk) -> Deadline:
+    d = get_object_or_404(Deadline.objects.select_related("period"), pk=pk, module=service.MODULE, kind=service.KIND)
+    if service.setup_for(d) is None:
+        raise Http404
+    return d
+
+
+def _organisation(request, deadline: Deadline) -> Organisation | None:
+    """Whose report the page shows: ?org=CODE for those who may read it (CPUC staff), else the organization the user acts for."""
+    code = request.GET.get("org") or request.POST.get("org")
+    if code:
+        org = access.by_code_or_404(code)
+        if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
+            raise Http404
+        return org
+    return request.filing_organisation  # a PA acting for itself; the CPUC and other organizations choose a PA with ?org=
+
+
+def _status(v: SubmissionVersion | None) -> dict:
+    """The acting organization's status for the index and year pages: the badge's code and words, the version beside it."""
+    if v is None:
+        return {"code": "", "label": "Not started", "version": "", "late": False}
+    return {"code": v.status, "label": v.get_status_display(), "version": f"version {v.number}", "late": v.late}
+
+
+# --- home and set-up
+
+
+@login_required
+def index(request):
+    """Each program year's twelve reports with their due dates and the acting PA's status (none for the CPUC: it files no reports)."""
+    org = request.filing_organisation
+    waiting = submissions.pending_corrections(request.user, service.MODULE)  # None unless an approver
+    years = []
+    for setup in service.years():
+        rows = []
+        for d in service.months(setup.year):
+            latest, can_open = None, True
+            if org is not None:
+                sub = Submission.objects.filter(deadline=d, organisation=org).first()
+                latest = submissions.latest(sub) if sub else None
+                # The report page refuses a report the user may not read (UAT 2, U03): name it without a link then.
+                can_open = sub is None or service.can_read_submission(request.user, sub)
+            rows.append(
+                {
+                    "waiting": (waiting or {}).get(d.pk, 0),
+                    "deadline": d,
+                    "latest": latest,
+                    "status": _status(latest),
+                    "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
+                    "can_open": can_open,
+                }
+            )
+        filing_status.mark_next(rows, org)  # the one to file now, and each row's action (UI review 3, U5)
+        years.append({"setup": setup, "months": rows})
+    return render(
+        request,
+        "monthly/index.html",
+        {"years": years, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
+    )
+
+
+def template(request):
+    """The monthly report template workbook (navigation review D2): public, like the claims template and the data dictionary. It is the
+    specification version's own template (?filing=: the version that month's report follows; else the current one)."""
+    url = specifications.template_url(service.MODULE, request.GET.get("filing"))
+    if not url:
+        raise Http404("No monthly report specification is published.")
+    return redirect(url)
+
+
+@login_required
+def year_new(request):
+    if not access.is_system_admin(request.user):
+        raise Http404
+    form = forms.YearForm(request.POST or None, accs=accs())
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            setup = service.set_up_year(
+                request.user,
+                year=d["year"],
+                acc_version=d["acc_version"],
+                due=form.due(),
+                closing_due=d["closing_due"],
+                allocation_version=d["allocation_version"],
+                notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
+                specification_version=d.get("specification_version"),
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"{setup.year}'s monthly reports are set up: twelve months and the 13th-month report.")
+            return redirect("monthly:index")
+    return render(request, "monthly/year_new.html", {"form": form})
+
+
+@login_required
+def setup(request, year):
+    s = get_object_or_404(YearSetup, year=year)
+    if not access.is_system_admin(request.user):
+        raise Http404
+    calendar, done = setup_calendar.calendar_forms(
+        request,
+        service.year_deadlines(s),
+        removable=service.removable(s),
+        remove=lambda reason: service.remove_setup(request.user, s, reason),
+        removed_url=reverse("monthly:index"),
+        what=f"{s.year} monthly reports",
+    )
+    if done:
+        return done
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
+    form = forms.SetupForm(
+        request.POST if own else None,
+        accs=accs(),
+        initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version, "notes": s.notes},
+    )
+    if own and form.is_valid():
+        d = form.cleaned_data
+        try:
+            service.change_setup(
+                request.user,
+                s,
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                reason=d["reason"],
+                notes=d["notes"],
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Saved. Reports already priced keep what they were priced with.")
+            return redirect("monthly:index")
+    return render(request, "monthly/setup.html", {"setup": s, "form": form} | calendar)
+
+
+# --- a PA's report for a month
+
+
+@login_required
+def report(request, pk):
+    """One month's report for one organization: its versions and the next step (upload, fix, price, confirm, un-confirm, ask to
+    reopen)."""
+    deadline = _deadline(pk)
+    org = _organisation(request, deadline)
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first() if org else None
+    if sub is not None and not service.can_read_submission(request.user, sub):
+        raise Http404
+    v = submissions.latest(sub) if sub else None
+    can = {a: org is not None and access.has_permission(request.user, org, f"{service.MODULE}.{a}") for a in ("submit", "confirm")}
+    acting = org is not None and org == request.organisation
+    ctx = {
+        "pa_choices": []
+        if org
+        else submissions.filer_statuses(
+            deadline, lambda s: service.can_read_submission(request.user, s), every=access.is_cpuc_staff(request.user)
+        ),
+        "deadline": deadline,
+        "label": service.label(deadline),
+        "setup": service.setup_for(deadline),
+        "org": org,
+        "acting": acting,
+        "sub": sub,
+        "v": v,
+        "versions": list(sub.versions.select_related("confirmed_by").order_by("-number")) if sub else [],
+        "past_due": submissions.past_due(deadline),
+        "opens_later": deadline.opens_at and timezone.now() < deadline.opens_at,
+        "can_submit": can["submit"] and acting,
+        "can_confirm": can["confirm"] and acting,
+        "upload_form": forms.UploadForm(),
+        "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
+        "sysadmin": access.is_system_admin(request.user),
+        "commitment_fields": COMMITMENT_FIELDS,
+        "cost_fields": PROGRAM_COST_FIELDS,
+        "incentive_fields": INCENTIVE_FIELDS,
+    }
+    if v is not None:
+        service.ensure_lines(v)
+        ctx["pricing_run"] = submissions.pricing_run(v)
+        ctx["priced"] = service.priced(v)
+        ctx["file"] = service.report_file(v)
+        if ctx["priced"]:
+            ctx["tiles"] = _tiles(service.report(v))
+        ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
+    ctx.update(
+        filing_parts.context(
+            v,
+            has_file=bool(ctx.get("file")),
+            priced=ctx.get("priced", False),
+            pricing=ctx.get("pricing_run"),
+            can_correct=ctx.get("can_correct", False),
+        )
+    )
+    ctx["s"] = (v.findings or {}) if v else {}
+    ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the report"
+    if v is not None:
+        ctx["out"] = {
+            "price_url": reverse("monthly:price", args=[pk]),
+            "price_label": "Price the estimates",
+            "price_help": "Prices the year-to-date BCA inputs (the engine checks them as it does any run); confirming needs it.",
+            "confirm_url": reverse("monthly:confirm", args=[pk]),
+            "confirm_help": "Signs off on exactly this report; it becomes open to every user, the estimates labeled preliminary.",
+            "unconfirm_url": reverse("monthly:unconfirm", args=[pk]),
+            "reopen_url": reverse("monthly:reopen", args=[pk]),
+            "results_url": reverse("monthly:version", args=[v.pk]),
+            "results_heading": "The report",
+            "results_link": "By program",
+            "results_about": ", against the operating budget, with the estimates.",
+            "what": "this report",
+            "kept": "filed",
+        }
+    return render(request, "monthly/report.html", ctx)
+
+
+def _tiles(r) -> list[tuple[str, str]]:
+    t = r.total
+    out = [
+        ("Spend this month", _money(t.get("MonthExpenditures")) if r.month_known else "not known yet"),
+        ("Spend, year to date", _money(t.get("YTDExpenditures"))),
+    ]
+    if r.budget:
+        out.append(("Share of the operating budget spent", _fmt("share", t.spent_share)))
+    out += [
+        (service.PAID, _money(t.get("RebatesAndIncentives"))),
+        (service.COMMITTED, _money(t.get("YTDCommittedFunds"))),
+    ]
+    if r.estimated:
+        out.append(("Estimated TSB, year to date (preliminary)", _money(t.estimate("TotalSystemBenefit"))))
+    return out
+
+
+def _latest(deadline, org) -> SubmissionVersion:
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first()
+    v = submissions.latest(sub) if sub else None
+    if v is None:
+        raise AccessDenied("Upload the report first.")
+    return v
+
+
+def _action(request, pk, fn, done: str):
+    deadline = _deadline(pk)
+    if request.organisation is None:
+        raise Http404
+    try:
+        out = fn(deadline, request.organisation)
+    except (AccessDenied, up.UploadError, Submission.DoesNotExist) as e:
+        messages.error(request, str(e) or "Nothing to do.")
+    else:
+        messages.success(request, done if not callable(done) else done(out))
+    return redirect("monthly:report", pk)
+
+
+@login_required
+@require_POST
+def upload(request, pk):
+    form = forms.UploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the report's .zip or .xlsx file, or its files.")
+        return redirect("monthly:report", pk)
+    files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
+
+    def done(v):
+        s = v.findings or {}
+        if v.status == SubmissionVersion.Status.VALIDATED:
+            msg = f"Checked {s.get('records', 0):,} records: none rejected"
+            return msg + (f", {s['warnings']:,} with warnings." if s.get("warnings") else ".") + " Price it next."
+        return f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT
+
+    def do(d, o):
+        c = up.combine(files)
+        return service.upload(request.user, d, o, c.data, c.filename, sources=c.sources)
+
+    return _action(request, pk, do, done)
+
+
+@login_required
+@require_POST
+def price(request, pk):
+    return _action(
+        request,
+        pk,
+        lambda d, o: service.price(request.user, _latest(d, o)),
+        lambda run: (
+            "Nothing to estimate: the Measure table has no rows. You can confirm the report."
+            if run == "none"
+            else (
+                f"Pricing has started. This page shows the estimates when the run finishes; if it takes longer than "
+                f"{limits.current('run_notice_seconds')}, you also get a notice."
+            )
+        ),
+    )
+
+
+@login_required
+@require_POST
+def confirm(request, pk):
+    return _action(
+        request, pk, lambda d, o: service.confirm(request.user, _latest(d, o)), "Confirmed and published. The report is open to every user."
+    )
+
+
+@login_required
+@require_POST
+def unconfirm(request, pk):
+    reason = request.POST.get("reason", "")
+    return _action(
+        request,
+        pk,
+        lambda d, o: submissions.unconfirm(request.user, _latest(d, o), reason),
+        "Un-confirmed: the version is back to validated and no longer published.",
+    )
+
+
+@login_required
+@require_POST
+def reopen(request, pk):
+    reason = request.POST.get("reason", "")
+
+    def do(deadline, org):
+        return submissions.request_reopen(request.user, Submission.objects.get(deadline=deadline, organisation=org), reason)
+
+    return _action(
+        request,
+        pk,
+        do,
+        lambda out: (
+            f"Version {out.number} is open as a draft." if isinstance(out, SubmissionVersion) else "Your request is with a CPUC approver."
+        ),
+    )
+
+
+# --- a version by program
+
+
+def _version(request, pk) -> SubmissionVersion:
+    v = get_object_or_404(
+        SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation"),
+        pk=pk,
+        submission__deadline__module=service.MODULE,
+    )
+    if not service.can_read(request.user, v):
+        raise Http404
+    return v
+
+
+COLUMNS = [
+    ("approved", "Approved budget (filed)", "money"),
+    ("operating", "Operating budget", "money"),
+    ("MonthExpenditures", "Spend this month", "money"),
+    ("YTDExpenditures", "Spend, year to date", "money"),
+    ("spent_share", "Share of the operating budget spent", "share"),
+    ("RebatesAndIncentives", service.PAID, "money"),
+    ("YTDCommittedFunds", service.COMMITTED, "money"),
+]
+
+
+def _cell(r, key):
+    if key == "approved":
+        return r.approved
+    if key == "operating":
+        return r.operating
+    if key == "spent_share":
+        return r.spent_share
+    return r.get(key)
+
+
+@login_required
+def version(request, pk):
+    """A report by program: spend and commitments against the operating budget, and the estimates (labeled preliminary)."""
+    v = _version(request, pk)
+    r = service.report(v)
+    rows = []
+    for row in r.rows + [r.total]:
+        rows.append(
+            {
+                "r": row,
+                "cells": [_fmt(kind, _cell(row, key)) for key, _, kind in COLUMNS],
+                "estimates": [_fmt(kind, row.estimate(key)) for key, _, kind in service.ESTIMATES],
+                "flags": [] if row is r.total else (["not in the BCA inputs"] if not row.reported else []),
+            }
+        )
+    return render(
+        request,
+        "monthly/version.html",
+        {
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "can_open_filing": service.can_read_submission(request.user, v.submission),
+            "report": r,
+            "rows": rows,
+            "columns": [c[1] for c in COLUMNS],
+            "estimates": [e[1] for e in service.ESTIMATES],
+            "tiles": _tiles(r),
+            "files": [(lbl, i) for i, (lbl, _, _) in enumerate(service.published_files(v))],
+            "public": v.status == SubmissionVersion.Status.PUBLISHED,
+            "calc": v.calculation or {},
+            "walk_href": submissions.run_walkthrough(v),
+            "commitment_fields": COMMITMENT_FIELDS,
+            "cost_fields": PROGRAM_COST_FIELDS,
+            "preliminary": PRELIMINARY,
+            "paid_vs_committed": service.PAID_VS_COMMITTED,
+            "letter": ChangeLetter.objects.filter(version=v).first(),
+            **filing_parts.version_page(request, v, priced=service.priced(v)),
+        },
+    )
+
+
+@login_required
+def version_csv(request, pk):
+    """The report by program as a file: every spend and commitment field, the budgets and the estimates."""
+    v = _version(request, pk)
+    r = service.report(v)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    name = f"{v.submission.organisation.code}_{v.submission.deadline.period}_v{v.number}"
+    response["Content-Disposition"] = f'attachment; filename="monthly_report_{name}.csv"'
+    w = csv.writer(response, lineterminator="\n")
+    fields = ["MonthExpenditures"] + SPEND_FIELDS + [f for f, _ in COMMITMENT_FIELDS]
+    w.writerow(
+        ["PrgID", "ProgramName", "InBCAInputs", "ApprovedBudget", "OperatingBudget"]
+        + fields
+        + [f"Estimated{k}" if kind != "ratio" else f"Estimated{k}Ratio" for k, _, kind in service.ESTIMATES]
+    )
+    for row in r.rows + [r.total]:
+        w.writerow(
+            [
+                row.prg_id,
+                row.name,
+                row.reported,
+                "" if row.approved is None else row.approved,
+                "" if row.operating is None else row.operating,
+            ]
+            + ["" if row.get(f) is None else row.get(f) for f in fields]
+            + ["" if row.estimate(k) is None else row.estimate(k) for k, *_ in service.ESTIMATES]
+        )
+    return response
+
+
+@login_required
+def findings_csv(request, pk):
+    v = _version(request, pk)
+    if not service.can_read_submission(request.user, v.submission):
+        raise Http404
+    response = HttpResponse(service.findings_csv(v), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="monthly_findings_v{v.number}.csv"'
+    return response
+
+
+@login_required
+def published_file(request, pk, which):
+    v = _version(request, pk)
+    files = service.published_files(v)
+    if not which.isdigit() or int(which) >= len(files):
+        raise Http404
+    _, area, key = files[int(which)]
+    store = storage.store(area)
+    if not store.exists(key):
+        raise Http404
+    filename = f"v{v.number}_{key.rsplit('/', 1)[-1]}"
+    url = store.download_url(key, filename)
+    if url:
+        return HttpResponseRedirect(url)
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
+
+
+# --- the year in one view
+
+
+def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
+    """The PA whose year is shown (?org=CODE, else the acting organization), whether only its published reports may be shown, and the
+    PAs with monthly reports to choose from."""
+    choices = list(Organisation.objects.filter(submissions__deadline__module=service.MODULE).distinct().order_by("code"))
+    code = request.GET.get("org")
+    org = access.by_code_or_404(code) if code else request.filing_organisation
+    if org is None:
+        return None, True, choices
+    readable = service._org_reader(request.user, org) or service._cpuc_reader(request.user)
+    return org, not readable, choices
+
+
+@login_required
+def year(request, year):
+    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend."""
+    get_object_or_404(YearSetup, year=year)
+    org, published_only, choices = _year_org(request)
+    months = service.year_view(org, year, published_only=published_only) if org else []
+    latest = next((m for m in reversed(months) if m.version is not None), None)
+    rows = []
+    for m in months:
+        t = m.totals
+        rows.append(
+            {
+                "m": m,
+                "status": _status(m.version),
+                "cells": [_money(m.spend)]
+                + [_money(t.get(k)) if t else "" for k in ("YTDExpenditures", "RebatesAndIncentives", "YTDCommittedFunds")]
+                + [_money(t.estimate("TotalSystemBenefit")) if t else ""],
+            }
+        )
+    return render(
+        request,
+        "monthly/year.html",
+        {
+            "year": year,
+            "org": org,
+            "choices": choices,
+            "published_only": published_only,
+            "rows": rows,
+            "latest": latest,
+            "inconsistent": [m for m in months if not m.consistent],
+            "headings": [
+                "Spend this month",
+                "Spend, year to date",
+                service.PAID,
+                service.COMMITTED,
+                "Estimated TSB, year to date (preliminary)",
+            ],
+            "paid_vs_committed": service.PAID_VS_COMMITTED,
+            "csv_query": f"?org={org.code}" if org else "",
+        },
+    )
+
+
+@login_required
+def year_csv(request, year):
+    get_object_or_404(YearSetup, year=year)
+    org, published_only, _ = _year_org(request)
+    if org is None:
+        raise Http404
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="monthly_reports_{org.code}_{year}.csv"'
+    w = csv.writer(response, lineterminator="\n")
+    fields = SPEND_FIELDS + [f for f, _ in COMMITMENT_FIELDS]
+    w.writerow(["YearMonth", "Version", "Status", "MonthExpenditures", *fields, "YTDFell", "EstimatedTotalSystemBenefit"])
+    for m in service.year_view(org, year, published_only=published_only):
+        t = m.totals
+        w.writerow(
+            [
+                f"{year}{m.deadline.period.number:02d}",
+                m.version.number if m.version else "",
+                m.version.status if m.version else "not started",
+                "" if m.spend is None else m.spend,
+            ]
+            + ["" if t is None or t.get(f) is None else t.get(f) for f in fields]
+            + [not m.consistent]
+            + ["" if t is None or t.estimate("TotalSystemBenefit") is None else t.estimate("TotalSystemBenefit")]
+        )
+    return response
+
+
+# --- the 13th-month report
+
+
+def _blank(x):
+    return "" if x is None else x
+
+
+def _closing_cells(row) -> list[str]:
+    return (
+        [_money(row.operating), _money(row.get("expenditures")), _fmt("share", row.spent_share)]
+        + [_fmt(kind, row.get(k)) for k, _, kind in service.CLAIMED if k != "expenditures"]
+        + [_money(row.december_spend), _money(row.spend_difference), _money(row.december_tsb)]
+    )
+
+
+@login_required
+def closing(request, year):
+    """A PA's 13th-month report for a program year, generated from its confirmed claims and reconciled against December's report."""
+    get_object_or_404(YearSetup, year=year)
+    org, _, choices = _year_org(request)
+    c = service.closing(org, year) if org else None
+    rows = []
+    if c is not None:
+        for row in c.rows + [c.total]:
+            flags = []
+            if row is not c.total:
+                if row.claimed is None:
+                    flags.append("no confirmed claims")
+                if c.final and c.december and not row.reconciles:
+                    flags.append("does not match December")
+            rows.append({"r": row, "cells": _closing_cells(row), "flags": flags})
+    return render(
+        request,
+        "monthly/closing.html",
+        {
+            "year": year,
+            "org": org,
+            "choices": choices,
+            "closing": c,
+            "rows": rows,
+            "columns": ["Operating budget", "Expenditures", "Share of budget spent"]
+            + [label for k, label, _ in service.CLAIMED if k != "expenditures"]
+            + ["December report: spend, year to date", "Claims less December", "December report: estimated TSB (preliminary)"],
+            "csv_query": f"?org={org.code}" if org else "",
+        },
+    )
+
+
+@login_required
+def closing_csv(request, year):
+    get_object_or_404(YearSetup, year=year)
+    org, _, _ = _year_org(request)
+    if org is None:
+        raise Http404
+    c = service.closing(org, year)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="13th_month_report_{org.code}_{year}.csv"'
+    w = csv.writer(response, lineterminator="\n")
+    claimed = ["Claimed" + "".join(p.capitalize() for p in k.split("_")) for k, *_ in service.CLAIMED]
+    w.writerow(
+        ["PrgID", "ProgramName", "Final", "Records", "ApprovedBudget", "OperatingBudget", *claimed]
+        + ["DecemberYTDExpenditures", "ClaimsLessDecember", "DecemberEstimatedTotalSystemBenefit"]
+    )
+    for row in c.rows + [c.total]:
+        w.writerow(
+            [row.prg_id, row.name, c.final, row.records, _blank(row.approved), _blank(row.operating)]
+            + [_blank(row.get(k)) for k, *_ in service.CLAIMED]
+            + [_blank(row.december_spend), _blank(row.spend_difference), _blank(row.december_tsb)]
+        )
+    return response
+
+
+# --- change letters
+
+
+def changes(request):
+    """Every published monthly report correction's change letter, newest first, by PA and program year. Public."""
+    every = service.change_letters()
+    out = every
+    org = access.by_code(request.GET.get("org", ""), follow=False)
+    year = request.GET.get("year", "")
+    if org is not None:
+        out = out.filter(version__submission__organisation=org)
+    if year.isdigit():
+        out = out.filter(version__submission__deadline__period__year=int(year))
+    return render(
+        request,
+        "monthly/changes.html",
+        {
+            "letters": out[:500],
+            "orgs": sorted({c.version.submission.organisation.code for c in every}),
+            "years": sorted({c.version.submission.deadline.period.year for c in every}, reverse=True),
+            "org": org.code if org else "",
+            "year": year,
+        },
+    )
+
+
+def change_letter(request, pk):
+    """One correction's change letter: when it was published, why, and each program whose figures changed. Public."""
+    letter = get_object_or_404(service.change_letters(), pk=pk)
+    v = letter.version
+    c = letter.changes or {}
+    return render(
+        request,
+        "monthly/change_letter.html",
+        {
+            "letter": letter,
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "c": c,
+            "estimated": c.get("estimated", {}),
+            "caption": (
+                "Each changed program's spend, paid and committed incentives and estimates before and after the correction, "
+                "and the difference"
+            ),
+            "empty": "No program's spend, incentives or estimates changed.",
+            "preliminary": PRELIMINARY,
+            **letters.program_rows(c, service.LETTER_FIGURES),
+        },
+    )

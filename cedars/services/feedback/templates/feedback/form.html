@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% load work_tags %}
+{% block title %}Get help or send feedback{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Get help or send feedback</h1>{% page_help "feedback/form" %}</div>
+<p>Ask the CPUC's CEDARS team a question, report a problem, or say what would make CEDARS better. Your message goes to the team with the page you sent it from{% if user.is_authenticated %} and your name, so they can reply; you follow it on <a href="{% url 'feedback:mine' %}">My requests</a>{% else %}. You are signed out, so it is sent without your name; <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">sign in</a> if you would like a reply{% endif %}.</p>
+<p>From the page: <code>{{ page }}</code> <a href="{{ page }}">Back to it</a></p>
+{% known_for page %}
+{% if entry %}
+<section class="card" aria-labelledby="about-h" id="about-page">
+  <h2 id="about-h">About that page: {{ entry.title }}</h2>
+  <p>{{ entry.guide.0 }}</p>
+  <ul class="links">
+    <li><a href="{% url 'core:help_page' entry.key %}?from={{ page|urlencode }}">All the help for that page{% if entry.how %}, with how to use it{% endif %}</a></li>
+    {% if guide %}<li><a href="{% url 'core:help_guide' guide.slug %}">User guide: {{ guide.title }}</a></li>{% endif %}
+  </ul>
+</section>
+{% endif %}
+<form method="post" class="stack form-narrow" id="request-form">{% csrf_token %}
+  <input type="hidden" name="help" value="{{ help_key }}">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  {% if checked %}
+  <input type="hidden" name="checked" value="1">
+  <section class="card" aria-labelledby="matches-h" id="matches" tabindex="-1">
+    <h2 id="matches-h">{% if matches %}These may answer it{% else %}Nothing in Help matches{% endif %}</h2>
+    {% if matches %}
+    <p>Your message has not been sent yet. These parts of Help share words with it. Each opens in this tab, so use Back to return here; what you wrote is kept.</p>
+    <ul class="suggestions">
+      {% for m in matches %}<li><a href="{{ m.url }}">{{ m.kind }}: {{ m.title }}</a>{% if m.text %}<br><span class="small">{{ m.text }}</span>{% endif %}</li>{% endfor %}
+    </ul>
+    <p>If none of them answers it, send your message.</p>
+    {% else %}
+    <p>No user guide, page help or frequently asked question shares enough words with your message. Send it and the CPUC's CEDARS team will answer.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+  <div class="actions">
+    <button type="submit" class="primary">Send</button>
+    <button type="submit" name="check" value="1">Check for answers first</button>
+  </div>
+</form>
+<p class="small muted">For a question about a filing or a deadline, see <a href="{% url 'core:help' %}">Help</a>, which also says how to reach the CPUC.</p>
+{% endblock %}

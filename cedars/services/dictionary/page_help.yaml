@@ -1,0 +1,235 @@
+# Help for each page (cedars/core/page_help.py): the data dictionary.
+
+dictionary/index:
+  title: The data dictionary
+  guide:
+    - Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by (CET's and the E3
+      calculators' among them, which uploads may still use). Each field has its definition, type, unit and where it is used.
+    - >-
+      It also describes the records the platform keeps besides the calculation files, column by column: the program registry, the
+      filing calendar, filings and their versions, budget lines and results, fund shifts, claims, monthly reports, publication
+      snapshots and holds, documents and studies, impact profiles, rules and release notes. Their names are module.Table.column, and
+      their kind is Platform record.
+    - Download the whole catalog as CSV, or the upload templates for each kind of filing.
+  how:
+    - Search by any name a field is known by, or by words in its definition.
+    - Download the catalog (CSV) or the name crosswalk (CSV), or open the value lists or the change log.
+    - Choose Kind, Platform records, and a Platform table to see one table's columns.
+    - Retired fields are not shown at first; choose State, Retired (or All) to see them.
+  see: published-data
+  tour:
+    - target: main p.actions
+      title: Downloads and value lists
+      text: The catalog and the name crosswalk as CSV, the value lists the rules check codes against, and every version's changes.
+    - target: main form.filters
+      title: Search
+      text: Search names and definitions, and narrow to inputs, outputs or platform records, one platform table, or retired fields, then choose Apply.
+    - target: main table.list
+      title: Fields
+      text: Each field by kind and group. Select a name for its full entry.
+    - heading: Upload templates
+      title: Upload templates
+      text: The templates for each filing's tables, with every column in order.
+
+dictionary/field:
+  title: A field
+  guide:
+    - One field's full entry, its definition, kind, type and unit, where its values come from, the cost tests it counts in, how it adds up,
+      the years it is in use, the other names an upload may give it, and every table it appears in.
+    - >-
+      A retired field says from when and why, with the usage, audience and regulatory reviews behind it. Its history lists each
+      dictionary version that changed it, and the register entries that require it are linked.
+    - >-
+      A platform record's column says which table it is in and what the table holds, and lists the codes it may hold when it has a
+      fixed set.
+    - >-
+      A field checked against a value list shows the list's codes, in the version in force (or any other published version), with the
+      claim years each code is accepted for. Retired codes stay in the list, marked with the last year they are accepted for.
+  how:
+    - Choose a value list version, search its codes or show those accepted in a claim year, and download them as CSV or Excel.
+    - "CPUC system administrators: retire the field after its reviews, or reinstate a retired one."
+  see: published-data
+  tour:
+    - target: main .page-title + p
+      title: Definition
+      text: What the field holds.
+    - target: main dl.facts
+      title: The details
+      text: Type, unit, source, cost tests, aggregation, other names and where it is used.
+    - heading: Value list
+      title: Value list
+      text: The codes the field may hold, a page at a time, with a version picker, filters and CSV and Excel downloads.
+      optional: true
+    - heading: Allowed values
+      title: Allowed values
+      text: The fixed set of codes a platform record's column may hold, with what each means.
+      optional: true
+    - heading: History
+      title: History
+      text: Each dictionary version that added, changed, retired or reinstated the field.
+    - target: "#admin-h"
+      title: Retire or reinstate
+      text: For CPUC system administrators.
+      optional: true
+
+dictionary/lists:
+  title: Value lists
+  guide:
+    - The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check
+      values against. Each list is kept in versions; the version in force on a date is the newest published one effective by then.
+      Until a list has a version here, the list shipped with the calculation engine is in force.
+    - >-
+      The program lists (program_status, program_segment, program_primary_sector, program_implementer, program_category) hold the
+      values a program's change form offers for those fields. Their first version is the program fields guide's values; the engine
+      never checks them.
+    - A code is accepted for claim years from its start year to its end year. A retired code keeps its row with an end year; a code is
+      never deleted. A program list's retired code is offered only to a program that already has it.
+    - A list made in a filing specification draft for a new field's codes has no engine list under it. Its first version is published
+      with that specification version, and the filing checks the field against it.
+  how:
+    - Select a list for its codes and versions.
+  see: rules-and-lists
+  tour:
+    - target: main table.list
+      title: The lists
+      text: Each list, the version in force, how many codes it has, and any version or draft waiting to take effect.
+
+dictionary/list:
+  title: A value list
+  guide:
+    - One list's codes, in the version in force or any other version, with the claim years each code is accepted for, and every
+      published version with the date it took effect and why it changed.
+    - A CPUC system administrator starts a new version here (a draft copy of the newest version) and changes it on the draft's page.
+  how:
+    - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV or Excel.
+    - "Administrators: Start a new version."
+  see: rules-and-lists
+  tour:
+    - target: "#edit-h"
+      title: Change this list
+      text: For CPUC system administrators. Start a new version, or open the draft already started.
+      optional: true
+    - target: main form.filters
+      title: Version and filters
+      text: Choose the version, search, and show the codes accepted in a claim year, then Apply, or download the codes shown.
+    - target: main table.list
+      title: The codes
+      text: Each code, its description and the claim years it is accepted for.
+    - target: "#versions-h"
+      title: Versions
+      text: Every published version, when it took effect, what it was copied from and why it changed.
+
+dictionary/list_draft:
+  title: A value list draft
+  guide:
+    - The next version of a list, copied from the newest version (or the engine's list for the first). Add codes, change a code's
+      description, retire a code by giving the last claim year it is accepted, or reinstate it by clearing that year. A code from an
+      earlier version is never deleted; a draft may take out only a code it added itself.
+    - Add or change many codes at once from a CSV with a code column and any of description, start_year and end_year; codes the file
+      leaves out stay as they are. Publish with the date the version takes effect and why the list changes. Every change is recorded in
+      the audit trail.
+    - Once published, the rules and the input editor (for a program list, a program's change form) accept exactly its codes from the date
+      it takes effect, and the version never changes.
+    - A list made for a new field in a filing specification draft starts empty and is published with that specification version, not
+      here; discarding the specification's draft drops it.
+  how:
+    - Add a code, or read a file into the draft.
+    - Select Change beside a code to retire, reinstate or describe it.
+    - Publish the version with its date and reason, or discard the draft.
+  see: rules-and-lists
+  tour:
+    - target: "#changes-h"
+      title: What this draft changes
+      text: The codes added, retired, reinstated or otherwise changed against the version it was copied from.
+    - target: "#add-h"
+      title: Add a code
+      text: A new code with its description and the claim years it is accepted for.
+    - target: "#upload-h"
+      title: From a file
+      text: Add or change many codes from a CSV; nothing is deleted.
+    - target: main table.list
+      title: The codes
+      text: Each code in the draft. Select Change to retire, reinstate or describe it.
+    - target: "#publish-h"
+      title: Publish
+      text: The date the version takes effect and why the list changes; then the rules and the input editor use it from that date.
+
+dictionary/code:
+  title: Changing a code
+  guide:
+    - One code in a value list draft. Give the last claim year it is accepted to retire it, clear that year to reinstate it, or correct
+      its description. A code from an earlier version keeps its start year and is never deleted; a code the draft added may change its
+      years or be taken out.
+  how:
+    - Change the description or the years, give the reason and Save the change.
+  see: rules-and-lists
+  tour:
+    - target: main form.stack
+      title: The code
+      text: Its description, the claim years it is accepted for, and the reason for the change.
+
+dictionary/retire:
+  title: Retire a field
+  guide:
+    - >-
+      For CPUC system administrators. A field is retired, never deleted, after three reviews: who files or reads it (usage), who relies
+      on it in published data (audience), and whether a CPUC decision, resolution or the Standard Practice Manual still requires it
+      (regulatory).
+    - >-
+      Retiring makes a new catalog version with the field marked retired from the date given. The field stays in the dictionary and in
+      earlier filings and downloads, uploads that still carry the column are read and the column ignored, and it leaves the upload
+      templates and schemas on that day. A field the register of CPUC-mandated changes says is required cannot be retired.
+  how:
+    - Give the date (today or later), the three reviews and the reason, then Retire.
+    - Announce the retirement in a release note before the date.
+  see: rules-and-lists
+  tour:
+    - heading: What to review
+      title: What to review
+      text: What the catalog says about the field, its audience, the decision that requires it, its cost tests and where it is used.
+    - target: main form.stack
+      title: The reviews
+      text: The date it takes effect, the usage, audience and regulatory reviews, and why it is retired. All are kept with the field.
+
+dictionary/changes:
+  title: The specification change log
+  guide:
+    - >-
+      Every version of the data dictionary with how many fields it added, retired, reinstated, changed or dropped against the version
+      before it, and every published version of the value lists and the validation rule sets.
+    - >-
+      It is published with the register of CPUC-mandated changes, which says which decision or resolution each change carries out.
+  how:
+    - Select a dictionary version for its changes field by field.
+    - Download every version's changes as CSV.
+  see: releases
+  tour:
+    - target: main p.actions
+      title: Download
+      text: Every dictionary version's changes, field by field, as one CSV file.
+    - heading: Data dictionary versions
+      title: Dictionary versions
+      text: Each version, newest first, with what it changed against the version before it.
+    - heading: Value list versions
+      title: Value list versions
+      text: Each published version of a value list, when it took effect and why.
+    - heading: Validation rule set versions
+      title: Rule set versions
+      text: Each published rule set and when it took effect.
+
+dictionary/version_changes:
+  title: Changes in a dictionary version
+  guide:
+    - >-
+      One version of the data dictionary against the version before it: each field added, retired (with the reason), reinstated,
+      changed (each attribute, other name or use, before and after) or dropped. The first version lists no changes: it brought in
+      every field.
+  see: releases
+  tour:
+    - target: main .page-title + p
+      title: The version
+      text: When it was loaded and how many fields it changed, by kind of change.
+    - target: main table.list
+      title: The changes
+      text: Each field, the kind of change and the details, before and after.
+      optional: true

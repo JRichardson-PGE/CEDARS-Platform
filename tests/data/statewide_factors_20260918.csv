@@ -1,0 +1,305 @@
+Year,ProgramID,ProgramName,PercentElectric,PGEGasFactor,SDGEGasFactor,SCEGasFactor,SCGGasFactor,PGEElectricFactor,SDGEElectricFactor,SCEElectricFactor,SCGElectricFactor,PGEWeightedFactor,SDGEWeightedFactor,SCEWeightedFactor,SCGWeightedFactor,Summary
+2021,SW_NC_NonRes_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2021,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_FS,Food Service,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2021,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_WP,Water and Wastewater Pumping,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.5040,0.0780,0.0000,0.4180,0.0000,0.0000,0.0000,0.0000,0.5040,0.0780,0.0000,0.4180,
+2021,SW_UL,Upstream Lighting,1.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2021,SW_HVAC_Up,SW HVAC Upstream Program,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2021,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2021,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.5040,0.0780,0.0000,0.4180,0.0000,0.0000,0.0000,0.0000,0.5040,0.0780,0.0000,0.4180,
+2022,SW_NC_NonRes_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_UL,Upstream Lighting,1.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2022,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_NC_NonRes_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_WP,Water and Wastewater Pumping,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_FS,Food Service,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2022,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2022,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_PLA,SW Plug Load and Appliances,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2022,SW_HVAC_Up,SW HVAC Upstream Program,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_FS,Food Service,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2023,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4800,0.1088,0.1604,0.2508,
+2023,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_PLA,SW Plug Load and Appliances,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_HVAC_Up,SW HVAC Upstream Program,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_WP,Water and Wastewater Pumping,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.5040,0.0780,0.0000,0.4180,0.0000,0.0000,0.0000,0.0000,0.5040,0.0780,0.0000,0.4180,
+2023,SW_NC_NonRes_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4793,0.0742,0.0000,0.4465,0.4440,0.1550,0.4010,0.0000,0.4511,0.1388,0.3208,0.0893,
+2023,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4793,0.0742,0.0000,0.4465,0.4440,0.1550,0.4010,0.0000,0.4511,0.1388,0.3208,0.0893,
+2023,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4793,0.0742,0.0000,0.4465,0.4440,0.1550,0.4010,0.0000,0.4511,0.1388,0.3208,0.0893,
+2023,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_UL,Upstream Lighting,1.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.5040,0.0780,0.0000,0.4180,0.4440,0.1550,0.4010,0.0000,0.4560,0.1396,0.3208,0.0836,
+2023,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2023,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2024,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2024,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updating for True-Up Advice Letter
+2024,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2024 SW_MCWH data
+2024,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2024 SW_FS data
+2024,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_PLA,SW Plug Load and Appliances,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2024,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_HVAC_Up_Res,SW HVAC Upstream Residential,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2024,SW_HVAC_Up_Com,SW HVAC Upstream Commercial,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2024,SW_UL,Upstream Lighting,1.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2024,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2024,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2024,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2024,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,Re-allocated to account for the new weighted rates
+2025,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_HVAC_Up_Res,SW HVAC Upstream Residential,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2025,SW_HVAC_Up_Com,SW HVAC Upstream Commercial,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2025,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2025,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updating for True-Up Advice Letter
+2025,SW_PLA,SW Plug Load and Appliances,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2025,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_UL,Upstream Lighting,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2025,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,Re-allocated to account for the new weighted rates
+2025,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2025,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2025,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2025,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2025 SW_FS data
+2025,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2025 SW_MCWH data
+2026,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2026 SW_MCWH data
+2026,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_HVAC_Up_Res,SW HVAC Upstream Residential,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2026,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_UL,Upstream Lighting,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2026,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,Re-allocated to account for the new weighted rates
+2026,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2026,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2026 SW_FS data
+2026,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updating for True-Up Advice Letter
+2026,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2026,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_HVAC_Up_Com,SW HVAC Upstream Commercial,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2026,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,allocating to fix minor rounding issues
+2026,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2026,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_PLA,SW Plug Load and Appliances,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2026,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,reallocating with rounding errors fixed
+2026,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2026,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2026,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2026,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2027,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,allocating to fix minor rounding issues
+2027,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,allocating to fix minor rounding issues
+2027,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2027,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,Re-allocated to account for the new weighted rates
+2027,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_UL,Upstream Lighting,1.0000,0.0000,0.0000,0.0000,0.0000,0.4440,0.1550,0.4010,0.0000,0.4440,0.1550,0.4010,0.0000,
+2027,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,Updating for True-Up Advice Letter
+2027,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2027 SW_MCWH data
+2027,SW_HVAC_Up_Res,SW HVAC Upstream Residential,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2027,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2027,SW_NC_Res_mixed,New Construction - Residential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2027,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updating for True-Up Advice Letter
+2027,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2027,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2652,Updated 2027 SW_FS data
+2027,SW_HVAC_Up_Com,SW HVAC Upstream Commercial,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2027,SW_PLA,SW Plug Load and Appliances,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,SDGE TUAL Updates.
+2027,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,Updated allocation rates per D.23-06-005/D.23-08-005 and allocated updated TUAL forecast for program year.
+2028,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2028,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2028,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2028,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,
+2028,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_HESC,SW Home Energy Score California,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2028,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2028,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2028,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2028,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2029,SW_HESC,SW Home Energy Score California,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2029,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2029,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2029,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2029,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,
+2029,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2029,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2030,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2030,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2030,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_HESC,SW Home Energy Score California,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,
+2030,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2030,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2030,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2030,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2030,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2030,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_IP_Gov,Institutional Partnerships - Government,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_NC_NonRes_Ind_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_NC_NonRes_Ind_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_HVAC_AE_NonRes,SW HVAC All Electric Non-Residential,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_CSA_Natl,Codes and Standards National Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2031,SW_NC_NonRes_Pub_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_CSA_Appl,Codes and Standards Appliance Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2031,SW_NC_NonRes_Pub_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_NC_NonRes_Res_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_WP,Water and Wastewater Pumping,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_MCWH,Midstream Commercial Water Heating,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2031,SW_NC_NonRes_Res_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_NC_Res_electric,New Construction - Residential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_IP_Colleges,Institutional Partnerships - Colleges,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_HESC,SW Home Energy Score California,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_WET_CC,Workforce Education and Training - Career Connections,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_CSA_Bldg,Codes and Standards Building Codes Advocacy,0.8000,0.4515,0.0456,0.0000,0.5029,0.4536,0.0928,0.4536,0.0000,0.4532,0.0833,0.3629,0.1006,
+2031,SW_WET_Work,Workforce Education and Training Career & Workforce Readiness,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_ETP_Elec,Emerging Technology Programs - Electric,1.0000,0.0000,0.0000,0.0000,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_ETP_Gas,Emerging Technology Programs - Gas,0.0000,0.4259,0.1320,0.0000,0.4421,0.0000,0.0000,0.0000,0.0000,0.4259,0.1320,0.0000,0.4421,
+2031,SW_FS,Food Service,0.4000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3704,0.1156,0.2488,0.2653,
+2031,SW_NC_NonRes_Ag_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_HVAC_QIQM,SW HVAC QI/QM Program,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_NC_NonRes_Ag_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,
+2031,SW_NC_NonRes_Com_electric,New Construction - NonResidential - All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_PLA_AE,SW Plug Load and Appliance All Electric,1.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,0.2871,0.0910,0.6219,0.0000,
+2031,SW_NC_NonRes_Com_mixed,New Construction - NonResidential - Mixed Fuel,0.8000,0.4259,0.1320,0.0000,0.4421,0.2871,0.0910,0.6219,0.0000,0.3149,0.0992,0.4975,0.0884,

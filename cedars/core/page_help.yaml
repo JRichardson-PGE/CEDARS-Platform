@@ -1,0 +1,552 @@
+# Help for each page (cedars/core/page_help.py): signing in, the second factor, About and Help.
+
+account/login:
+  title: Signing in
+  guide:
+    - Sign in with the email address and password of your CEDARS account. Every account also uses a second factor; you set it up the
+      first time you sign in, and after that CEDARS asks for a code from your authenticator app each time.
+    - The public pages (the portfolio dashboard, record downloads, documents, the data dictionary and the validation rules) need no
+      account. Signing in adds Filings, Calculations, notifications and your account.
+  how:
+    - Forgot your password? Use the link under the password box; CEDARS emails a link to choose a new one.
+    - No account yet? Create one; anyone can. To act for a program administrator, ask its administrators for access from your account
+      page once you are signed in.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your email address and password
+      text: Enter them and choose Sign in. The next page asks for the code from your authenticator app, or takes you to set one up.
+    - target: main p.small
+      title: New accounts
+      text: Create an account here; anyone can.
+
+account/signup:
+  title: Creating an account
+  guide:
+    - Anyone can create a CEDARS account. With one you can run cost-effectiveness calculations, follow documents and studies, and ask a
+      program administrator for access to its filings.
+    - CEDARS emails a link to confirm your address. Once it is confirmed, sign in and set up the second factor every account uses.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your details
+      text: Your email address and a password of at least 12 characters that is not a common one.
+
+account/email_confirm:
+  title: Confirming your email address
+  guide:
+    - The link CEDARS emailed you opens this page. Confirm the address and you can sign in. A link that has expired can be sent again
+      from your email settings.
+    - The three steps under the heading show where a new account is in its set-up; this is the first.
+  see: getting-started
+  tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access.
+    - target: main form
+      title: Confirm
+      text: Confirm that the address is yours, then sign in.
+      optional: true
+
+account/verification_sent:
+  title: Waiting for the confirmation email
+  guide:
+    - CEDARS has emailed a link to the address you gave. Open it to confirm the address and finish creating the account. If nothing
+      arrives within a few minutes, look in your junk folder, then write to support.
+    - The three steps under the heading show where a new account is in its set-up. Confirming the address is the first; setting up the
+      second factor and asking an organization for access follow.
+  see: getting-started
+  tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access. This is the first step.
+    - target: main .page-title ~ p
+      title: What happens next
+      text: Open the link in the email. It confirms the address, then you can sign in.
+
+account/password_reset:
+  title: Resetting your password
+  guide:
+    - Enter the email address of your CEDARS account. If an account uses it, CEDARS emails a link to choose a new password. For your
+      account's safety this page says the same whether or not the address has an account.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your email address
+      text: The address you sign in with. The reset link is good for a limited time.
+
+account/password_reset_done:
+  title: Waiting for the reset email
+  guide:
+    - If a CEDARS account uses that address, a link to choose a new password is on its way. If nothing arrives within a few minutes,
+      look in your junk folder, then write to support.
+  see: getting-started
+  tour:
+    - target: main .page-title + p
+      title: What happens next
+      text: Open the link in the email and choose a new password. Your second factor stays as it was.
+
+account/logout:
+  title: Signing out
+  see: getting-started
+  guide:
+    - Sign out ends your session on this browser. Anything you uploaded or saved stays; drafts are kept for when you sign in again.
+  tour:
+    - target: main form
+      title: Sign out
+      text: Choose Sign out to end your session. The public pages stay open without an account.
+
+account/base_reauthenticate:
+  title: Confirming it is you
+  guide:
+    - Changing your account's security settings (your second factor, recovery codes or password) asks you to sign in again first, so
+      nobody who finds your browser unlocked can change them.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Confirm
+      text: Enter your password, or a code from your authenticator app, and choose Confirm. The change you asked for follows.
+
+mfa/authenticate:
+  title: The sign-in code
+  guide:
+    - Every CEDARS account signs in with a second factor. Open your authenticator app and enter the six-digit code it shows for CEDARS;
+      the code changes every 30 seconds.
+    - Lost your phone? A recovery code works in place of the app's code, once each. If you have none left, ask your organization's
+      administrator or support.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your code
+      text: The six-digit code from your authenticator app, or a recovery code. Cancel and sign out if you started by mistake.
+
+mfa/totp/activate_form:
+  title: Setting up your authenticator app
+  guide:
+    - Every CEDARS account signs in with a second factor, an authenticator app on your phone or computer. Any app that shows six-digit
+      time-based codes works.
+    - Scan the QR code with the app, or type the key under it into the app. Then enter the code the app shows to finish. Keep the key
+      somewhere safe; it sets the app up again on a new phone.
+    - Signing in for the first time, the three steps under the heading show where you are; this is the second.
+  how:
+    - Copy the key copies it to the clipboard, for an app on the same computer. The key is also shown whole, to type in or select.
+    - After this step CEDARS shows your recovery codes. Print or download them; each signs you in once if you lose the app. Continue
+      then takes you where you were going, or to Ask for access if you belong to no organization yet.
+  see: getting-started
+  tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email (done), set up your second factor (this page), then ask an organization for access.
+      optional: true
+    - target: main form img
+      title: The QR code
+      text: Scan it with your authenticator app. The app then shows a new six-digit code for CEDARS every 30 seconds.
+    - target: "#authenticator_secret"
+      title: The key, in words
+      text: The same key the QR code holds, to type into an app that cannot scan.
+    - target: main form button[type=submit]
+      title: Activate
+      text: Enter the code the app shows and choose Activate. From now on you sign in with your password and a code.
+
+core/about:
+  title: About CEDARS
+  see: getting-started
+  guide:
+    - What CEDARS is, who files in it, and what it holds. The table lists each part of CEDARS, what it does and a link to it.
+  tour:
+    - heading: What CEDARS holds
+      title: The parts of CEDARS
+      text: Each part with what it does; select one to open it.
+
+core/section_filings:
+  title: Filings
+  see: getting-started
+  guide:
+    - >-
+      The Filings menu's own page: your organization's filings first, then where each program administrator's budgets, claims and
+      monthly reports stand, then every filing page you may open, with what each is for.
+    - >-
+      Your organization's filings (shown when you act for a program administrator) lists, for budgets, claims and monthly reports, the
+      filing last due and the next one due, its status and the one thing to do: Start, Continue, or Open one that is confirmed.
+    - >-
+      The status table takes, for each kind of filing, the deadline most recently due and the next one due on the filing calendar, and
+      gives each PA's status on it: not started, started, draft, validated, confirmed or published, with past due, filed late or a
+      correction under way beside it. CPUC staff see every PA's filings; a PA's members see their own, and for the others only whether
+      each filing is published.
+    - >-
+      Not every PA files every filing: a filing's set-up lists the PAs who file it. A PA not on a filing shown has nothing to file
+      there, and a PA on none of them is not listed.
+  how:
+    - Select a page's name to open it; the arrow beside Filings in the header opens the same pages as a menu.
+    - Select Start, Continue or Open beside one of your organization's filings to work on it.
+    - Select a status (a bordered badge with an arrow) to open that PA's filing, or a column's heading to open the deadline's page.
+    - "CPUC administrators: with a kind of filing not yet on the calendar, Set up a filing opens the pages that set one up."
+  tour:
+    - target: "#your-filings"
+      title: Your organization's filings
+      text: The filings last due and next due for the organization you act for, with each one's status and what to do next.
+      optional: true
+    - target: "#filing-status"
+      title: Where each PA's filings stand
+      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it. Your own row is marked.
+    - target: main .section-pages
+      title: The filing pages
+      text: Each page under Filings, with what it is for.
+
+core/section_calculations:
+  title: Calculations
+  see: calculations
+  guide:
+    - >-
+      The Calculations menu's own page: every page for cost-effectiveness runs on the ReCET engine, with what each is for. Runs lists
+      your runs and those shared with you; New run starts one.
+  how:
+    - Select a page's name to open it; the arrow beside Calculations in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows your last runs and the Edit inputs drafts you changed last; select one to open it.
+  tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, your last runs and the Edit inputs drafts you changed last, each with a link to its full list.
+      optional: true
+    - target: main .section-pages
+      title: The calculation pages
+      text: Each page under Calculations, with what it is for.
+
+core/section_published:
+  title: Published data
+  see: published-data
+  guide:
+    - >-
+      The Published data menu's own page: everything CEDARS publishes, open to everyone, with what each page is for. Signed in as a
+      member of an organization, the statewide allocation factors and the filing calendar are under Reference data and Filings
+      instead.
+  how:
+    - Select a page's name to open it; the arrow beside Published data in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows your saved views and your record downloads; select one to open it.
+  tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, your saved views and your record downloads, each with a link to its full list.
+      optional: true
+    - target: main .section-pages
+      title: The published data
+      text: Each page under Published data, with what it is for.
+
+core/section_reference:
+  title: Reference data
+  see: reference-data
+  guide:
+    - >-
+      The Reference data menu's own page: what runs and filings are priced and checked against, with what each page is for. Data packs
+      lists the ACCs and the other packs; Cost-test sets the cost tests a run prices.
+  how:
+    - Select a page's name to open it; the arrow beside Reference data in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows the cost-test sets you are building and the data packs you registered and have not published; select one to open it.
+  tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, the cost-test sets you are building and the data packs you registered and have not published, each with a link to its full list.
+      optional: true
+    - target: main .section-pages
+      title: The reference data
+      text: Each page under Reference data, with what it is for.
+
+core/section_administration:
+  title: Administration
+  see: administering
+  guide:
+    - >-
+      The Administration menu's own page: every administration page you may open, in four groups (people and access, data and
+      publishing, communications, the system), with what each is for.
+    - >-
+      The Administration menu in the header lists only the pages used most; this page lists them all, and the menu's last link opens
+      it.
+  how:
+    - Select a page's name to open it.
+  tour:
+    - target: main .section-pages
+      title: The administration pages
+      text: Each group's pages, with what each is for.
+
+core/search:
+  title: Searching CEDARS
+  see: getting-started
+  guide:
+    - >-
+      The search box at the top of every page finds, in one list, the pages you can open, the help (user guides, each page's help and
+      the frequently asked questions), glossary terms, programs, confirmed claims by their ClaimID, data dictionary fields and
+      documents, and, signed in, your own organizations' filings and the runs you can see. Every word you give must match; a word also
+      matches the start of a longer one, so "upload" finds "uploads".
+    - >-
+      When your words name one thing exactly (a PrgID, a field's name or its CET name, a ClaimID, a run's name or a page's title), it
+      comes first, under Best match.
+    - >-
+      Results include only what you may see: signed out, the public pages and published documents; signed in, also the pages your
+      account opens, your organizations' filings and runs, and the unpublished documents of your organizations. Each part shows its
+      best matches; See every match opens that part's own page with the same words, where you can filter further.
+  how:
+    - Type a PrgID or part of a program's name to go to the program, or a field name such as NTGRkWh to go to its definition.
+    - Type a ClaimID to see how that confirmed claim links to its true-ups, its project and its participant.
+    - Type a filing's name, such as "2027 Q1 claim", or a run's name to open it.
+    - Search for an acronym, such as TSB or EUL, to find its glossary entry.
+  tour:
+    - target: main form
+      title: Words to find
+      text: Change the words and choose Search. The box at the top of every page does the same.
+    - target: "#search-summary"
+      title: What was found
+      text: How many results each part has, with a link to each part.
+      optional: true  # only after a search
+    - target: "#part-best"
+      title: Best match
+      text: What your words name exactly, such as a program by its PrgID or a field by its name.
+      optional: true  # only when the words name something exactly
+    - target: section.search-part
+      title: A part
+      text: Its best matches, each with one line about it, and a link to see every match on that part's own page.
+      optional: true  # a search that matches nothing shows none
+
+core/queue:
+  title: My queue
+  see: reviewing
+  guide:
+    - The work waiting on you across CEDARS, for every organization you act for, read live from each module, so an item leaves the queue the
+      moment the work is done. Nothing here is assigned by hand.
+    - "It holds: correction requests and program changes to decide (CPUC approvers and their delegates), data steward and access decisions,
+      filings priced and ready to confirm (those who may confirm them), fund shifts to acknowledge for a co-funding PA, comments on filings
+      waiting for your side's reply, documents filed but not published, responses to recommendations and unanswered questions."
+  how:
+    - Each row's link opens the page where the work is done. Items with a due date come first, overdue ones marked Overdue.
+    - A fund shift is acknowledged while acting for the PA the row names; switch with Acting for at the top of the page.
+  tour:
+    - target: ul.queue-summary
+      title: What is waiting
+      text: How many items of each kind wait on you; each links to its list.
+      optional: true
+    - target: main table.list
+      title: The items
+      text: What each one is, for which organization, since when and by when, and the link to act on it.
+      optional: true
+    - target: main details
+      title: What the queue covers
+      text: Every kind of work the queue looks for, and who sees each.
+
+core/help/index:
+  title: Help
+  see: getting-started
+  guide:
+    - The user guides cover each part of CEDARS, from signing in to filing claims and running cost-effectiveness calculations. Each page
+      also has its own help, under the question mark beside its heading; Help for each page lists them all.
+    - Support and feedback go to the addresses the site has set. The tour walks through the front page and where things are.
+  how:
+    - Start the tour on the front page points at each part of it in turn.
+    - Help for each page lists every page's guide and tour, to read without opening the page.
+  tour:
+    - heading: User guides
+      title: User guides
+      text: One guide for each part of CEDARS, with who it is for.
+    - target: "#support-title"
+      title: Feedback and support
+      text: Where to write for help, to report a barrier or to say what would make CEDARS better.
+    - target: "#tour-title-help"
+      title: The tour
+      text: A step-by-step tour of the front page and the main parts of CEDARS, or the same steps on one page.
+    - heading: More reference
+      title: More reference
+      text: >-
+        Help for each page, ReCET's own documents, About CEDARS, the data dictionary, the validation rules, the filing calendar and the
+        API description.
+
+core/help/guide:
+  title: A user guide
+  see: getting-started
+  guide:
+    - Each guide explains one part of CEDARS in more depth than a page's own help. The other guides are listed at the end.
+  tour:
+    - target: main .guide
+      title: The guide
+      text: Read it through, or jump to a section by its heading.
+    - heading: Other guides
+      title: Other guides
+      text: The rest of the user guides, and All of Help.
+
+core/help/recet_docs:
+  title: The engine documentation
+  see: calculations
+  guide:
+    - >-
+      The full reference for ReCET, the engine Calculations runs on: input formats and fields, every output column with its formula,
+      the method, and how the cost tests are defined. They are the engine's own documents, from the version CEDARS runs, and are under
+      Calculations in the menu.
+  how:
+    - Pick a document by its title. Output fields is where to start to trace a number back to the inputs.
+  tour:
+    - target: main table.list
+      title: The documents
+      text: Each document and what it covers.
+    - heading: Tracing a number
+      title: Tracing a number
+      text: Which document to read to follow a result back to its inputs.
+
+core/help/recet_doc:
+  title: A ReCET document
+  see: calculations
+  guide:
+    - >-
+      One of ReCET's own documents, from the engine version CEDARS runs (named under the heading). Links to the other ReCET documents
+      stay on CEDARS; links to the engine's code go to GitHub at that version.
+    - Each diagram is a picture with a text alternative, and Diagram N as text under it opens its source, which names each box and arrow.
+  how:
+    - On this page lists the document's sections; choose one to jump to it.
+    - Wide tables scroll sideways inside their box; with the keyboard, Tab to the table and use the arrow keys.
+  tour:
+    - target: details.doc-toc
+      title: On this page
+      text: The document's sections and their subsections.
+    - target: main .engine-doc
+      title: The document
+      text: The document itself, as the engine ships it.
+    - heading: Other ReCET documents
+      title: Other ReCET documents
+      text: The rest of the ReCET documents, and the list of them all.
+
+core/help/contact:
+  title: Getting support
+  see: getting-started
+  guide:
+    - How to get help with CEDARS, what to put in a message so support can answer it quickly, and how to report an accessibility barrier.
+  tour:
+    - heading: Before you write
+      title: Before you write
+      text: The page's own help, under the question mark beside its heading, and the user guides answer most questions.
+    - heading: What to include
+      title: What to include
+      text: The page's address, what you were doing and what happened. Never include passwords or personal information about customers.
+    - heading: Accessibility barriers
+      title: Accessibility barriers
+      text: If something does not work with your keyboard, screen reader or zoom, say so; it is fixed as a defect.
+
+core/help/faq:
+  title: Frequently asked questions
+  see: getting-started
+  guide:
+    - >-
+      Short answers by topic, several with a worked example, each linked to the user guide that goes further. The limits they mention
+      are the site's as they stand now. The whole list shows the questions, each opening to its answer; a search shows the answers
+      that match, open. Search finds the questions with every word you give, in the question, its answer or its example.
+  how:
+    - Select a question to open its answer, and again to fold it away.
+    - Type a few words and choose Search, or pick a topic. Show every question clears the search.
+    - Link to this answer under each answer is a permanent link to it.
+  tour:
+    - target: form[role="search"]
+      title: Search
+      text: Words to look for and, optionally, one topic. It works without scripts.
+    - target: .faq
+      title: A question
+      text: The question, which opens to its answer, any worked example, and links to the user guide and to this answer.
+      optional: true  # a search that matches nothing shows none
+
+core/help/tour:
+  title: The tour, written out
+  see: getting-started
+  guide:
+    - The front page's tour on one page, for anyone who would rather read it or uses CEDARS without scripts. Signed in, it includes the
+      parts only signed-in users see.
+  how:
+    - Start the tour on the front page runs the same steps there, pointing at each part of the page.
+  tour:
+    - target: main .actions a
+      title: Start the tour
+      text: Opens the front page with the tour running, one step at a time.
+    - target: ol.tour-list
+      title: Every step
+      text: The same steps the tour shows, in order, each with a link to try that part of CEDARS.
+
+account/security:
+  title: Your sign-in and security settings
+  guide:
+    - The pages for your account's security, your second factor (the authenticator app), recovery codes, security keys, email addresses and
+      password. Changing any of them asks you to confirm it is you first.
+    - A new email address takes over once you open the link sent to it, and the old address is told of the change. You are then
+      signed out everywhere else.
+    - Recovery codes sign you in once each if you lose your authenticator app. Keep them somewhere safe, and make new ones when they run low;
+      making new ones replaces the old. Download the codes or Print the codes saves them; right after you set up your first second
+      factor, Continue takes you where you were going, or to Ask for access if you belong to no organization yet.
+  see: getting-started
+  tour:
+    - target: main form, main ul, main section
+      title: The settings
+      text: What this page changes. Every change is recorded in the audit trail.
+
+core/error:
+  title: A page that is not available
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when the address does not lead to a page, or leads to one your account cannot open. It says the same in
+      both cases, so it never tells anyone which pages exist that they cannot see.
+    - >-
+      A page may need you to be signed in, to act for an organization that holds a permission, or to be a CPUC administrator. An old
+      link, or an address typed by hand, may also name a page that has moved or never was.
+  how:
+    - Search for the page with the box on this page; the words from the address are already in it.
+    - Signed out? Sign in, and CEDARS brings you back to the same address.
+    - Need a permission? Ask your organization's administrators from your account page, under Ask for access.
+    - Followed a link inside CEDARS to get here? Tell us with the link on this page, so it can be fixed.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: This address does not lead to a page, or your account cannot open it.
+    - target: main .error-search
+      title: Search for it
+      text: The words from the address are already in the box; change them and choose Search.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, My queue when you are a member of an organization, and a link to tell us about a broken link.
+
+core/form_expired:
+  title: A form that was not sent
+  see: getting-started
+  guide:
+    - >-
+      Every form in CEDARS carries a security token, so that another site cannot send it in your name. The token belongs to one
+      sign-in: a page opened before you last signed in or out sends an old one, and CEDARS refuses the form.
+    - Nothing was saved. Go back, reload the page so it has the new token, and send the form again.
+  how:
+    - Go back with your browser, reload the page, and send the form again.
+    - If it happens every time, check that your browser keeps cookies for this site; CEDARS needs its own cookies to accept a form.
+  tour:
+    - target: main .error-sentence
+      title: Why the form was refused
+      text: The page it came from was opened before you last signed in or out.
+    - target: main .error-search
+      title: Search
+      text: Find the page you were working on, if going back does not reach it.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, and My queue when you are a member of an organization.
+
+"500":
+  title: Something went wrong
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when a problem on its side stopped it from showing the page you asked for. The problem is recorded in the
+      site's log for the CPUC's administrators.
+    - >-
+      Anything you sent just before this page may not have been saved. Once the page opens again, check that your change is there
+      before you send it again.
+  how:
+    - Try again in a few minutes.
+    - If the page still does not open, tell the CPUC through the contact details on Help.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: A problem on CEDARS' side stopped this page; it is recorded.
+    - target: main .error-search
+      title: Search
+      text: Look for the page, or another way to what you need.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page and Help.

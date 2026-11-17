@@ -1,0 +1,64 @@
+{% extends "core/base.html" %}
+{% load testing_tags %}
+{% block title %}{{ a.script }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'testing:mine' %}">My testing</a></li></ol></nav>
+<div class="page-title"><h1>Script {{ a.script }}</h1>{% page_help "testing/run" %}</div>
+<dl class="facts" id="run-facts">
+  <dt>Round of testing</dt><dd>{{ a.campaign.name }}{% if not a.campaign.is_open %} <span class="status ok">Closed</span>{% endif %}{% if a.campaign.ends_on %}, due {{ a.campaign.ends_on|date_words }}{% endif %}</dd>
+  <dt>Tester</dt><dd>{{ a.tester|person_name }}{% if not own %} <span class="small muted">(results are recorded under this name, whichever account the site is signed in to)</span>{% endif %}</dd>
+  <dt>Progress</dt><dd><span id="run-progress-words">{{ progress.done }} of {{ progress.total }} tests done</span>: {{ progress.passed }} passed, {{ progress.failed }} failed, {{ progress.blocked }} blocked, {{ progress.na }} do not apply
+    <progress max="{{ progress.total }}" value="{{ progress.done }}" aria-labelledby="run-progress-words">{{ progress.percent }}%</progress></dd>
+</dl>
+{% if a.campaign.note %}<p class="prewrap">{{ a.campaign.note }}</p>{% endif %}
+<div class="actions" id="run-continue">
+  {% if not a.campaign.is_open %}<p>This round of testing is closed: you can read your results but not change them.</p>
+  {% elif next %}<a class="button primary" href="{% url 'testing:test' a.pk next.test_id %}">{% if progress.done %}Continue with {{ next.test_id }}{% else %}Start with {{ next.test_id }}{% endif %}</a>
+  {% else %}<p><span class="status ok">All done</span> Every test has a result. You can still open a test to change its result while the round is open.</p>{% endif %}
+</div>
+<section class="card" aria-labelledby="before-h">
+  <h2 id="before-h">Before you start</h2>
+  {% if a.script.who %}<p><strong>Who runs this script:</strong> {{ a.script.who }}</p>{% endif %}
+  {% if a.script.scope %}<p><strong>What it covers:</strong> {{ a.script.scope }}</p>{% endif %}
+  {% if a.script.accounts %}
+  <h3>Test accounts</h3>
+  <p>Each test says which account to sign in to the site as. Keep this run open in one tab and use the site in another: your results stay under your own name.</p>
+  <ul>{% for account in a.script.accounts %}<li><strong>{{ account.0 }}</strong>{% if account.1 %}: {{ account.1 }}{% endif %}{% if account.2 %} {{ account.2 }}{% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if a.script.before %}<h3>What must be in place</h3><ul>{% for line in a.script.before %}<li>{{ line|step_text:a.campaign.version.site }}</li>{% endfor %}</ul>{% endif %}
+  {% if a.script.order_notes %}<h3>Order</h3><ul>{% for line in a.script.order_notes %}<li>{{ line|step_text:a.campaign.version.site }}</li>{% endfor %}</ul>{% endif %}
+  {% if how %}<details><summary>How to test and record results</summary><ul>{% for line in how %}<li>{{ line|step_text:a.campaign.version.site }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% if link %}
+<section class="card" aria-labelledby="link-h">
+  <h2 id="link-h">Your run link</h2>
+  <p>This browser now keeps your run open, even while you are signed in to the site as a test account or signed out. To test in another browser or a private window, open this link there. Keep it to yourself: anyone holding it can record results in your name.</p>
+  <p><label for="run-link">Run link</label> <input id="run-link" type="text" readonly value="{{ link }}" size="60" class="wide-input"> <button type="button" data-copy="run-link" hidden>Copy</button></p>
+  <form method="post" action="{% url 'testing:new_link' a.pk %}">{% csrf_token %}
+    <div class="actions"><button type="submit">Replace the link</button> <span class="small muted">The old link stops opening this run everywhere.</span></div>
+  </form>
+</section>
+{% endif %}
+<section aria-labelledby="tests-h">
+  <h2 id="tests-h">The tests</h2>
+  {% for section in sections %}
+  <h3>{{ section.title|default:"Tests" }}</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Tests: {{ section.title|default:'Tests' }}">
+  <table class="list tests">
+    <caption class="sr-only">{{ section.title|default:"Tests" }}: each test, its priority, the account to use and your result</caption>
+    <thead><tr><th scope="col">Test</th><th scope="col">Priority</th><th scope="col">Sign in as</th><th scope="col">Your result</th></tr></thead>
+    <tbody>
+    {% for row in section.tests %}
+    <tr>
+      <th scope="row"><a href="{% url 'testing:test' a.pk row.test.test_id %}">{{ row.test.test_id }} {{ row.test.title }}</a></th>
+      <td>{{ row.test.priority }}</td>
+      <td>{{ row.test.account|default:"Signed out" }}</td>
+      <td>{% if row.result %}<span class="status {{ row.result.outcome|outcome_class }}">{{ row.result.get_outcome_display }}</span>{% else %}<span class="muted">No result yet</span>{% endif %}{% if row.draft %} <span class="small">Typed, not saved</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

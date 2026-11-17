@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+{% block title %}Cost-test sets{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li></ol></nav>
+{% section_nav "reference" %}
+<div class="page-title"><h1>Cost-test sets</h1>{% page_help "refdata/cost_tests" %}</div>
+<p>A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned
+to one, and a filing is priced only on a published set.</p>
+<dl class="facts">
+  <dt>In force today</dt><dd>{% if in_force %}<a href="{% url 'refdata:detail' in_force.pk %}">{{ in_force }}</a>{% else %}No published set yet: runs use the engine's own default set{% endif %}</dd>
+</dl>
+<h2>Every set</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Cost-test sets">
+<table class="list">
+  <caption class="sr-only">Cost-test definition sets with their program years, tests and status</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Label</th><th scope="col">Program years</th><th scope="col">Tests</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for p, h, years in rows %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p.label }} {{ p.version }}</a></th><td>{{ h.label }}</td><td>{{ years }}</td><td>{{ h.tests|join:", " }}</td><td>{{ p.get_status_display }}{% if h.draft %} (the file is marked draft){% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">No sets registered yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<section aria-labelledby="mine-h">
+<h2 id="mine-h">My sets</h2>
+<p>Sets you are building, and those shared with your organization. Anyone may build a set and price their own analysis runs on it; the
+CPUC registers the sets everyone uses.</p>
+<p><a class="button" href="{% url 'refdata:build_start' %}">Build a set</a></p>
+{% if builds %}
+<div class="hscroll" tabindex="0" role="region" aria-label="My sets">
+<table class="list">
+  <caption class="sr-only">Cost-test sets being built, with their status and open problems</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Problems</th><th scope="col">Whose</th><th scope="col">Last changed</th></tr></thead>
+  <tbody>
+  {% for b in builds %}<tr><th scope="row"><a href="{% url 'refdata:build_step' b.pk 'review' %}">{{ b }}</a></th><td>{{ b.label }}</td><td>{{ b.get_status_display }}{% if b.pack %}: <a href="{% url 'refdata:detail' b.pack.pk %}">{{ b.pack }}</a>{% endif %}</td><td>{% if b.open_problems %}{{ b.open_problems }}{% else %}None{% endif %}</td><td>{{ b.owner|person }}{% if b.organisation %}, shared with {{ b.organisation.code }}{% endif %}</td><td>{{ b.updated_at|date_words }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet.</p>{% endif %}
+</section>
+{% if offered is not None %}
+<section aria-labelledby="offered-h">
+<h2 id="offered-h">Offered to the CPUC</h2>
+<p>Sets their builders offer for everyone. Open one to review it, then register it as a draft pack or decline it with a reason, which
+its builder is sent.</p>
+{% if offered %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Offered to the CPUC">
+<table class="list">
+  <caption class="sr-only">Cost-test sets offered to the CPUC, oldest first, with who offered them and their note</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Name</th><th scope="col">Offered by</th><th scope="col">Offered</th><th scope="col">Note</th><th scope="col">Problems</th></tr></thead>
+  <tbody>
+  {% for b in offered %}<tr><th scope="row"><a href="{% url 'refdata:build_step' b.pk 'review' %}">{{ b }}</a></th><td>{{ b.label }}</td><td>{{ b.offered_by|person }}{% if b.organisation %} ({{ b.organisation.code }}){% endif %}</td><td>{{ b.offered_at|date_words }}</td><td>{{ b.offer_note|default:"None" }}</td><td>{% if b.open_problems %}{{ b.open_problems }}{% else %}None{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None at the moment.</p>{% endif %}
+</section>
+{% endif %}
+{% if form %}
+<section class="card" aria-labelledby="reg-h">
+  <h2 id="reg-h">Register a set</h2>
+    {% url 'core:recet_doc' 'cost-tests' as ct %}{% before_upload fields=ct fields_label="how a set is defined" rules_note="the engine checks the set when it is registered" %}
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Register as a draft</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

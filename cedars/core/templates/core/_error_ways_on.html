@@ -1,0 +1,13 @@
+{% comment %}The ways on from an error page (core/error.html, core/form_expired.html, 500.html): search, then the front page, Help and
+My queue. Renders with no context at all on the 500 page, so it reads nothing but `words` and `nav`, and `nav` only to add My queue.{% endcomment %}
+<form method="get" action="{% url 'core:search' %}" class="filters error-search" aria-label="Search CEDARS">
+  <p><label for="error-search-q">Search for the page</label><input id="error-search-q" type="search" name="q" value="{{ words }}" maxlength="200"></p>
+  <div class="actions"><button type="submit" class="primary">Search</button></div>
+</form>
+<h2>Or go to</h2>
+<ul class="links error-links">
+  <li><a href="{% url 'core:home' %}">The front page</a>: the program cycle at a glance and the way into every part of CEDARS.</li>
+  <li><a href="{% url 'core:help' %}">Help</a>: every user guide, the questions people ask and how to reach support.</li>
+  {% if nav.member %}<li><a href="{% url 'core:queue' %}">My queue</a>: what is waiting for you.</li>{% endif %}
+  {% if path %}<li><a href="{% url 'feedback:form' %}?from={{ path|urlencode }}">Tell us about it</a>, if a link in CEDARS brought you here.</li>{% endif %}
+</ul>

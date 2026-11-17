@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}Impact test: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_impact" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-impact">How real filings already in CEDARS would fare under the draft: the latest confirmed version of each program
+administrator's most recent {{ v.specification.name|lower }} filing, checked by the same checks a filing gets, once under the version it
+was checked against and once under the draft. Nothing is changed. The test runs again when the draft is published, if it has changed
+since.</p>
+<section aria-labelledby="impact-run-h" class="card">
+  <h2 id="impact-run-h">Run the impact test</h2>
+  <p>{% if tested %}It checks {{ tested|length }} filing{{ tested|pluralize }}: {% for t in tested %}{{ t.submission.organisation.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+  A large filing takes a while.{% else %}No program administrator has a confirmed {{ v.specification.name|lower }} filing on CEDARS yet,
+  so there is nothing to test against.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:run_impact' v.specification.code v.slug %}">{% csrf_token %}
+    <button type="submit">{% if test %}Run it again{% else %}Run the impact test{% endif %}</button>
+  </form>
+</section>
+<section aria-labelledby="impact-result" id="impact-section">
+  <h2 id="impact-result">Result</h2>
+  {% if not test %}
+  <p>Not run yet.</p>
+  {% else %}
+  <p class="impact-status">{% if stale %}<span class="status warn">Out of date</span> The draft has changed since this test was run
+  on {{ test.created_at|datetime_words }}: run it again to see the draft as it stands.{% else %}<span class="status ok">Current</span>
+  Run on {{ test.created_at|datetime_words }}{% if test.created_by %} by {{ test.created_by|person_name }}{% endif %}, on the draft as it stands.{% endif %}</p>
+  {% if not report.filings %}
+  <p>There was no confirmed filing to test against.</p>
+  {% else %}
+  {% include "specifications/_impact_report.html" with against="the draft" %}
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

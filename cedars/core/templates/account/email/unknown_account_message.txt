@@ -1,0 +1,6 @@
+{% extends "account/email/base_message.txt" %}
+{% block content %}{% autoescape off %}Someone asked to reset the password of a CEDARS account with this email address, but no account uses it. If that was you, create an account here:
+
+{{ signup_url }}
+
+Otherwise ignore this email.{% endautoescape %}{% endblock content %}

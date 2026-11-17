@@ -1,0 +1,127 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Every filing is checked against a versioned rule set, and coded fields against versioned value lists. A filing's rule set is the one
+its specification version names, whatever the date it is checked or corrected; the rule set marked in force is the newest published one
+effective today. Every submission and run records the versions it was checked against. A published
+version never changes: a change is a new version with the date it takes effect and the reason.</p>
+<h2 id="filing-specifications">Filing specifications</h2>
+<p><a href="{% url 'specifications:index' %}">Filing specifications</a> (open to everyone) say what each kind of filing holds: its
+tables, the fields of each, which are required, each field's type, value list and definition, the rules about it in words, and the
+built-in checks. The CPUC publishes each specification in named versions, and each filing on the calendar is set up with one: its
+upload page links the version under "Before you upload", and its findings name the version the file was checked under.</p>
+<ul class="links">
+  <li>Download a version's upload template (a workbook, or a .zip of pipe-delimited files), every field and rule as a workbook, or the
+  whole version as JSON with a JSON Schema for each table. Systems can read the same JSON from the API at
+  <code>/api/v1/specifications/</code>.</li>
+  <li><a href="{% url 'specifications:compare' %}">Compare two versions</a> to see the tables, fields, rules and checks that changed.</li>
+  <li>A filing keeps the version it was set up with when a newer one is published; a later filing set takes the newer one.</li>
+  <li>The version decides how the filing is checked and priced, on any date, corrections included: its tables and fields, the rule set
+  it names, and the engine release and cost-test set it names. A version that names no engine release is priced with the release
+  marked default for new runs; one that names no cost-test set uses the filing set's, else the set in force for the program year.</li>
+  <li id="checked-by-the-release">The engine release that prices a filing also runs its rules, so a filing's findings never change
+  because the website's own copy of the engine was upgraded. The file's own checks (its tables, columns and records) are done as it
+  arrives; the rules then run in that release's worker, and the filing page says "Being checked" until they finish, which usually takes
+  under a minute, and updates itself. The filing cannot be priced meanwhile. The pre-upload checker, a correction of a few records,
+  example files and the impact test wait for the worker; if it has not answered within the time on the
+  <a href="{% url 'limits:index' %}">Limits</a> page, the findings say the rules were not checked yet, never that they passed.</li>
+</ul>
+<h2>For filers</h2>
+<ol>
+  <li>Read the rules your filing will be checked against on <a href="{% url 'rules:index' %}">Validation rules</a> (signed in). Each
+  rule has its ID, severity (reject or warning), the field it checks, the message you see and how to fix it.</li>
+  <li><a href="{% url 'rules:check' %}">Check a file before you file it</a>: it runs a filing's rules on one table of your file, exactly
+  as the upload does, and keeps nothing. The current specification's rules are selected; you can choose any other published version.</li>
+  <li>The upload also runs checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed claims),
+  so a file that passes the check can still get findings on upload. Those checks are listed, with their IDs, severity and message, on
+  <a href="{% url 'rules:built_in' %}">Built-in checks</a>.</li>
+  <li>The codes a field may hold are on <a href="{% url 'dictionary:lists' %}">Value lists</a>. A code is accepted for claim years from
+  its start year to its end year; a retired code keeps its row with an end year and is never deleted.</li>
+  <li id="commenting-on-specifications">Before publishing a version, the CPUC may propose it for comment. Proposed versions are listed
+  under "Open for comment" on <a href="{% url 'specifications:index' %}">Filing specifications</a> (signed in), with the last day for
+  comments, and subscribers to proposed versions are told. Read it, download its template and examples, check a file against it, and
+  comment at the bottom of its page: on the whole version, one table or one field, for the organization you are acting for. Everyone
+  signed in reads the comments; the CPUC answers under each one and you are told. A proposed version does not change while it is open;
+  the CPUC may change it afterwards and propose it again, and its comments stay with it once it is published.</li>
+  <li id="legacy-layouts">Under each specification, "Legacy CEDARS layouts" lists the layouts of the record-level downloads legacy
+  CEDARS published, which the imported years were loaded from. Each lists every column under CEDARS' own label, in the download's
+  order, with the field it is loaded into here, and the years imported in it; an imported year's page links its layout. Those years
+  were filed and checked in legacy CEDARS, so a layout is read only: no filing is set up with it or checked against it, and it has no
+  upload template.</li>
+</ol>
+<h2>For the CPUC staff who keep them</h2>
+<ul class="links">
+  <li id="editing-specifications">Specifications change without a code change. On a published version's page, start a new version
+  from it: a draft copy with a copy of its rules. The draft has a page for each part: its settings (name, summary, the engine release
+  and cost-test set that price its filings), its tables and fields (add a field from the data dictionary or a new one, change a field's
+  requirement, type, value list and wording, rename it, or remove it), its rules, its built-in checks, its examples, its impact test, what changes from the version it was copied
+  from, and Publish. A locked field, one the engine or CEDARS' own processing reads, stays with its type, and a required one stays
+  required. There is one draft per specification at a time.</li>
+  <li id="writing-rules">A draft's rules may test any table of its filing, not only Measure and ProgramCost. A rule's conditions pick
+  out the records it applies to, and each condition may read the record itself, the record of another table linked to it by the
+  tables' keys (a claim's measure, by ClaimID), the program's record in the registry (its category, segment, sector, PA and more) or
+  who files (the PA and whether it is an IOU, REN or CCA). Conditions may be put in a group that counts as one, holding when all or any
+  of its conditions hold. Besides comparisons, a rule can ask that a field contain some text, that a flag be true, that a date be
+  before or after a date, another date field or the day of the upload, that a date be within a number of years of the upload, or that a
+  code be in effect on the date in another field. A rule that reads a table the file does not have is not run, and the findings say so.</li>
+  <li id="checks-as-rules">Some of CEDARS' data rules on the Claim table are built-in checks a version can leave out (NMEC true-ups,
+  SEM claims, deemed claims, fuel substitution, partial payments, CCA and REN claims). On a draft's Built-in checks page, each of them
+  can be written as rules of the draft's rule set instead: the rules give the same findings, record for record and field for field, and
+  from then on the CPUC changes them on the Rules page like any other rule. Filings on earlier versions keep the check.</li>
+  <li id="workbook-editing">To change many fields and rules at once, use the draft's Workbook page: download the draft as a workbook,
+  change its Settings, Tables, Fields and Rules sheets in Excel and load it back. In Fields, Rename to renames a field, a new row adds one
+  and a deleted row removes one; in Rules, a row with no Rule ID is a new rule. Every difference is shown first, with any the editor would
+  refuse, and nothing changes until you confirm with a reason. Then each change is made and kept as if made on its own page, or none is.</li>
+  <li>Every version has example files filers download, checked by the same checks a filing gets. CEDARS writes the first example from
+  the draft's fields, one record per table, and the draft's Examples page reports what it fails, the conditional rules no record meets
+  (so the example does not show them) and the built-in checks that need real reference data, which do not count. Download an example,
+  change its records and load it back; a file with anything that looks like personal information is refused.</li>
+  <li>The draft's impact test shows how real filings would fare under it before it is published: the latest confirmed version of each
+  program administrator's most recent filing of the kind, checked once under the version it was checked against and once under the
+  draft. It says, by program administrator and by rule, how many records would newly be rejected or warned and which required fields
+  the filings lack. Nothing is changed, and the test runs again as the version is published if the draft has changed since.</li>
+  <li id="proposing-specifications">Proposing a draft for comment is optional, from its Publish page, once it passes the checks there:
+  give the last day for comments and what filers should look at. It is frozen and shown to everyone signed in, who can check files
+  against it and comment. Comments waiting for an answer are in <a href="{% url 'core:queue' %}">My queue</a>, and the proposer is sent each
+  one; answer on the version's page or the draft's Comments page. On the version's page, move the last day, end comments early, return
+  it to draft to act on the comments (it can be proposed again, a new round), or publish it as proposed once comments have closed.</li>
+  <li>Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
+  least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
+  and filings already set up keep theirs.</li>
+  <li id="choosing-moving-versions">A filing set (a claim year, a budget filing, a year of monthly reports) is set up on a version you
+  choose: the current one is offered, and an older one still in effect may be chosen. The set-up refuses a version whose engine release
+  does not have the ACC the set is priced on. Every filing in the set follows that version for every upload, check and correction.</li>
+  <li>To fix a mistake in a version that filings already use, publish the next version, then, from the set-up page's Filing
+  specification section, move the set to it. The move page shows the impact test on the set's own confirmed filings first; the move
+  needs a reason, which the filing calendar's subscribers are told. Open versions are checked again against the new version and priced
+  again; confirmed versions stay as they are, recorded against the version they were checked with.</li>
+  <li id="moving-versions">A version built and tested in the sandbox moves to production without a developer: export it from its
+  page there as one package, then import it on Filing specifications, Import a version. The import shows what it would make and what
+  this environment lacks first, and always makes a draft, so it is checked here like any draft, the impact test on real filings
+  included, before it is published. A value list the package names that is missing here is made with the draft; an existing list or a
+  data dictionary definition is never changed. The version's page says whether it is still exactly the version that was exported.</li>
+  <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
+  Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
+  two rule sets</a> to see what changes.</li>
+  <li>Renaming a field keeps it the same field: its old name is still accepted on upload, the draft's rules that name it are rewritten
+  to the new name, and when the version is published the <a href="{% url 'dictionary:index' %}">data dictionary</a> renames it too and
+  keeps the old name as a former name, which its search still finds. Data filed earlier keeps the name it was filed with. Another
+  specification that uses the field lists the rename in its next draft, to accept or keep its own name.</li>
+  <li>Built-in checks also follow the version. Most are CEDARS' own processing and always run; a few (CEDARS' data rules on the Claim
+  and Site tables, the warnings about program costs and year-to-date spend) can be left out of a version or made a warning or a reject,
+  on the draft's Built-in checks page. A filing runs them as its version has them.</li>
+  <li>A value list's draft starts as a copy of its newest version. Add codes, retire a code by giving its last claim year, or reinstate
+  it by clearing that year; many codes at once from a CSV.</li>
+  <li>A new field with new codes gets a new value list, made from the field's page in a specification draft: its name and its codes,
+  typed one to a line, with more added or loaded from a CSV on the list's page. The list is published with the version, taking effect
+  the same day, and dropped if the draft is discarded. The engine has no such list, so CEDARS checks the field against it: a value not
+  in it, or not accepted for the record's year, rejects the record. A locked field keeps the codes CEDARS' processing reads.</li>
+  <li>A field in the <a href="{% url 'dictionary:index' %}">data dictionary</a> is retired, never deleted, after usage, audience and
+  regulatory reviews. Every dictionary version's changes are on the <a href="{% url 'dictionary:changes' %}">specification change
+  log</a>.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_guide' 'releases' %}">Release notes and mandated changes</a>.</li>
+  <li><a href="{% url 'core:help_guide' 'published-data' %}">Finding published data</a>: the data dictionary.</li>
+</ul>
+{% endblock %}

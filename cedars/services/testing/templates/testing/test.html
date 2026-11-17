@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+{% load static testing_tags %}
+{% block title %}{{ t.test_id }} {{ t.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'testing:mine' %}">My testing</a></li><li><a href="{% url 'testing:run' a.pk %}">Script {{ a.script }}</a></li></ol></nav>
+<div class="page-title"><h1>{{ t.test_id }}: {{ t.title }}</h1>{% page_help "testing/test" %}</div>
+<p class="small" id="test-place">Test {{ position }} of {{ count }} in {{ a.campaign.name }}. {{ progress.done }} done, {{ progress.left }} left. Recorded for {{ a.tester|person_name }}.</p>
+<dl class="facts" id="test-facts">
+  {% if t.section %}<dt>Section</dt><dd>{{ t.section }}</dd>{% endif %}
+  {% if t.priority %}<dt>Priority</dt><dd>{{ t.priority }}</dd>{% endif %}
+  <dt>Sign in to the site as</dt><dd>{% if signed_out %}Nobody: run this test signed out{% else %}<strong>{{ t.account }}</strong>{% endif %}</dd>
+  {% if t.precondition %}<dt>Before you start</dt><dd>{{ t.precondition|step_text:site }}</dd>{% endif %}
+  {% if result %}<dt>Your result</dt><dd><span class="status {{ result.outcome|outcome_class }}">{{ result.get_outcome_display }}</span> saved {{ result.recorded_at|datetime_words }}</dd>{% endif %}
+  {% if finding %}<dt>Finding</dt><dd id="finding">Sent to the CPUC's CEDARS team as a finding ({{ finding.get_status_display|lower }}). {% if own %}<a href="{% url 'feedback:request' finding.pk %}">Follow it and any reply</a> on My requests.{% else %}Follow it and any reply on My requests, signed in as yourself.{% endif %}</dd>{% endif %}
+</dl>
+{% comment %}No form token: it changes whenever the tester signs in or out of the site in another tab. The view takes the form from
+this site's pages only (views._from_this_site).{% endcomment %}
+<form method="post" class="stack test-form"{% if can_save %} data-draft-url="{% url 'testing:draft' a.pk t.test_id %}"{% endif %}>
+<section aria-labelledby="steps-h">
+  <h2 id="steps-h">Steps</h2>
+  <p class="small">Links open the site in a new tab, so this test stays open here.</p>
+  <ol class="test-steps">
+    {% for step in steps %}
+    <li>
+      <div class="step-words">{{ step.text|step_text:site }}</div>
+      <div class="step-note"><label for="note_{{ step.n }}">Note on step {{ step.n }} <span class="muted">(optional)</span></label>
+      <input id="note_{{ step.n }}" name="note_{{ step.n }}" type="text" maxlength="500" value="{{ step.note }}"{% if not can_save %} readonly{% endif %}></div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+<section class="card" role="note" aria-labelledby="expected-h" id="expected">
+  <h2 id="expected-h">Expected result</h2>
+  <p>{{ t.expected|step_text:site }}</p>
+</section>
+<section aria-labelledby="result-h" id="result">
+  <h2 id="result-h">Your result</h2>
+  {% if can_save %}
+  {% if unsaved %}<p class="card" role="note" id="unsaved">You typed this {{ unsaved.saved_at|datetime_words }} and have not saved it{% if result %}: your saved result is still <strong>{{ result.get_outcome_display }}</strong>{% endif %}. Save to record it, or discard it.</p>{% endif %}
+  {{ form.non_field_errors }}
+  <div class="form-narrow stack">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  </div>
+  <div class="actions">
+    <button type="submit" name="next" value="1" class="primary">Save and go to the next test</button>
+    <button type="submit" name="stay" value="1">Save</button>
+    {% if unsaved %}<button type="submit" name="discard" value="1" formnovalidate>Discard what I typed</button>{% endif %}
+  </div>
+  <p class="small muted" id="draft-status" hidden></p>
+  {% else %}
+  <p>{{ a.campaign.name }} is closed: results can no longer be changed.</p>
+  {% if result and result.comment %}<h3>What happened</h3><p class="prewrap">{{ result.comment }}</p>{% endif %}
+  {% endif %}
+</section>
+</form>
+<nav aria-label="Other tests" class="actions" id="test-nav">
+  {% if previous %}<a href="{% url 'testing:test' a.pk previous.test_id %}">Previous: {{ previous.test_id }}</a>{% endif %}
+  {% if following %}<a href="{% url 'testing:test' a.pk following.test_id %}">Next: {{ following.test_id }}</a>{% endif %}
+  <a href="{% url 'testing:run' a.pk %}">All tests in this script</a>
+</nav>
+{% endblock %}
+{% block scripts %}{% if can_save %}<script src="{% static 'testing/test.js' %}" defer></script>{% endif %}{% endblock %}

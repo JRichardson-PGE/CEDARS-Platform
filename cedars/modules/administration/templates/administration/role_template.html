@@ -1,0 +1,51 @@
+{% extends "core/base.html" %}
+{% block title %}{{ t.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:role_templates' %}">Role templates</a></li></ol></nav>
+<div class="page-title"><h1>{{ t.name }}</h1>{% page_help "administration/role_template" %}</div>
+<p>{% if t.active %}<span class="status ok">Offered</span> Organization administrators can grant it.{% else %}<span class="status">Retired</span> It is no longer offered; the grants it made stay until they are revoked.{% endif %}</p>
+
+<section class="card" aria-labelledby="edit-h">
+  <h2 id="edit-h">Change the template</h2>
+  <p class="small">The change applies to grants made from now on. Members who already have it keep their permissions; revoke any one of them on the organization's page.</p>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Save template</button></div>
+  </form>
+</section>
+
+<section class="card" aria-labelledby="state-h">
+  <h2 id="state-h">{% if t.active %}Retire the template{% else %}Offer it again{% endif %}</h2>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="action" value="{% if t.active %}retire{% else %}reinstate{% endif %}">
+    <label for="state-reason">Reason</label>
+    <input type="text" id="state-reason" name="reason" required maxlength="500">
+    <div class="actions"><button type="submit">{% if t.active %}Retire{% else %}Offer again{% endif %}</button></div>
+  </form>
+</section>
+
+<section aria-labelledby="grants-h">
+<h2 id="grants-h">Open grants made with it</h2>
+{% if grants %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Open grants made with {{ t.name }}">
+<table class="list">
+  <caption class="sr-only">Open grants made with {{ t.name }}</caption>
+  <thead><tr><th scope="col">Organization</th><th scope="col">Member</th><th scope="col">Permission</th><th scope="col">Granted</th></tr></thead>
+  <tbody>
+  {% for g, label in grants %}
+  <tr><td><a href="{% url 'administration:organisation' g.membership.organisation.code %}">{{ g.membership.organisation.code }}</a></td><th scope="row">{{ g.membership.user|person }}</th><td>{{ label }}{% if g.status != "active" %} <span class="status">{{ g.get_status_display }}</span>{% endif %}</td><td>{{ g.granted_at|date_words }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None open.</p>{% endif %}
+</section>
+
+<section aria-labelledby="history-h">
+<h2 id="history-h">History</h2>
+<ul>
+{% for e, what in history %}<li>{{ e.at|date_words }}: {{ what }} by {{ e.actor_label }}{% if e.reason %}. Reason: {{ e.reason }}{% endif %}</li>
+{% empty %}<li>No changes recorded.</li>{% endfor %}
+</ul>
+</section>
+{% endblock %}

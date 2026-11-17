@@ -1,0 +1,7 @@
+{% if user.is_authenticated %}
+<form method="post" action="{% url 'documents:follow' %}" class="inline-form">{% csrf_token %}
+  {% if study %}<input type="hidden" name="study" value="{{ study.number }}">{% else %}<input type="hidden" name="work_order" value="{{ work_order.pk }}">{% endif %}
+  {% if following %}<input type="hidden" name="action" value="unfollow"><button type="submit">Stop following<span class="sr-only"> {{ what }}</span></button>
+  {% else %}<input type="hidden" name="action" value="follow"><button type="submit">Follow<span class="sr-only"> {{ what }}</span></button>{% endif %}
+</form>
+{% else %}<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in to follow</a>{% endif %}

@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}Document value lists{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="lists" %}
+<div class="page-title"><h1>Document value lists</h1>{% page_help "documents/lists" %}</div>
+<p>The values a document can be filed with: each collection's document types, and the attributes the Public Document Area used for
+EM&amp;V documents. CPUC Energy Division keeps them{% if admin %}; open a list to add, correct, retire or reinstate its values{% endif %}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Document value lists">
+<table class="list">
+  <caption class="sr-only">Document value lists, where each is used and how many values it offers</caption>
+  <thead><tr><th scope="col">List</th><th scope="col">Used in</th><th scope="col">Per document</th><th scope="col" class="num">Offered</th><th scope="col" class="num">Retired</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr id="list-{{ r.list.code }}">
+    <th scope="row"><a href="{% url 'documents:value_list' r.list.code %}">{{ r.list.name }}</a></th>
+    <td>{% if r.list.type_of %}Document types of {{ r.used_in }}{% else %}{{ r.used_in }}{% endif %}</td>
+    <td>{% if r.list.multiple %}Several{% else %}One{% endif %}</td>
+    <td class="num">{{ r.offered }}</td>
+    <td class="num">{{ r.retired }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5">No value lists.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+{% load testing_tags %}
+{% block title %}Results: {{ campaign.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'testing:manage' %}">Testing</a></li><li><a href="{% url 'testing:campaign' campaign.pk %}">{{ campaign.name }}</a></li></ol></nav>
+<div class="page-title"><h1>Results: {{ campaign.name }}</h1>{% page_help "testing/results" %}</div>
+{% with w=summary.whole %}
+<p id="results-whole">{{ w.done }} of {{ w.total }} test{{ w.total|pluralize }} have a result ({{ w.percent }}%), across {{ w.testers }} tester{{ w.testers|pluralize }}: {{ w.passed }} passed, {{ w.failed }} failed, {{ w.blocked }} blocked, {{ w.na }} do not apply, {{ w.left }} without a result yet. Withdrawn assignments are left out.</p>
+{% endwith %}
+<p class="actions"><a href="{% url 'testing:results_download' campaign.pk %}" id="results-download">Download the results (Excel)</a></p>
+<section aria-labelledby="by-script-h">
+  <h2 id="by-script-h">By script</h2>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Results by script">
+  <table class="list" id="by-script">
+    <caption class="sr-only">Each script of this round: its testers, the tests they have to do between them, and how many have each result</caption>
+    <thead><tr><th scope="col">Script</th><th scope="col">Testers</th><th scope="col">Tests to do</th><th scope="col">With a result</th><th scope="col">Passed</th><th scope="col">Failed</th><th scope="col">Blocked</th><th scope="col">Does not apply</th><th scope="col">No result yet</th></tr></thead>
+    <tbody>
+    {% for r in summary.rows %}
+    <tr>
+      <th scope="row">{{ r.script }}</th>
+      {% if r.testers %}<td>{{ r.testers }}</td><td>{{ r.total }}</td><td>{{ r.done }}</td><td>{{ r.passed }}</td><td>{{ r.failed }}</td><td>{{ r.blocked }}</td><td>{{ r.na }}</td><td>{{ r.left }}</td>
+      {% else %}<td colspan="8" class="muted">Not assigned</td>{% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<section aria-labelledby="results-h">
+  <h2 id="results-h">Results</h2>
+  <form method="get" action="#results-h" class="row-form" aria-label="Choose the results to list" id="results-filter">
+    <div class="field"><label for="r-show">Result</label>
+    <select id="r-show" name="show">{% for key, words in shows %}<option value="{{ key }}"{% if key == show %} selected{% endif %}>{{ words }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="r-script">Script</label>
+    <select id="r-script" name="script"><option value="">Every script</option>{% for s in scripts %}<option value="{{ s.pk }}"{% if script and s.pk == script.pk %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <button type="submit">Apply</button>
+  </form>
+  <p id="results-count">{{ page.paginator.count }} result{{ page.paginator.count|pluralize }}: {{ showing }}{% if script %}, in script {{ script }}{% endif %}.</p>
+  {% pager page query=query label="Result pages" where="above" anchor="results-h" %}
+  {% if page.paginator.count %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Results">
+  <table class="list" id="results">
+    <caption class="sr-only">Results, in the scripts' order: the test, who recorded the result, the result and what they said</caption>
+    <thead><tr><th scope="col">Test</th><th scope="col">Tester</th><th scope="col">Result</th><th scope="col">What happened</th><th scope="col">Finding</th><th scope="col">Saved</th></tr></thead>
+    <tbody>
+    {% for r in page %}
+    <tr>
+      <th scope="row">{{ r.test.test_id }} {{ r.test.title }}<br><span class="small muted">{{ r.test.script }}{% if r.test.priority %}, {{ r.test.priority }}{% endif %}</span></th>
+      <td>{{ r.assignment.tester|person }}</td>
+      <td><span class="status {{ r.outcome|outcome_class }}">{{ r.get_outcome_display }}</span></td>
+      <td><span class="prewrap">{{ r.comment }}</span>{% if r.notes %}<ul class="small">{% for n, note in r.notes %}<li>Step {{ n }}: {{ note }}</li>{% endfor %}</ul>{% endif %}</td>
+      <td>{% if r.request %}{% if r.request_open %}<a href="{% url 'feedback:detail' r.request.pk %}">{{ r.request.get_status_display }}<span class="sr-only">: open the finding from {{ r.test.test_id }}</span></a>{% else %}{{ r.request.get_status_display }}{% endif %}{% else %}<span class="muted">None</span>{% endif %}</td>
+      <td class="nowrap">{{ r.recorded_at|datetime_words }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% pager page query=query label="Result pages" where="below" anchor="results-h" %}
+</section>
+{% endblock %}

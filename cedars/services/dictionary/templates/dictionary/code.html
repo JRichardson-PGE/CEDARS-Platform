@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+{% block title %}Change {{ c.code }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:list' vl.name %}">{{ vl.name }}</a></li><li><a href="{% url 'dictionary:draft' vl.name %}">Draft, version {{ c.version.number }}</a></li></ol></nav>
+<div class="page-title"><h1>Change {{ c.code }}</h1>{% page_help "dictionary/code" %}</div>
+<p>{% if carried %}This code came from an earlier version, so it is never deleted and its start year stays {{ c.start_year|default:"blank (every year)" }}.
+Retire it by giving the last claim year it is accepted.{% else %}This code is new in the draft, so you may still change its years or take it out.{% endif %}</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save the change</button> <a href="{% url 'dictionary:draft' vl.name %}">Cancel</a></div>
+</form>
+{% if not carried %}
+<section class="card" aria-labelledby="drop-h">
+  <h2 id="drop-h">Take it out of the draft</h2>
+  <form method="post" action="{% url 'dictionary:drop_code' vl.name c.pk %}" class="row-form">{% csrf_token %}
+    <div class="field"><label for="drop-reason">Reason</label><input type="text" id="drop-reason" name="reason"></div>
+    <button type="submit">Take {{ c.code }} out</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

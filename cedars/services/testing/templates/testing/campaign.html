@@ -1,0 +1,72 @@
+{% extends "core/base.html" %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'testing:manage' %}">Testing</a></li></ol></nav>
+<div class="page-title"><h1>{{ campaign.name }}</h1>{% page_help "testing/campaign" %}</div>
+<dl class="facts">
+  <dt>Status</dt><dd><span class="status {% if campaign.is_open %}info{% else %}ok{% endif %}">{% if campaign.is_open %}Open{% else %}Closed{% endif %}</span>{% if campaign.closed_at %} {{ campaign.closed_at|date_words }}{% if campaign.closed_by %} by {{ campaign.closed_by|person }}{% endif %}{% endif %}</dd>
+  <dt>Dates</dt><dd>{{ campaign.starts_on|date_words }}{% if campaign.ends_on %} to {{ campaign.ends_on|date_words }}{% endif %}</dd>
+  <dt>Scripts</dt><dd>Version {{ campaign.version.label }}</dd>
+  {% if campaign.note %}<dt>What is being tested</dt><dd class="prewrap">{{ campaign.note }}</dd>{% endif %}
+</dl>
+<p class="actions" id="round-results"><a href="{% url 'testing:results' campaign.pk %}">Results of this round</a> <a href="{% url 'testing:results_download' campaign.pk %}">Download the results (Excel)</a></p>
+<section aria-labelledby="scripts-h">
+  <h2 id="scripts-h">Scripts and testers</h2>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Scripts and their testers">
+  <table class="list" id="assignments">
+    <caption class="sr-only">Each script of this round, the testers it is assigned to and how far each has got</caption>
+    <thead><tr><th scope="col">Script</th><th scope="col">Tests</th><th scope="col">Tester</th><th scope="col">Done</th><th scope="col">Passed</th><th scope="col">Failed</th><th scope="col">Blocked</th><th scope="col">Does not apply</th><th scope="col">Withdraw</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      {% for item in row.assignments %}{% with a=item.a p=item.progress %}
+      <tr>
+        <th scope="row">{{ row.script }}</th>
+        <td>{{ row.tests }}</td>
+        <td>{{ a.tester|person }}</td>
+        <td class="nowrap">{{ p.done }} of {{ p.total }}</td>
+        <td>{{ p.passed }}</td><td>{{ p.failed }}</td><td>{{ p.blocked }}</td><td>{{ p.na }}</td>
+        <td>{% if campaign.is_open %}<details><summary>Withdraw<span class="sr-only"> {{ row.script.code }} from {{ a.tester|person_name }}</span></summary>
+          <form method="post" action="{% url 'testing:withdraw' a.pk %}" class="stack">{% csrf_token %}
+            <label for="withdraw-{{ a.pk }}">Reason</label><input id="withdraw-{{ a.pk }}" name="reason" maxlength="500" required>
+            <div class="actions"><button type="submit">Withdraw it</button></div>
+          </form></details>{% endif %}</td>
+      </tr>
+      {% endwith %}{% empty %}
+      <tr><th scope="row">{{ row.script }}</th><td>{{ row.tests }}</td><td colspan="7" class="muted">Not assigned</td></tr>
+      {% endfor %}
+      {% for a in row.withdrawn %}
+      <tr><th scope="row">{{ row.script }}</th><td>{{ row.tests }}</td><td>{{ a.tester|person }}</td><td colspan="6" class="muted">Withdrawn {{ a.withdrawn_at|date_words }}: {{ a.withdrawn_reason }}</td></tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% if campaign.is_open %}
+<section class="card" aria-labelledby="assign-h">
+  <h2 id="assign-h">Assign a script</h2>
+  <p>The script goes to the tester's own CEDARS account. They are told, and it appears in their My queue until every test has a result.</p>
+  <form method="post" action="{% url 'testing:assign' campaign.pk %}" class="stack form-narrow">{% csrf_token %}
+    {{ assign_form.non_field_errors }}
+    {% for field in assign_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Assign</button></div>
+  </form>
+</section>
+<section class="card" aria-labelledby="close-h">
+  <h2 id="close-h">Close the round</h2>
+  <p>Closing keeps every result as it stands. Testers can read their runs but no longer change them.</p>
+  <form method="post" action="{% url 'testing:close' campaign.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in close_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Close the round</button></div>
+  </form>
+</section>
+{% else %}
+<section class="card" aria-labelledby="reopen-h">
+  <h2 id="reopen-h">Reopen the round</h2>
+  <form method="post" action="{% url 'testing:reopen' campaign.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in reopen_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Reopen</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,378 @@
+# Help for each page (cedars/core/page_help.py): claims.
+
+claims/index:
+  title: Claims
+  guide:
+    - Each claim year is confirmed five times, after each quarter and once more with the final annual claims. This page lists each year's
+      confirmations with their due dates and, when you act for a PA, where its claims stand. The newest year is open; earlier years are
+      folded under their headings.
+    - Statewide programs are claimed first. Each statewide program's lead PA files its claims in the statewide confirmations, due before
+      the PAs' own (two weeks before a quarter's, a month before the annual claim), and they're listed in due order beside them. Each
+      funding PA then sees what those claims credit to it before it files, and its totals count it.
+    - A quarter's upload holds the records that are new or changed since the last confirmation; it is compiled over the earlier confirmed
+      quarters, checked, priced for the year to date and confirmed. Confirmed claims, their inputs and results are open to every
+      signed-in user. After a due date a correction is a new version, published with a change letter in the change log.
+    - The claims template (Excel) lists every table and field. The change log lists every correction to confirmed claims, and Linked
+      claims follows NMEC chains, projects and SEM participants across quarters and years.
+  how:
+    - Open a confirmation to see where your PA's claims stand and to file or correct them. CPUC staff choose the PA there.
+    - When you act for a PA, the next one to file is marked "Next to file", and each row ends with what to do on it (Start, Continue,
+      or Open one that is confirmed).
+    - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
+      and years; Restated claims lists confirmed claims priced again on today's engine.
+    - Set up a claim year (CPUC system administrators) adds the next year's five confirmations and the five statewide ones before them.
+    - Statewide claims credited to your PA, under each year, shows your share of the lead PAs' confirmed statewide claims.
+  see: claims
+  tour:
+    - target: main .head-row .actions, main .head-row .button
+      title: Template, change log, linked and restated claims
+      text: The claims template, every correction made so far, claims that link across years, and restatements. CPUC administrators set up claim years here.
+    - target: main section.cycle
+      title: The current claim year
+      text: Each confirmation with its due date and, when you act for a PA, its status, the next one to file marked and what to do on each. Select one to open it.
+    - target: main details.section
+      title: Earlier years
+      text: Open a year to see its confirmations.
+      optional: true
+
+claims/year_new:
+  title: Setting up a claim year
+  guide:
+    - For CPUC system administrators. A claim year has five confirmations (four quarters and the annual) due on the dates you set, and is
+      priced on the ACC and allocation version chosen on its pricing page.
+    - It also has five statewide confirmations, which the statewide programs' lead PAs file first. Each must be due before the PAs'
+      confirmation of the same period; left blank, it's due two weeks before a quarter's and a month before the annual claim.
+    - Every filing in the set follows the filing specification version chosen here, for every upload, check and correction. The current
+      version is offered; an older one still in effect may be chosen, if its engine release has the ACC the set is priced on. The set can
+      move to a later version from its set-up page.
+  how:
+    - Choose the year and check the five due dates, then Set up the claim year. The dates start from the last claim year's, moved on to
+      the year shown; change any that differ, and all of them for another year. Its ACC and allocation version are chosen on its
+      pricing page.
+    - Leave the statewide due dates blank for the usual lead time, or set your own.
+  see: claims
+  tour:
+    - target: main form
+      title: The claim year
+      text: The year and each confirmation's due date. Every PA sees it on Claims once it is set up.
+    - target: "#id_filers"
+      title: Who files
+      text: Every PA is ticked; untick those not expected to file. Only those ticked can start a filing and are on the Filings page's status.
+
+claims/setup:
+  title: A claim year's set-up
+  guide:
+    - The ACC and statewide allocation version the year's next pricing uses. Versions already priced keep the ones they were priced with;
+      their run records both. Its notes change in the same form, with the reason for the change, which the audit trail keeps.
+    - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
+      reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
+      Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
+    - A year set up before statewide claims were filed on their own gets its five statewide due dates here.
+    - Not every program administrator files every filing. Who files lists those expected to, and only they can start a filing for it, and
+      only they are listed on the Filings page's status. A PA that has started filing stays on it, since what it filed is kept.
+    - >-
+      Filings in this set lists each filing the set-up put on the calendar and whether it is on the calendar or canceled. Any one of
+      them that no organization has started can be canceled with a reason, leaving the rest of the set as it is: no filing starts for
+      it and no reminders are sent. A canceled filing is restored the same way.
+  how:
+    - The links at the top go to each part of the page. Each part saves on its own, with its own reason.
+    - Choose the ACC and the allocation version, give the reason, then Save how they are priced. The next pricing uses them.
+    - To move due dates, change them under Due dates, give the reason and Save the due dates.
+    - To remove the set-up, open Remove under Remove this set-up, give the reason and press its button. It can be set up again
+      afterward.
+    - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
+      started filing stays on it.
+    - To cancel one filing, open Cancel one filing under Filings in this set, choose it, give the reason and press Cancel the filing;
+      to bring one back, choose it under Restore a canceled filing.
+  see: claims
+  tour:
+    - target: "#setup-pricing"
+      title: Pricing settings
+      text: Choose the ACC and allocation version and Save.
+    - target: "#setup-specification"
+      title: Filing specification
+      text: The filing specification version every filing in the set follows, and a link to move the set when a later version is in effect.
+      optional: true
+    - target: "#setup-filings"
+      title: Filings in this set
+      text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.
+    - target: "#setup-due-dates"
+      title: Due dates
+      text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#statewide-deadlines"
+      title: Statewide due dates
+      text: For a year set up before statewide claims were filed on their own, add its five statewide confirmations.
+      optional: true
+    - target: "#setup-filers"
+      title: Who files
+      text: Tick the program administrators expected to file; only they can start a filing and only they are on the Filings page's status.
+    - target: "#remove-setup"
+      title: Remove this set-up
+      text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
+
+claims/period:
+  title: A claims confirmation
+  guide:
+    - One PA's confirmation of one quarter (or the annual claims). Upload the records that are new or changed since the last confirmation;
+      CEDARS compiles them over the earlier confirmed quarters, where a record with the same key replaces the one confirmed earlier.
+    - Every record is checked against the claims rules, and deemed measures against eTRM. Fix what is rejected and upload again, then
+      Price the year to date, review it, and Confirm and publish. Quarters are confirmed in order. After the due date a correction is a new
+      version, published with a change letter.
+    - Contacts and sites never go in the claims file. They are uploaded separately under Personal information, need the PII permission a
+      data steward approves, and are kept apart in the PII vault.
+    - Statewide programs are claimed only by their lead PA, in the statewide confirmation due before the PAs' own. A statewide
+      confirmation holds only the statewide programs its PA leads. It's priced with the statewide allocation, so once it's confirmed each
+      funding PA sees its share before filing.
+  how:
+    - To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload, with the reason.
+    - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
+  see: claims
+  tour:
+    - target: main dl.facts
+      title: Due date and pricing
+      text: When this claim is due, which quarters it may carry, and the ACC, allocation version and cost tests it is priced on.
+    - target: "#choose-pa-h"
+      title: Choose a program administrator
+      text: >-
+        Each PA files its own claim. CPUC staff, and anyone not acting for a PA, choose one here to see its claim; others' published
+        versions are open to everyone signed in.
+      optional: true  # only when you are not acting for a PA
+    - target: "#nothing-yet"
+      title: Not started yet
+      text: The PA has not started this claim, and you cannot upload it; its filers do that here.
+      optional: true
+    - target: "#filing-steps"
+      title: Where the claim stands
+      text: The five steps from upload to publication, with the one it is at said in words.
+      optional: true
+    - target: "#now-h"
+      title: The outcome and the next step
+      text: >-
+        What the last check or pricing found, and the one thing to do next: upload or correct, price, confirm, or ask to reopen after the
+        due date. While it is priced the page follows the run and shows the results when it finishes.
+      optional: true
+    - target: "#findings-h"
+      title: Findings by rule
+      text: >-
+        Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
+        correct that record.
+      optional: true
+    - target: "#upload"
+      title: Upload
+      text: >-
+        The new and changed records as one file, or several chosen together. It replaces this version's earlier upload. Once the version
+        passes its checks this section folds away.
+      optional: true
+    - target: "#version-details"
+      title: The file and its records
+      text: The file this version holds and its records by table, over the year to date.
+      optional: true
+    - target: "#statewide-filing, #statewide-first"
+      title: Statewide claims
+      text: >-
+        In a statewide confirmation, the statewide programs its lead PA files first; in a PA's own, which lead PAs have confirmed the
+        statewide claims credited to it.
+      optional: true
+    - target: "#earlier"
+      title: Earlier confirmations
+      text: This year's confirmed quarters, which this upload is compiled over.
+      optional: true
+    - target: "#pii-h"
+      title: Personal information
+      text: The contacts and sites behind the claims, uploaded and read separately, with a reason recorded each time.
+      optional: true
+    - target: "#versions-h"
+      title: Versions
+      text: Every version of this confirmation, newest first.
+      optional: true
+
+claims/statewide:
+  title: Statewide claims credited to a PA
+  guide:
+    - Each statewide program's lead PA claims it in the statewide confirmations, due before the PAs' own. Its records are priced with
+      the statewide allocation, so their results are credited to the PAs that fund the program.
+    - This page shows one PA's share, by program, from the lead PAs' latest confirmed statewide claims (year to date), and where each
+      statewide confirmation stands. A lead PA's draft isn't counted until it's confirmed. The PA's year's totals, such as its 13th-month
+      report, count the same share.
+  how:
+    - Choose a PA and Apply to see its share. Download as CSV gives the same rows.
+    - Open a statewide confirmation to see its lead PAs' filings, or a program's confirmation to see the lead PA's version credited to the PA.
+  see: claims
+  tour:
+    - target: main form.filters
+      title: Whose share
+      text: Choose the program administrator whose share to show.
+    - target: "#status-h"
+      title: Where the statewide confirmations stand
+      text: Each statewide confirmation, its due date, the PAs' confirmation it comes before, and which lead PAs have confirmed it.
+    - target: "#share-h"
+      title: Credited to the PA
+      text: The PA's share of each statewide program, year to date, with the lead PA and the confirmation it comes from.
+      optional: true
+
+claims/version:
+  title: A claims version
+  guide:
+    - One confirmed (or in-progress) version of a PA's claims, the year to date by program, with the priced results, the withdrawn claims and
+      the files. Confirmed claims are published.
+  how:
+    - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
+    - Column definitions explains each column.
+    - True-ups priced against their parents' profiles, when the version has NMEC true-ups, shows what each revised 8,760 profile changes.
+    - Restate these claims prices the confirmed version again on today's engine, as an analysis that never changes it.
+    - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
+  see: claims
+  tour:
+    - target: "#confirm-here-h"
+      title: Ready to confirm
+      text: Once this version is priced, review its results here and confirm them to publish, without going back to the filing page.
+      optional: true  # the latest version, priced, for someone who may confirm it
+    - target: main form.filters
+      title: What to show
+      text: The programs and years to show.
+      optional: true
+    - target: "#savings-differ"
+      title: Filed savings that differ
+      text: Programs whose filed first-year savings differ from what their records priced to are marked "Differs" in the Filed columns.
+      optional: true
+    - target: "#programs-h"
+      title: By program
+      text: Each program's year-to-date results, with downloads and the column definitions.
+    - target: "#true-ups-h"
+      title: True-ups priced against their parents' profiles
+      text: Each NMEC true-up's change in benefits from its parent's 8,760 profile to its own, by program, and the parent profile version it was priced against.
+      optional: true
+    - target: "#withdrawn-h"
+      title: Withdrawn claims
+      text: Claims withdrawn this year, with the reason. Their records stay but are not counted.
+      optional: true
+    - target: "#restated-h"
+      title: Restated results
+      text: Price these confirmed claims again on today's engine, and the restatements already made that you can see.
+      optional: true
+    - target: "#files-h"
+      title: Files
+      text: The tables as filed.
+    - target: "#comments-h"
+      title: Comments
+      text: Your organization and CPUC staff discuss the filing here, with files attached. Not public; a comment is never edited.
+      optional: true
+
+claims/changes:
+  title: The claims change log
+  guide:
+    - Every correction to confirmed claims, newest first. A correction is a new version made after the due date; the version it replaces
+      stays as it was confirmed. Each change letter gives the date, the reason and what changed.
+  see: claims
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By PA and year.
+      optional: true
+    - target: main table.list
+      title: Corrections
+      text: Each correction with its PA, period and reason. Select one to read its change letter.
+      optional: true
+
+claims/change_letter:
+  title: A change letter
+  guide:
+    - What one correction to confirmed claims changed, the claims added, changed and withdrawn, each program whose year to date changed
+      (before and after), and each table's records before and after. It is published with the correction.
+  see: claims
+  tour:
+    - target: main dl.facts
+      title: The correction
+      text: When it was published, the version it corrects, the correcting version and the reason.
+    - target: "#claims-h"
+      title: Claims
+      text: The claims the correction added, changed or withdrawn. Open a group to see them.
+    - target: "#programs-h"
+      title: Programs
+      text: Each program whose year to date changed, before and after.
+    - target: "#tables-h"
+      title: Records by table
+      text: Each table's year-to-date records before and after.
+
+claims/links:
+  title: Linked claims
+  guide:
+    - How confirmed claims link up across quarters and years. Look up a NMEC claim's chain from the original claim through every true-up,
+      every claim of one project (its ProjectID), or a SEM participant's claims across the phases of its engagement.
+  see: claims
+  tour:
+    - target: main form
+      title: Look up
+      text: Choose what to look up by and enter the ID.
+    - target: "#results-h"
+      title: The linked claims
+      text: Every confirmed claim found, in order, with its filed savings and, for a chain, each true-up's change from its parent and the benefit its revised 8,760 profile changes against the profile its parent was priced on.
+      optional: true
+
+claims/restate:
+  title: Restating confirmed claims
+  guide:
+    - Prices a confirmed version's year to date again on today's engine, as an analysis. The confirmed version, its results and
+      its published files never change; the runs are ordinary runs of the organization you choose (or your own).
+    - On the filed ACC one run is made, and the whole change from the filed results is the effect of the engine release, today's program
+      registry, the claim year's allocation version and cost-test set. On another ACC a second run on the filed ACC is made as well, so
+      the change splits into that effect and the effect of the ACC alone.
+    - An ACC per claim comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
+  how:
+    - Choose who the runs are for, the release (the default is the current engine) and the ACC, optionally upload the ACC by claim file,
+      then Restate. The restatement's page fills in as its runs finish.
+  see: claims
+  tour:
+    - target: "#how-h"
+      title: How the change is split
+      text: One run on the filed ACC, and a second on your ACC when it differs.
+    - target: main form
+      title: The restatement
+      text: Who it is for, the release, the ACC, an optional ACC per claim, a name and why.
+      optional: true
+
+claims/restatements:
+  title: Restated claims
+  guide:
+    - Every restatement you can see, newest first, yours and your organizations'. A restatement prices confirmed claims again on today's
+      engine as an analysis; the filed records are never changed.
+  how:
+    - To restate a confirmed version, open it from its claims period and choose Restate these claims.
+  see: claims
+  tour:
+    - target: main table.list
+      title: Restatements
+      text: Each restatement with the claims, release and ACC it used. Select one to see its results.
+
+claims/restatement:
+  title: A restatement
+  guide:
+    - Confirmed claims priced again on today's engine, beside the results they were confirmed with. The filed record is not changed.
+    - Program and engine effect = the current engine on the filed ACC less the filed results (the engine release, today's program registry,
+      the allocation and the cost-test set). ACC effect = the restated results less the current engine on the filed ACC. They add up to the
+      total change. On the filed ACC there is one run and no ACC effect.
+    - Beside another claim year sets these claims, as restated, beside the PA's confirmed claims of another year. On that year's ACC the
+      difference is what the programs did, not a change in avoided costs.
+  how:
+    - Choose a figure to see it by program; choose a claim year to compare with; download every program and figure as a CSV.
+    - While the runs are still running, Check again reloads the page.
+  see: claims
+  tour:
+    - target: "#inputs-h"
+      title: What changed
+      text: The release, programs, allocation, cost tests and ACC the claims were filed on and restated on.
+    - target: "#runs-h"
+      title: Runs
+      text: The restatement's runs and their status. Each links to its run page.
+    - target: "#summary-h"
+      title: Filed and restated
+      text: The totals as filed, on the current engine at the filed ACC, and restated, with the change split into its causes.
+      optional: true
+    - target: "#programs-h"
+      title: By program
+      text: One figure by program, split the same way.
+      optional: true
+    - target: "#years-h"
+      title: Beside another claim year
+      text: These claims as restated, beside another year's confirmed claims.
+      optional: true

@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Upcoming changes{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Upcoming changes</h1>{% page_help "work/upcoming" %}</div>
+<p>The fixes and improvements the CPUC has planned for coming releases of CEDARS, the soonest release first. A release's date may change. A change that affects what you file is also announced in the <a href="{% url 'releases:index' %}">release notes</a> before it takes effect.</p>
+<p class="actions"><a href="{% url 'known:problems' %}" id="known-link">Known problems</a></p>
+{% for plan, items in releases %}
+<section aria-labelledby="release-{{ plan.pk }}-h" class="card upcoming-release">
+  <h2 id="release-{{ plan.pk }}-h">Release {{ plan.name }}{% if plan.expected_on %}, expected {{ plan.expected_on|date_words }}{% endif %}</h2>
+  {% if plan.note %}<p class="prewrap">{{ plan.note }}</p>{% endif %}
+  <ul>
+    {% for it in items %}<li><a href="{% url 'known:item' it.pk %}">{{ it.title }}</a> <span class="small">({% if it.kind == "problem" %}a fix{% else %}an improvement{% endif %})</span></li>{% endfor %}
+  </ul>
+</section>
+{% empty %}
+<p id="none-planned">Nothing is planned for a release at present.</p>
+{% endfor %}
+<section aria-labelledby="unscheduled-h" id="unscheduled">
+  <h2 id="unscheduled-h">Not yet scheduled</h2>
+  {% if unscheduled %}
+  <p>Improvements the CPUC is considering or means to make, with no release chosen yet.</p>
+  <ul>
+    {% for it in unscheduled %}<li><a href="{% url 'known:item' it.pk %}">{{ it.title }}</a> <span class="small">({{ it.progress.words|lower }})</span></li>{% endfor %}
+  </ul>
+  {% else %}
+  <p>No other improvements are listed at present.</p>
+  {% endif %}
+</section>
+{% endblock %}

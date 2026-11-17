@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% load feedback_tags %}
+{% block title %}My requests{% endblock %}
+{% block content %}
+<div class="page-title"><h1>My requests</h1>{% page_help "feedback/mine" %}</div>
+<p>The questions, problems, ideas and comments you sent to the CPUC's CEDARS team from a page's Feedback link, and where each stands. You are told when the team answers or asks you something.</p>
+{% if organisation_admin %}<p id="organization-link"><a href="{% url 'feedback:organization' %}">Requests from {{ request.organisation.code }}'s members</a></p>{% endif %}
+{% pager page label="Pages of requests" previous="Newer" next="Older" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="My requests">
+<table class="list" id="my-requests">
+  <caption class="sr-only">Your requests: the ones waiting for you first, then the most recently active</caption>
+  <thead><tr><th scope="col">Sent</th><th scope="col">What</th><th scope="col">Page</th><th scope="col">Message</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for fb in page %}
+  <tr>
+    <td class="nowrap"><a href="{% url 'feedback:request' fb.pk %}">{{ fb.created_at|datetime_words }}<span class="sr-only">: open this request</span></a></td>
+    <td>{{ fb.get_kind_display }}</td>
+    <td class="small"><code>{{ fb.page }}</code></td>
+    <td>{{ fb.message|truncatechars:160 }}</td>
+    <td><span class="status {{ fb.status|request_class }}">{{ fb.get_status_display }}</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="5">You have not sent anything yet. Use the Feedback link at the foot of the page your question is about.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page label="Pages of requests" previous="Newer" next="Older" where="below" %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% load data_tags %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ caption }}">
+<table class="list saved-views-table">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr><th scope="col">View</th><th scope="col">Page</th>{% if show_owner %}<th scope="col">Saved by</th>{% endif %}{% if show_sharing %}<th scope="col">Who can open it</th>{% endif %}<th scope="col">Last changed</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
+  <tbody>
+  {% for v, href in rows %}
+  <tr><th scope="row"><a href="{% url 'data:view' v.pk %}">{{ v.name }}</a></th>
+    <td>{{ pages|get_item:v.page|default:v.page }}</td>
+    {% if show_owner %}<td>{{ v.owner|person_name }}{% if v.organisation and v.owner_id != user.pk %} <span class="small muted">(shared with {{ v.organisation.code }})</span>{% endif %}</td>{% endif %}
+    {% if show_sharing %}<td>{% include "data/_view_audience.html" with v=v %}</td>{% endif %}
+    <td>{{ v.updated_at|datetime_words }}</td>
+    <td><a href="{{ href }}">Open<span class="sr-only"> {{ v.name }}</span></a></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

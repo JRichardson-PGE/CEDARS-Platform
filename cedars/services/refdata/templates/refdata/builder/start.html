@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Build a cost-test set{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a></li></ol></nav>
+<div class="page-title"><h1>Build a cost-test set</h1>{% page_help "refdata/builder/start" %}</div>
+<p>Build a set step by step, checked by the engine as you go; you can price your own analysis runs on it once it has no problems. Starting
+from a copy is the usual way.</p>
+{% url 'refdata:cost_tests' as sets %}{% url 'core:recet_doc' 'cost-tests' as ct %}{% before_upload template=sets template_label="the published sets, to start from or download" fields=ct fields_label="how a set is defined" rules_note="each step is checked by the engine" %}
+<form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.start.as_field_group }}
+  {% for key, field in follow %}<div data-start-for="{{ key }}"{% if picked != key %} hidden{% endif %}>{{ field.as_field_group }}</div>
+  {% endfor %}
+  {% if form.share %}<div data-start-for="any"{% if not picked %} hidden{% endif %}>{{ form.share.as_field_group }}</div>{% endif %}
+  <div class="actions">
+    <button type="submit" class="primary" data-start-for="any"{% if not picked %} hidden{% endif %}>Start</button>
+    <button type="submit" name="next" value="1" data-start-next{% if picked %} hidden{% endif %}>Next</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'refdata/builder_start.js' %}" defer></script>{% endblock %}

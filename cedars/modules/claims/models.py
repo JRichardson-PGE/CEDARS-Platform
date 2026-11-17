@@ -1,0 +1,211 @@
+from django.conf import settings as conf
+from django.db import models
+
+# The ten ProgramCost fields CET adds up into a program's cost, in the specification's order (as Budgets reads them).
+PROGRAM_COST_FIELDS = [
+    ("AdminCostsOverheadAndGA", "Administration: overhead and G&A"),
+    ("AdminCostsOther", "Administration: other"),
+    ("MarketingOutreach", "Marketing and outreach"),
+    ("DIActivity", "Direct implementation: activity"),
+    ("DIInstallation", "Direct implementation: installation"),
+    ("DIHardwareAndMaterials", "Direct implementation: hardware and materials"),
+    ("DIRebateAndInspection", "Direct implementation: rebate and inspection"),
+    ("EMV", "EM&V"),
+    ("UserInputIncentive", "Incentives entered at program level"),
+    ("CostsRecoveredFromOtherSources", "Costs recovered from other sources"),
+]
+# The savings and cost totals a PA files on each claim (Claim table), summed per program.
+FILED_TOTALS = [
+    "TotalFirstYearGrosskWh",
+    "TotalFirstYearGrosskW",
+    "TotalFirstYearGrossTherm",
+    "TotalFirstYearNetkWh",
+    "TotalFirstYearNetkW",
+    "TotalFirstYearNetTherm",
+    "TotalLifecycleNetkWh",
+    "TotalLifecycleNetTherm",
+    "TotalGrossMeasureCost",
+    "TotalGrossIncentive",
+]
+
+
+class ClaimYear(models.Model):
+    """One claim (program) year: its five confirmations are deadlines of the "claims" module on the year's quarters and on the year
+    (Q1 to Q4, then the final annual one), and this says how its claims are priced: the ACC (claims use the ACC of the year's final
+    budget filing) and, optionally, the statewide allocation version (blank: the most recent confirmed version with factors for the
+    year) and the published cost-test set (blank: the one in force for the year). Set by a CPUC system administrator, a setting rather
+    than code."""
+
+    year = models.PositiveSmallIntegerField(unique=True)
+    acc_version = models.CharField("ACC", max_length=10)
+    allocation_version = models.ForeignKey(
+        "registry.AllocationVersion", null=True, blank=True, on_delete=models.PROTECT, related_name="claim_years"
+    )
+    cost_test_set = models.ForeignKey(
+        "refdata.PackVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="claim_years",
+        help_text="The published cost-test set the year's claims are priced on (blank: the one in force for the year)",
+    )
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-year"]
+
+    def __str__(self):
+        return f"{self.year} claims"
+
+
+class ClaimProgramLine(models.Model):
+    """One program's year-to-date claims in one version, read from the version's compiled tables (the earlier confirmed quarters with
+    this version's records over them): the ProgramCost row's fields, the measures' rebates and incentives (NumUnits x the four unit
+    incentive fields), and the totals filed on its claims. Derived data of the version: replaced when its files are, deleted with it."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_lines")
+    prg_id = models.CharField("PrgID", max_length=60)
+    pa = models.CharField("PA", max_length=20, blank=True, help_text="The ProgramCost row's PA")
+    program_costs = models.JSONField(default=dict, help_text="{ProgramCost field: dollars} for the ten cost fields")
+    on_bill_financing = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    rebates_and_incentives = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    claims = models.PositiveIntegerField(default=0)
+    filed = models.JSONField(default=dict, help_text="{Claim total field: sum over the program's claims} as filed")
+
+    class Meta:
+        ordering = ["prg_id"]
+        constraints = [models.UniqueConstraint(fields=["version", "prg_id"], name="claims_one_line")]
+
+    def __str__(self):
+        return self.prg_id
+
+
+class ClaimResult(models.Model):
+    """One program's priced year-to-date results for one credited PA in one version, summed from the run's group sums. Kept per run: a
+    re-priced version reads its new run's results."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_results")
+    run = models.CharField(max_length=40)
+    pa = models.CharField("credited PA", max_length=20, blank=True)
+    prg_id = models.CharField("PrgID", max_length=60)
+    program_name = models.CharField(max_length=300, blank=True)
+    measures = models.PositiveIntegerField(default=0)
+    values = models.JSONField(default=dict, help_text="{output column: sum over the program's measures}")
+
+    class Meta:
+        ordering = ["prg_id", "pa"]
+        constraints = [models.UniqueConstraint(fields=["version", "run", "pa", "prg_id"], name="claims_one_result")]
+
+    def __str__(self):
+        return f"{self.prg_id} {self.pa}"
+
+
+class ChangeLetter(models.Model):
+    """The public change letter of a claims correction: written when a corrected version (version 2 or later) of a confirmation
+    is published, dated, with the correction's reason and what it changed against the version it replaces: the claims added, changed,
+    removed, withdrawn (with their reasons) or reinstated, each table's records, and each program's year to date before and after.
+    Readable by every signed-in user, like the versions it compares. Append-only: never updated or deleted (a database trigger)."""
+
+    version = models.OneToOneField("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="change_letter")
+    previous = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField(help_text="The correction's reason, as given when it was reopened")
+    published_at = models.DateTimeField()
+    changes = models.JSONField(default=dict, help_text="claims, tables, programs and totals, as service.correction_changes writes them")
+
+    class Meta:
+        ordering = ["-published_at", "-pk"]
+
+    def __str__(self):
+        return f"Change letter for version {self.version.number} of {self.version.submission}"
+
+
+class ClaimRecord(models.Model):
+    """One claim of a version's compiled year to date, with the fields that link claims to each other: the NMEC parent it trues up
+    , the SEM participant and phase, the project it belongs to (ProjectID, the project key) and the sites
+     of a population claim. Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
+     The links are read from the standing versions only, so they show confirmed claims."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_records")
+    claim_id = models.CharField("ClaimID", max_length=255)
+    prg_id = models.CharField("PrgID", max_length=60, blank=True)
+    impact_type = models.CharField("MeasImpactType", max_length=60, blank=True)
+    parent_claim_id = models.CharField("ParentClaimID", max_length=255, blank=True)
+    true_up = models.BooleanField("NMEC true-up", default=False)
+    participant_id = models.CharField("ParticipantID", max_length=255, blank=True)
+    sem_phase = models.CharField("SEM_Phase", max_length=255, blank=True)
+    project_id = models.CharField("ProjectID", max_length=255, blank=True)
+    site_id = models.CharField("SiteID", max_length=255, blank=True)
+    sites = models.JSONField(default=list, blank=True, help_text="A population claim's sites (ClaimSite), beyond its own SiteID")
+    withdrawn = models.BooleanField(default=False)
+    filed = models.JSONField(default=dict, help_text="{Claim total field: value} as filed")
+
+    class Meta:
+        ordering = ["claim_id"]
+        constraints = [models.UniqueConstraint(fields=["version", "claim_id"], name="claims_one_record")]
+        indexes = [
+            models.Index(fields=["parent_claim_id"]),
+            models.Index(fields=["participant_id"]),
+            models.Index(fields=["project_id"]),
+            models.Index(fields=["claim_id"]),
+        ]
+
+    def __str__(self):
+        return self.claim_id
+
+
+class Restatement(models.Model):
+    """A confirmed version's claims priced again on the current engine: an analysis that never changes the filed record. It
+    holds up to two analysis runs on the version's published job: `restated` on the chosen release and ACC (an ACC per record when some
+    records name their own) and, when that ACC differs from the filed one, `bridge`, the same release on the filed ACC. Filed to
+    bridge is the effect of the engine, the program registry, the allocation and the cost-test set; bridge to restated is the effect of
+    the ACC. The runs belong to `organisation` (blank: the owner's own), like any run; so does the restatement."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="restatements")
+    organisation = models.ForeignKey(
+        "accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="claim_restatements"
+    )
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="claim_restatements")
+    name = models.CharField(max_length=200)
+    reason = models.TextField(blank=True, help_text="Why the claims were restated, in the requester's words")
+    release = models.CharField(max_length=40, help_text="The ReCET release both runs use")
+    acc_version = models.CharField("ACC", max_length=10, help_text="The ACC the restated run prices every record on that names none")
+    acc_records = models.JSONField(default=dict, help_text="{ACC: records} the restated run prices on each ACC")
+    overrides_key = models.CharField(max_length=300, blank=True, help_text="The uploaded ClaimID / ACC file (uploads area)")
+    filed = models.JSONField(default=dict, help_text="What the version was priced with when it was confirmed (its calculation)")
+    runs = models.JSONField(default=dict, help_text='{"restated": run id, "bridge": run id} ("bridge" only when the ACC changes)')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def acc_changes(self) -> bool:
+        return bool(self.runs.get("bridge"))
+
+
+class RestatementLine(models.Model):
+    """One program's results for one credited PA in one of a restatement's runs, summed from the run's group sums (as ClaimResult does
+    for the filed run). Read once the run finishes, so the comparison outlives the run's own files."""
+
+    class Role(models.TextChoices):
+        RESTATED = "restated", "Restated"
+        BRIDGE = "bridge", "Current engine on the filed ACC"
+
+    restatement = models.ForeignKey(Restatement, on_delete=models.CASCADE, related_name="lines")
+    role = models.CharField(max_length=10, choices=Role.choices)
+    pa = models.CharField("credited PA", max_length=20, blank=True)
+    prg_id = models.CharField("PrgID", max_length=60)
+    program_name = models.CharField(max_length=300, blank=True)
+    measures = models.PositiveIntegerField(default=0)
+    values = models.JSONField(default=dict, help_text="{output column: sum over the program's measures}")
+
+    class Meta:
+        ordering = ["role", "prg_id", "pa"]
+        constraints = [models.UniqueConstraint(fields=["restatement", "role", "pa", "prg_id"], name="claims_one_restatement_line")]
+
+    def __str__(self):
+        return f"{self.role} {self.prg_id} {self.pa}"

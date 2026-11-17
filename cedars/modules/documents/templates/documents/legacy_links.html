@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Old links{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="legacy" %}
+<div class="page-title"><h1>Old links</h1>{% page_help "documents/legacy_links" %}</div>
+<p>The addresses of the old CEDARS site's documents and of the 2006-2013 EM&amp;V site, and the migrated document or file each now leads
+to. The migration set them; where one leads to the wrong place, open it and point it at the right document or file, with the reason.
+The change is in the audit log.</p>
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="q">Words in the address or the document's title</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="document">Document number</label><input type="text" inputmode="numeric" id="document" name="document" value="{{ document }}"></div>
+  <button type="submit">Apply</button>
+</form>
+<p id="links-count">{% if total == shown %}{{ total }} old link{{ total|pluralize }}.{% else %}The first {{ shown }} of {{ total }} old links; narrow the search to see the rest.{% endif %}</p>
+{% if links %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Old links">
+<table class="list legacy-links">
+  <caption class="sr-only">Old addresses and where each leads</caption>
+  <thead><tr><th scope="col">Old address</th><th scope="col">Leads to</th></tr></thead>
+  <tbody>
+  {% for link in links %}
+  <tr><th scope="row"><a href="{% url 'documents:legacy_link' link.pk %}">{{ link.path }}</a></th>
+    <td><a href="{{ link.document.get_absolute_url }}">{{ link.document.title }}</a> (document {{ link.document_id }}){% if link.file %}, file {{ link.file.name }}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

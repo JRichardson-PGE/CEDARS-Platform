@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Delete {{ t.name }} {{ found.shown }} · version {{ v.number }}{% endblock %}
+{% block content %}
+{% include "submissions/_record_crumbs.html" %}
+<div class="page-title"><h1>Delete {{ t.name }} {{ found.shown }}?</h1>{% page_help "submissions/record_delete" %}</div>
+{% if found.earlier %}
+<p>It was filed in {{ found.earlier }}. {{ t.note }} Deleting it carries the set's other records into this version without it.</p>
+{% else %}
+<p>Line {{ found.line }} of this version's {{ t.name }} table. Deleting it takes it out of this version; the records that refer to it are checked again.
+The deletion is recorded in the audit trail with the record as it was.</p>
+{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="The record">
+<table class="list">
+  <caption class="sr-only">The record's values</caption>
+  <thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>
+  <tbody>{% for name, value in found.row.items %}{% if value %}<tr><th scope="row">{{ name }}</th><td>{{ value }}</td></tr>{% endif %}{% endfor %}</tbody>
+</table>
+</div>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  <input type="hidden" name="state" value="{{ state }}">
+  {% for k in found.key %}<input type="hidden" name="k" value="{{ k }}">{% endfor %}
+  <div class="field"><label for="del-reason">Why (optional)</label><textarea id="del-reason" name="reason" rows="2"></textarea></div>
+  <div class="actions"><button type="submit" class="primary">Delete and check</button> <a href="{% url 'submissions:record' v.pk t.name %}?{{ key_query }}">Keep it</a></div>
+</form>
+{% endblock %}

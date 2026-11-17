@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Settings: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_settings" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p>The version's name and summary, and what prices its filings. Moving to another engine release or cost-test set is a new version,
+even when no field or rule changes, so a filing is priced the same way for its whole life.</p>
+<form method="post" class="stack form-narrow" novalidate id="settings-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save the settings</button></div>
+</form>
+{% endblock %}

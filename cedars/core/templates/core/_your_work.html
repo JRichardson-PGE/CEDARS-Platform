@@ -1,0 +1,30 @@
+{% comment %}Your work (core/yourwork.py; UI review 3, U5): the signed-in person's own work, first on the front page and the section
+   pages. One card per part, each with up to three lines and a link to the full list. A line's name links to its page; an action
+   leading to the same page is the only link on the line, so every link is said once.{% endcomment %}
+{% if your_work %}
+<section class="your-work" data-tour="your-work" aria-labelledby="your-work-h">
+  <div class="head-row">
+    <h2 id="your-work-h">Your work</h2>
+    {% if your_work_note %}<p class="muted small">{{ your_work_note }}</p>{% endif %}
+  </div>
+  <ul class="your-work-parts">
+  {% for part in your_work %}
+    <li class="card your-work-part" data-part="{{ part.key }}">
+      <h3 id="yw-{{ part.key }}">{{ part.title }}{% if part.total %} <span class="small muted">({{ part.total }})</span>{% endif %}</h3>
+      {% if part.lines %}
+      <ul class="your-work-lines" aria-labelledby="yw-{{ part.key }}">
+        {% for line in part.lines %}
+        <li>
+          <p class="what">{% if line.url and not line.action or line.url and line.action_url %}<a href="{{ line.url }}">{{ line.what }}</a>{% else %}{{ line.what }}{% endif %}{% if line.status %} <span class="status {{ line.status|status_tone }}">{{ line.status }}</span>{% endif %}</p>
+          {% if line.detail %}<p class="small muted">{{ line.detail|capfirst }}</p>{% endif %}
+          {% if line.action and line.action_href %}<p class="act"><a href="{{ line.action_href }}">{{ line.action }}<span class="sr-only">: {{ line.what }}</span></a></p>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% elif part.empty %}<p class="muted">{{ part.empty }}</p>{% endif %}
+      {% if part.more_url %}<p class="more"><a href="{{ part.more_url }}">{{ part.more_label }}</a></p>{% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}

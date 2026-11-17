@@ -1,0 +1,42 @@
+<section aria-labelledby="comments-h" id="comments">
+<h2 id="comments-h">Comments{% if comment_counts.comments %} ({{ comment_counts.comments }}){% endif %}</h2>
+<p class="small muted">{% if v.status == "proposed" %}Comments from filers and CPUC staff on this proposed version{% elif v.status == "draft" %}Comments made while this draft was proposed{% else %}Comments made while this version was proposed, kept as the record of its consultation{% endif %}.
+  Anyone signed in reads them. A comment is never edited: post another to correct one.{% if comment_counts.unanswered %} {{ comment_counts.unanswered }} not yet answered by the CPUC.{% endif %}</p>
+{% if not user.is_authenticated %}
+<p>Sign in to read the comments{% if comment_counts.comments %} ({{ comment_counts.comments }}){% endif %}{% if v.open_for_comment %} and to comment{% endif %}.</p>
+{% else %}
+{% if thread %}
+<ol class="comments">
+  {% for row in thread %}{% with c=row.c %}<li id="comment-{{ c.pk }}" class="card">
+    <p class="small"><strong>{{ c.author_name }}</strong>, {{ c.organisation.code }}, {{ c.created_at|datetime_words }}{% if v.proposals > 1 %}, on proposal {{ c.round }}{% endif %}. About {{ c.about }}.</p>
+    <p class="prewrap">{{ c.text }}</p>
+    {% for r in row.replies %}<div id="comment-{{ r.pk }}" class="answer">
+      <p class="small"><span class="status info">Answer</span> <strong>{{ r.author_name }}</strong>, {{ r.organisation.code }}, {{ r.created_at|datetime_words }}</p>
+      <p class="prewrap">{{ r.text }}</p>
+    </div>{% endfor %}
+    {% if not row.replies and not row.staff %}<p class="small"><span class="status warn">Not answered</span> The CPUC has not answered yet.</p>{% endif %}
+    {% if can_answer and not row.staff %}<details class="answer-form"><summary>Answer {{ c.author_name }}'s comment</summary>
+      <form method="post" action="{% url 'specifications:reply_comment' v.specification.code v.slug c.pk %}" class="stack form-narrow">{% csrf_token %}
+        {% if editing %}<input type="hidden" name="next" value="edit">{% endif %}
+        <p><label for="answer-{{ c.pk }}">The CPUC's answer to {{ c.author_name }}</label>
+          <textarea id="answer-{{ c.pk }}" name="text" rows="3" required aria-describedby="answer-{{ c.pk }}-help"></textarea>
+          <span class="small muted" id="answer-{{ c.pk }}-help">Shown under the comment to everyone signed in; {{ c.author_name }} is told.</span></p>
+        <div class="actions"><button type="submit">Post the answer</button></div>
+      </form>
+    </details>{% endif %}
+  </li>{% endwith %}{% endfor %}
+</ol>
+{% else %}<p>No comments yet.</p>{% endif %}
+{% if comment_form %}
+<h3 id="comment-form-h">Comment on {{ v.name }}</h3>
+<form method="post" action="{% url 'specifications:post_comment' v.specification.code v.slug %}" class="stack form-narrow" id="comment-form">{% csrf_token %}
+  {{ comment_form.about.as_field_group }}
+  {{ comment_form.text.as_field_group }}
+  <p class="small muted">Posted for {{ comment_side.code }}{% if comment_staff %} as a note from the CPUC{% endif %}, up to {{ max_chars }} characters, through {{ v.comments_last_day|date_words }}.
+    CPUC staff answer here, and you are told when they do.</p>
+  <div class="actions"><button type="submit" class="primary">Post the comment</button></div>
+</form>
+{% elif v.status == "proposed" and not v.open_for_comment %}<p>Comments are closed.</p>
+{% elif v.open_for_comment %}<p>Comments are taken from members of an organization: switch to the organization you comment for to comment.</p>{% endif %}
+{% endif %}
+</section>

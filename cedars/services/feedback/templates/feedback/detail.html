@@ -1,0 +1,69 @@
+{% extends "core/base.html" %}
+{% load feedback_tags work_tags %}
+{% block title %}{{ fb.get_kind_display }} {{ fb.created_at|date_words }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'feedback:inbox' %}">Feedback</a></li></ol></nav>
+<div class="page-title"><h1>{{ fb.get_kind_display }} of {{ fb.created_at|datetime_words }}</h1>{% page_help "feedback/detail" %}</div>
+<dl class="facts">
+  {% if fb.is_urgent %}<dt>Priority</dt><dd><strong class="status warn">Urgent</strong> {% if fb.kind == "security" %}A security concern: only system administrators read it.{% else %}An accessibility barrier keeps someone from using the site.{% endif %}</dd>{% endif %}
+  <dt>From</dt><dd>{% if fb.user %}{{ fb.user|person }}{% if fb.organisation %}, acting for {{ fb.organisation.code }}{% endif %}{% else %}Someone signed out (no name or address is kept){% endif %}</dd>
+  <dt>Page</dt><dd><a href="{{ fb.page }}"><code>{{ fb.page }}</code></a></dd>
+  <dt>Sent on</dt><dd>{% if fb.site_version %}CEDARS {{ fb.site_version }}{% if fb.environment %}, {{ fb.environment }}{% endif %}{% else %}Not recorded{% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ fb.status|request_class }}">{{ status_words }}</span>{% if fb.closed_at %} {{ fb.closed_at|date_words }}{% if fb.closed_by %} by {{ fb.closed_by|person }}{% endif %}{% endif %}</dd>
+  <dt>Read by</dt><dd>{% if fb.user %}The sender, {% endif %}{{ reads }}{% if fb.private %} (the sender kept it from their organization's administrators){% endif %}</dd>
+  <dt>Staff told</dt><dd>{{ fb.notified }}</dd>
+</dl>
+<section aria-labelledby="msg-h">
+  <h2 id="msg-h">Messages</h2>
+  {% include "feedback/_conversation.html" with staff=True %}
+  {% if fb.note %}<h3>Note when closed</h3><p class="prewrap">{{ fb.note }}</p>{% endif %}
+</section>
+{% request_work fb %}
+{% if fb.is_open %}
+{% if fb.status == "new" %}
+<form method="post" action="{% url 'feedback:start' fb.pk %}" id="start">{% csrf_token %}
+  <div class="actions"><button type="submit">Mark as being looked at</button> <span class="small muted">The sender and the other staff see that someone has it.</span></div>
+</form>
+{% endif %}
+{% if fb.user %}
+<section class="card" aria-labelledby="answer-h">
+  <h2 id="answer-h">Answer</h2>
+  <form method="post" action="{% url 'feedback:answer' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in answer_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Send the answer</button></div>
+  </form>
+</section>
+<section class="card" aria-labelledby="ask-h">
+  <h2 id="ask-h">Ask the sender a question</h2>
+  <form method="post" action="{% url 'feedback:ask' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in ask_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Send the question</button></div>
+  </form>
+</section>
+{% else %}
+<p id="no-reply">This was sent signed out, so there is nobody to reply to.</p>
+{% endif %}
+<section class="card" aria-labelledby="note-h">
+  <h2 id="note-h">Keep a note</h2>
+  <form method="post" action="{% url 'feedback:note' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in note_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Keep the note</button></div>
+  </form>
+</section>
+<section class="card" aria-labelledby="close-h">
+  <h2 id="close-h">Close it</h2>
+  <form method="post" action="{% url 'feedback:close' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in close_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Close</button></div>
+  </form>
+</section>
+{% else %}
+<section class="card" aria-labelledby="reopen-h">
+  <h2 id="reopen-h">Reopen it</h2>
+  <form method="post" action="{% url 'feedback:reopen' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in reopen_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Reopen</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

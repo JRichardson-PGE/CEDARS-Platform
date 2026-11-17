@@ -1,0 +1,56 @@
+{% extends "core/base.html" %}
+{% block title %}Data dictionary{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Data dictionary</h1>{% page_help "dictionary/index" %}</div>
+<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by, and every column of the records the platform keeps (programs, the filing calendar, filings, budgets, fund shifts, claims, monthly reports, publication, documents and more), named <code>module.Table.column</code>. Catalog version: <strong>{{ catalog.label }}</strong>.</p>
+<p class="actions">
+  <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>
+  <a class="button" href="{% url 'dictionary:crosswalk_csv' %}">Download the name crosswalk (CSV)</a>
+  <a class="button" href="{% url 'dictionary:lists' %}">Value lists</a>
+  <a class="button" href="{% url 'dictionary:changes' %}">Changes</a>
+</p>
+<h2>Fields</h2>
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option>{% for value, text in kinds %}<option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ text }}s</option>{% endfor %}</select></div>
+  {% if groups %}<div class="field"><label for="group">Platform table</label><select id="group" name="group"><option value="">All</option>{% for g in groups %}<option value="{{ g }}"{% if group == g %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></div>{% endif %}
+  <div class="field"><label for="table">Upload table</label><select id="table" name="table"><option value="">All</option>{% for module, table in tables %}{% with key=module|add:"."|add:table %}<option value="{{ key }}"{% if upload_table == key %} selected{% endif %}>{{ module|capfirst }}, {{ table }}</option>{% endwith %}{% endfor %}</select></div>
+  <div class="field"><label for="state">State</label><select id="state" name="state"><option value="">In use</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Retired</option><option value="all"{% if state == "all" %} selected{% endif %}>All, retired included</option></select></div>
+  <button type="submit">Apply</button>
+</form>
+<p>{{ total }} field{{ total|pluralize }}.{% if retired_count and not state %} {{ retired_count }} retired field{{ retired_count|pluralize }} {{ retired_count|pluralize:"is,are" }} not shown: choose State, Retired.{% endif %}</p>
+{% pager page query=query label="Field pages" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Fields">
+<table class="list">
+  <caption class="sr-only">Fields, by kind and group</caption>
+  <thead><tr><th scope="col">Field</th><th scope="col">Kind</th><th scope="col">Group</th><th scope="col">Unit</th><th scope="col">Definition</th><th scope="col">State</th></tr></thead>
+  <tbody>
+  {% for f in page %}
+  <tr><th scope="row"><a href="{% url 'dictionary:field' f.name %}">{{ f.name }}</a>{% for a in f.aliases.all %}<br><span class="small muted">also {{ a.name }}</span>{% endfor %}</th>
+    <td>{{ f.get_kind_display }}</td><td>{{ f.group }}</td><td>{{ f.unit }}</td><td>{{ f.definition|truncatewords:40 }}</td>
+    <td>{% if f.state == "retired" %}{% if f.retired_from <= today %}Retired from {{ f.retired_from|date_words }}{% else %}<strong>Retiring</strong> on {{ f.retired_from|date_words }}{% endif %}{% else %}In use{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6">No fields match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page query=query label="Field pages" where="below" %}
+<h2>Upload templates</h2>
+<p>Each filing's template is one workbook with a sheet per table and a Fields sheet defining every column:</p>
+<ul>
+  <li><a href="{% url 'budgets:template' %}">Budget filing template</a> (Excel): Measure and ProgramCost.</li>
+  <li><a href="{% url 'claims:template' %}">Claims template</a> (Excel): every claims table.</li>
+  <li><a href="{% url 'monthly:template' %}">Monthly report template</a> (Excel): Commitments, Measure and ProgramCost.</li>
+</ul>
+<h3>Each table on its own</h3>
+<p>The tables the field catalog defines, one at a time: an empty file with the header row, a workbook with the Fields sheet, or a JSON
+schema for the API. Calculations' Measure and ProgramCost are a calculation run's job, and a budget filing's.</p>
+<ul>
+{% for module, table in tables %}
+  <li>{{ module|capfirst }}, {{ table }}:
+    <a href="{% url 'dictionary:template' module table 'csv' %}">CSV<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'xlsx' %}">Excel<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'json' %}">JSON schema<span class="sr-only"> for {{ table }}</span></a></li>
+{% endfor %}
+</ul>
+{% endblock %}

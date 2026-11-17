@@ -1,0 +1,77 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>First steps</h2>
+<ol>
+  <li>Open <a href="{% url 'calculations:new' %}">New run</a> and upload one .zip with Measure.csv and, optionally, ProgramCost.csv, or
+  ReCET's job workbook (.xlsx) with a Measure sheet and, optionally, a ProgramCost sheet. ReCET's optional input files (run
+  parameters, 8,760 electric profiles, gas monthly profiles) go under <strong>Advanced options</strong>, <strong>Optional input files</strong>, in the zip, or as sheets
+  of the workbook; their columns are in <a href="{% url 'core:recet_doc' 'input-fields' %}#4-supplied-input-files">ReCET's input
+  fields</a>. The program registry and the allocation version stand in for a job's own program metadata and statewide factors.
+  <strong>Templates to download</strong>, at the top of New run, has the engine's own template for each file.</li>
+  <li>In <strong>The job</strong>, choose who the run is for, the calculation engine and the ACC (<strong>Which ACC applies to my
+  filing?</strong> on the page helps), and, if the run needs them, CET's First Year and market effects. That is all most runs need:
+  everything else is under <strong>Advanced options</strong>, folded away, and left as it is the run takes the engine's defaults. There,
+  ReCET's own calculation can also price the job on a second ACC (<strong>Compare with another ACC</strong>: Results then has a tab for each
+  ACC and one comparing them), price each ACC component separately, and write the combined 8,760 electric load profile for the years
+  you choose (a list or a range, such as 2028-2035). <strong>Priced for</strong> flags records whose ACC does not apply to their
+  program year for claims, any filing, or one named budget filing; nothing is stopped.</li>
+  <li>Choose <strong>Start the run</strong>, or <strong>Check the inputs only</strong>. The run's page shows its progress and the
+  engine's log while it runs, then the input check (what stopped the run, what could not be priced and every other finding), its
+  files, one at a time or all in one .zip, and its results.</li>
+  <li>A run you leave unnamed is named after its job file (or draft) and its ACC. <strong>What each cost-test set prices</strong>, under
+  Advanced options, lists the registered sets and their tests; an analysis run may take a cost-test set file of your own instead, recorded with
+  its SHA-256 (a filing, or a run with filing checks or <strong>Priced for</strong>, takes a published set). The run page explains its
+  totals and says when retention deletes the run.</li>
+</ol>
+<h2>Build a cost-test set</h2>
+<p>Anyone signed in can build a cost-test set for their own analysis runs on <strong>Reference data, Cost-test sets, Build a set</strong>.
+Only the CPUC registers a set for everyone and pins a set to a filing.</p>
+<ol>
+  <li>Start from a copy of a registered set, one of your own, a set the engine ships, a set file you upload (a YAML file, written by
+  hand or downloaded from a set's page) or nothing. A file's parts the set format does not have are set aside and shown on Review,
+  never written out. Tick <strong>Share it with</strong> your organization to let the people there who may start runs see and change it.</li>
+  <li>Work through the steps: <strong>Set</strong> (its id, built from the workstream and first program year, its label, version and
+  program years), <strong>Pricings</strong> (which ACC rows and discount rates each pricing uses), <strong>Streams the engine prices</strong> (the
+  values the engine prices: include or leave out each one, and choose its pricings, unit and definition) and <strong>Streams from input
+  columns</strong> (a value of your own, such as a health benefit, from Measure columns you name), <strong>Aggregates</strong>
+  (columns such as TotalSystemBenefit that add up streams in one pricing) and <strong>Tests</strong> (each test's benefits, costs,
+  share of the program costs, variants and outputs, in the order runs show them).</li>
+  <li>Every save is checked by the engine's own validator, and each problem is listed at the top of the step it belongs to and counted
+  beside the step's name. <strong>Review</strong> lists them all, shows the set in the engine's words, lists what changed since
+  the set it was copied from, and offers its file.</li>
+  <li>Price an analysis run on it from New run's <strong>Or one of my cost-test sets</strong>, or download the file and use it as your own
+  cost-test set file. A set everyone could use can be offered to the CPUC from Review, with a note; the CPUC registers it or declines it
+  with a reason, which you are sent. A CPUC cost-test pack manager can register a set with no
+  problems as a draft pack; the engine on the server records its engine check at once, and the manager publishes it.</li>
+</ol>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job as a spreadsheet (paste from Excel, add and copy rows, undo) or row by row, or add a measure from eTRM. End uses
+  are offered and checked from the impact-profile library in force; <strong>Check with the engine</strong> runs the engine's whole input
+  check on the tables without pricing and marks the cells it names; a draft downloads as a job zip or a job workbook.</li>
+  <li><a href="{% url 'calculations:templates' %}">Output templates</a>: choose the columns a run's file holds and their order, from the list of every field a run writes.</li>
+  <li><a href="{% url 'impact_profiles:library' %}">Impact profile library</a>: the hourly profiles measures name, and custom uploads (the <a href="{% url 'core:help_guide' 'impact-profiles' %}">Impact profiles</a> guide).</li>
+  <li><a href="{% url 'core:help_guide' 'reference-data' %}">Reference data and cost-test sets</a>: the ACCs, allocation factors and
+  cost-test sets a run is pinned to.</li>
+  <li>From a finished run's page, open its Results or compare it with another run. On both, <strong>Choose columns</strong> works as an
+  output template does: columns you can add on the left (searched by name or definition), the columns shown on the right in the order the
+  table shows them, with buttons to add, remove and reorder them. Save the columns shown as a named view to pick again for any run.</li>
+  <li>From a finished run's page or its Results, <strong>Walk through a measure</strong> follows any one measure of the run through its
+  cost-effectiveness calculation in ten steps: the energy it saves, for how long and at which hours, discounting, what the savings are
+  worth, what the measure and its program cost, and each cost test's benefits, costs and ratio. Each step says what it does in plain
+  words with the run's own numbers, and sets each sum or product beside the engine's value for it. Steps 3 to 6 chart how the
+  savings, their discounting and their value build up year by year over the measure's life, each chart with its numbers in a table and
+  shown only when its years add up to the engine's total for the measure. Point at a year in a chart, or select the chart and use the
+  left and right arrow keys, to see that year's values. On a run priced by a CET replica the
+  steps follow that release, and a difference caused by an error that release makes is named as that error. A priced claim, budget
+  filing or monthly report links the walkthrough of its own records from its version page.</li>
+  <li>From a finished run's page, you can also choose <strong>Rerun with different settings</strong>: New run filled in
+  from the run, with its job file and optional input files used again unless you upload others. Your own runs (for Only me) can be
+  deleted, with their files, once they end; an organization's runs stay until retention removes them. The person who started a run can
+  rename it or add a note from its page at any time; nothing else about a run changes.</li>
+  <li><a href="{% url 'core:recet_docs' %}">Engine documentation</a>: the engine's full reference: <a href="{% url 'core:recet_doc' 'input-formats' %}">input
+  formats</a>, <a href="{% url 'core:recet_doc' 'input-fields' %}">input fields</a>, <a href="{% url 'core:recet_doc' 'output-fields' %}">output
+  fields</a> with every formula, the <a href="{% url 'core:recet_doc' 'calculations' %}">method</a> and the
+  <a href="{% url 'core:recet_doc' 'cost-tests' %}">cost tests</a>.</li>
+</ul>
+{% endblock %}

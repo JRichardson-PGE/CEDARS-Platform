@@ -1,0 +1,523 @@
+# Help for each page (cedars/core/page_help.py): your account, organizations and the CPUC's administration pages.
+
+administration/account:
+  title: Your account
+  guide:
+    - Your name, email address and second factor, the organizations you belong to and your permissions in each, your access requests,
+      and API tokens for your own systems. Links lead to your notification settings, saved views and downloads.
+    - Change your email address from the link beside it. You confirm your password, then the new address takes over once you open the
+      link sent to it; the old address is told, and you are signed out everywhere else.
+    - To act for a program administrator, ask its administrators for access. A request for PII access also needs a CPUC data steward's
+      approval.
+  how:
+    - Open Your name to set the name pages show beside what you file and decide; blank shows your email address.
+    - Make a token gives a key for the API, shown once; revoke a token you no longer use.
+    - Manage your second factor and recovery codes from the security link.
+    - A community account (a member of no organization) can close itself under Close your account; only the CPUC can reopen it.
+  see: getting-started
+  tour:
+    - target: main dl.facts
+      title: You
+      text: Your name, your email address (with the link to change it) and how you signed in.
+    - target: "#yours-h"
+      title: Your settings and saved work
+      text: Notification settings, your notifications, saved views and record downloads.
+    - target: "#your-name"
+      title: Your name
+      text: The name pages show for you.
+    - heading: Your organizations and permissions
+      title: Organizations and permissions
+      text: Each organization you belong to and what you may do for it.
+    - target: "#tokens-h"
+      title: API tokens
+      text: Tokens your own systems use to file or read through the API.
+    - heading: Make a token
+      title: Make a token
+      text: Name it, choose how long it lasts and what it may do.
+    - heading: Your access requests
+      title: Access requests
+      text: What you asked for, and where each request stands.
+      optional: true
+    - target: "#close-account"
+      title: Close your account
+      text: For an account in no organization. Closing it signs you out everywhere; the CPUC can reopen it.
+      optional: true
+
+administration/request_access:
+  title: Asking for access
+  guide:
+    - Ask an organization for what you need to act for it, such as filing budgets or claims, running calculations or uploading impact
+      profiles. First choose the organization, then your role in it.
+    - A role (such as a filer or an analyst) gives a set of permissions at once, listed under its name. If none fits, open Or choose single
+      permissions; each says what it lets you do.
+    - The organization's administrators decide. An organization with no administrator yet has its requests decided by the CPUC, and the
+      page says so before you send. Access to personal information is added later, with a CPUC data steward's approval.
+  how:
+    - Choose the organization and Next: choose your role.
+    - Tick your role, or single permissions, say who you are in the message, and Send the request.
+    - Your requests and where each stands are on your account page; you can withdraw one that is still waiting.
+  see: getting-started
+  tour:
+    - target: main nav.set-up-steps
+      title: Where you are
+      text: The last step of setting up a new account. A member of an organization does not see it.
+      optional: true
+    - target: main form.request-org
+      title: The organization
+      text: The program administrator or other organization you work for or with.
+      optional: true
+    - target: main .request-decider
+      title: Who decides
+      text: Its administrators, or the CPUC while it has none.
+      optional: true
+    - target: main fieldset.request-roles
+      title: Your role
+      text: Each role gives the permissions listed under it.
+      optional: true
+    - target: main details.request-singles
+      title: Single permissions
+      text: When no role fits, pick only what you need; each says what it lets you do.
+      optional: true
+
+administration/token_created:
+  title: Your new API token
+  guide:
+    - Copy the key now. It is shown only on this page; CEDARS keeps only a fingerprint of it, so if you lose it, revoke the token and make a
+      new one. Send it in the Authorization header of each API request.
+  how:
+    - Copy the key into your system's settings, then go Back to your account.
+    - Lost the key? Revoke the token on your account page and make a new one.
+  see: getting-started
+  tour:
+    - target: main p.alert
+      title: Copy the key
+      text: It is not shown again.
+
+administration/organisations:
+  title: Organizations
+  see: administering
+  guide:
+    - Every organization in CEDARS, its administrators and where its recertification stands. Each organization's administrators manage its
+      members; the CPUC assigns only an organization's first administrator.
+  how:
+    - Open an organization for its members, codes, access requests and recertification.
+    - Add an organization (CPUC system administrators) creates one by its CEDARS code and name.
+  tour:
+    - target: main table.list
+      title: The organizations
+      text: Each code and name, its kind and PA type, its administrators and recertification. Select a code to open it.
+    - target: main .head-row .button
+      title: Add an organization
+      text: For CPUC system administrators.
+      optional: true
+
+administration/organisation_new:
+  title: Adding an organization
+  see: administering
+  guide:
+    - For CPUC system administrators. Add a program administrator (IOU, REN or CCA) or another organization by its CEDARS code and name, then
+      assign its first administrator from its page.
+  how:
+    - Enter the CEDARS code and name, the kind and, for a program administrator, its PA type, then Add.
+    - Then assign its first administrator from the organization's page.
+  tour:
+    - target: main form
+      title: The organization
+      text: Its code, name, kind and PA type. Add.
+
+administration/organisation:
+  title: An organization's members
+  guide:
+    - One organization's members and the permissions each holds. Its other pages (Access requests, Recertification,
+      API tokens and Details) are linked under its name.
+    - Its administrators give access here; until it has one, a CPUC system administrator assigns its first administrator here.
+  how:
+    - To give access, pick a member from the list (or type the email address of someone with an account to add them), tick one or more
+      roles (each gives every permission listed beside it) or single permissions, give one reason, then select Give access.
+    - Revoke takes one permission away, with a reason; Remove member takes them out of the organization.
+    - Reinstate restores a grant suspended at recertification.
+    - CPUC system administrators assign the first administrator of an organization that has none, with Make administrator.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: Members, Access requests (with the number waiting), Recertification, API tokens and Details.
+    - target: "#give-h"
+      title: Give access
+      text: One person, several roles or permissions, one reason, one send.
+      optional: true
+    - target: "#first-admin-h"
+      title: First administrator
+      text: An organization with no administrator gets its first one from the CPUC.
+      optional: true
+    - target: "#members-h"
+      title: Members
+      text: Each member and their permissions, to revoke or remove.
+
+administration/organisation_requests:
+  title: An organization's access requests
+  guide:
+    - The requests to join this organization waiting for a decision, each with the permissions asked for and the person's message.
+    - Its administrators decide them; while it has none, the CPUC's system administrators do. A request for PII access also needs a CPUC
+      data steward's approval afterwards.
+  how:
+    - Untick any permission you will not give, add a note if you like, then Approve.
+    - Decline turns the request down; the note, if you give one, is sent to the person.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#req-h"
+      title: Access requests
+      text: Each request waiting, to approve or decline.
+
+administration/organisation_recertification:
+  title: An organization's recertification
+  guide:
+    - The yearly review of every active grant in this organization, grouped by member. Each grant is kept (certified) or removed by the due
+      date; one not reviewed by then may be suspended, as the access settings say.
+    - With none open, its administrators start one with a due date.
+  how:
+    - Remove the exceptions one by one, each with a reason.
+    - Certify all shown keeps every grant not yet reviewed; Certify all of a member's keeps that member's; Certify keeps one.
+    - With none open, choose a due date, then Start a recertification.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#recert-h"
+      title: Recertification
+      text: Whether one is open, and when it is due.
+    - target: form.certify-all
+      title: Certify all shown
+      text: Keeps every grant still to review, once the exceptions are removed.
+      optional: true
+    - target: table.recert
+      title: Each member's grants
+      text: Certify or remove each, or certify all of a member's at once.
+      optional: true
+
+administration/organisation_tokens:
+  title: An organization's API tokens
+  guide:
+    - For its administrators. The API tokens its members hold for this organization, with the modules each reaches, when it expires and
+      when it was last used.
+  how:
+    - Revoke stops a token at once; its member can make a new one from their account page.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#tokens-h"
+      title: API tokens
+      text: Each active token, to revoke.
+
+administration/organisation_details:
+  title: An organization's details
+  guide:
+    - Its kind and PA type, how its members sign in, whether it manages statewide allocations, and every code it has used and when.
+    - CPUC system administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an
+      old code can be merged in.
+    - CPUC system administrators also switch how its members sign in (through the organization's own directory, or with a password and
+      a second factor), and retire an organization that no longer takes part without merging it. When a member holds or waits for PII
+      access, a data steward confirms a sign-in change first. A retired organization stops filing and leaves the pickers; its data and
+      history stay, and it can be brought back.
+  how:
+    - CPUC system administrators Save details, Rename the code, Record a former code or Merge another organization into this one.
+    - CPUC system administrators change how its members sign in, or Retire it (Bring back reverses it), each with a reason.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#details-h"
+      title: Details
+      text: Kind and PA type, and changing them.
+    - target: "#sign-in-h"
+      title: Sign-in and status
+      text: For CPUC system administrators. How its members sign in, and retiring it.
+      optional: true
+    - target: "#codes-h"
+      title: Codes
+      text: The codes it has used, and when.
+
+administration/people:
+  title: People
+  guide:
+    - >-
+      For CPUC system administrators. Every account in CEDARS, with the organizations each person belongs to, whether the account is
+      active and when it last signed in. Find a person by name or email, or show only active, deactivated or community accounts.
+    - What a person may do in an organization is set on that organization's page; this page is about the account itself.
+  how:
+    - Enter part of a name or email, choose a status and select Find.
+    - Select a person to correct their name, or to deactivate or reactivate their account.
+  see: administering
+  tour:
+    - target: "#people-filters"
+      title: Find a person
+      text: By name or email, and by status.
+    - target: "#people-count"
+      title: Accounts
+      text: Each account, its organizations, status and last sign-in.
+
+administration/person:
+  title: A person's account
+  guide:
+    - >-
+      For CPUC system administrators. One account: its name and email, whether it is active, the organizations it belongs or belonged
+      to with its permissions, and the history of changes to the account.
+    - >-
+      Deactivating an account signs it out everywhere at once, revokes its API tokens and stops it signing in or using the API. Nothing
+      is deleted: its memberships, permissions and history stay, and reactivating it brings them back (revoked tokens stay revoked).
+      The last system administrator or data steward cannot be deactivated, and you cannot deactivate yourself.
+  how:
+    - Open Correct the name, enter the name and the reason, and select Save the name.
+    - Give a reason and select Deactivate the account, or Reactivate the account for a deactivated one.
+  see: administering
+  tour:
+    - target: "#account-h"
+      title: Account
+      text: Name, email, status and last sign-in, and correcting the name.
+    - target: "#status-h"
+      title: Deactivate or reactivate
+      text: Stop the account signing in, or let it sign in again.
+    - target: "#memberships-h"
+      title: Organizations
+      text: Where the person is or was a member, and what they may do there.
+    - target: "#history-h"
+      title: Account history
+      text: Each change to the account, who made it and why.
+      optional: true
+
+administration/stewardship:
+  title: Data stewardship
+  see: administering
+  guide:
+    - For CPUC data stewards. PII access needs a data steward's approval, and changes to the PII rules take one steward to propose and a
+      second to confirm.
+    - A change to how an organization's members sign in, when some of them hold or wait for PII access, waits here too. A system
+      administrator proposes it on the organization's page and a data steward other than them confirms or declines it.
+  how:
+    - Approve or Decline each request for PII access waiting for a data steward.
+    - Propose the change to the PII rules; a second steward confirms it, and you may Withdraw it until then.
+    - Confirm or Decline each directory sign-in change waiting.
+  tour:
+    - target: "#pending-h"
+      title: Waiting for approval
+      text: Requests for PII access, to approve or decline with a reason.
+    - target: "#rules-h"
+      title: PII rules
+      text: The rules on who may read PII, and a change proposed by another steward to confirm or withdraw.
+    - target: "#federation-h"
+      title: Directory sign-in changes
+      text: Changes to how an organization with PII access signs in, to confirm or decline.
+      optional: true
+    - target: "#stewards-h"
+      title: Data stewards
+      text: Who the stewards are.
+
+administration/settings:
+  title: Access settings
+  see: administering
+  guide:
+    - For CPUC system administrators. How often grants are recertified, whether grants not certified by the due date are suspended, and
+      whether PII is only for federated organizations and sessions. PII rules themselves are changed by the data stewards. Every change is in the audit log.
+  how:
+    - Change the recertification period and the suspension and PII choices, then Save.
+  tour:
+    - target: main form
+      title: The settings
+      text: Change and Save.
+
+administration/role_templates:
+  title: Role templates
+  see: administering
+  guide:
+    - For CPUC system administrators. A role template is a named bundle of module permissions, such as a CPUC reviewer, an evaluator, an
+      implementer or a consultant. Organization administrators grant one on their organization's page, which gives the member each of
+      its permissions at once; each grant records the template it came from, and every step is in the audit log.
+    - A template holds module permissions only. An organization's administrator, PII access and the CPUC's own roles each need a decision
+      of their own, so they are granted one by one.
+    - Changing a template changes what it grants from then on, never the grants it already made.
+  how:
+    - Add template with a name, who it is for, the kinds of organization it is offered in and the permissions it grants.
+    - Open a template to change it, retire it or offer it again.
+  tour:
+    - target: main table.list
+      title: The templates
+      text: Each template, where it is offered, what it grants and how many open grants it made.
+    - target: "#new-h"
+      title: Add a role template
+      text: Name it, choose where it is offered and what it grants.
+
+administration/role_template:
+  title: A role template
+  see: administering
+  guide:
+    - One role template, its permissions and the open grants it made. A change applies to grants made from now on; members who already
+      have it keep their permissions until they are revoked on their organization's page. A retired template is no longer offered, and
+      the grants it made stay.
+  how:
+    - Change the name, description, kinds or permissions, give a reason and Save template.
+    - Retire stops it being offered; Offer again brings it back. Both need a reason.
+  tour:
+    - target: "#edit-h"
+      title: Change the template
+      text: What it grants from now on.
+    - target: "#state-h"
+      title: Retire or offer again
+      text: Whether organization administrators can grant it.
+    - target: "#grants-h"
+      title: Open grants
+      text: Who has permissions from it now.
+    - target: "#history-h"
+      title: History
+      text: Every change, who made it and why.
+
+administration/audit:
+  title: The audit log
+  see: administering
+  guide:
+    - Every change made in CEDARS, newest first, who made it, for which organization, what changed, why, and the record before and after.
+      The log is append-only; nothing in it is changed or deleted.
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: >-
+        Pick an action or every action of a kind, a record type and an organization from the ones the log holds, type part of the
+        actor's email, give a date range, then Apply.
+    - target: main table.list
+      title: Events
+      text: Each event. Open Before and after to see what changed.
+    - target: main nav.pager
+      title: Pages
+      text: Older events.
+      optional: true
+
+administration/health:
+  title: Jobs and health
+  see: administering
+  guide:
+    - For CPUC system administrators. Every health check, failing first, background jobs, eTRM syncs, the engine's workers, storage and the
+      rest. The checks run every 10 minutes; when one starts failing, every CPUC system administrator is told by notification and email.
+  tour:
+    - target: main table.list
+      title: The checks
+      text: Each check and its status. Select one for what it found.
+    - target: main h2[id^=check-]
+      title: What a check found
+      text: Each check's findings, with when each began.
+      optional: true
+
+administration/allocations:
+  title: Statewide allocation factors
+  see: reference-data
+  guide:
+    - The share of each statewide program each funding PA carries, by year. Anyone can read the confirmed versions, signed in or not;
+      drafts are shown to those signed in. Each version is a
+      complete table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run
+      that names none uses the most recently confirmed version with factors for its program year.
+    - The funding PAs manage the factors. Their organization administrators grant the permission to manage them to members; a member
+      with it loads a draft and confirms or discards it, and the other funding PAs are told. The CPUC can do the same.
+    - The CPUC's energy efficiency goals are kept apart from the factors, on CPUC goal decisions (Administration).
+  how:
+    - Open a version for its factors, checks and history, or to download it.
+    - With the permission to manage the factors, download the factor file template, fill in PercentElectric and each PA's electric and
+      gas factors (at most 4 decimal places; each fuel's adding up to exactly 1.0000; a one-fuel program's other fuel left blank is
+      copied from it), and Load as a draft; the weighted factors are computed. Check the draft on its page before
+      you confirm it.
+  tour:
+    - target: main table.list
+      title: Versions
+      text: Each version, newest first, its purpose, status and who loaded it. Select one to check it.
+    - target: "#up-h"
+      title: Load a factor file
+      text: A new version starts as a draft until it is confirmed.
+      optional: true
+
+administration/allocation:
+  title: An allocation version
+  see: reference-data
+  guide:
+    - One version of the statewide allocation factors, its checks (each program's electric, gas and weighted factors add up to exactly
+      1.0000 each year), the factors themselves and its history. A
+      funding PA member with the permission to manage the factors, or the CPUC, confirms a draft or discards it.
+  how:
+    - Read the factors in the Factors table. It opens on the current year (or the nearest year the version has); select another year,
+      or Every year, above the table. Type part of a program ID or name and Find to narrow it; Remove under the box clears it.
+    - A year's factors longer than one page have a pager above and below the table.
+    - Confirm this version once its checks pass, or Discard the draft.
+    - Download the factors gives the CSV in the layout ReCET reads.
+  tour:
+    - target: main dl.facts
+      title: The version
+      text: What it is for, its cycle and who loaded and confirmed it, for which organization.
+    - heading: Checks
+      title: Checks
+      text: Whether every program's factors add up.
+    - heading: Factors
+      title: Factors
+      text: Each program's percent electric and each funding PA's electric, gas and weighted factor for the year chosen above it, every
+        other PA's three columns shaded.
+    - target: "#factor-years"
+      title: Program year
+      text: The year shown, with a check mark. Select another year, or Every year, to change it.
+    - target: main form.actions
+      title: Confirm or discard
+      text: For a draft, with the permission to manage the factors.
+      optional: true
+    - heading: History
+      title: History
+      text: Every step taken on the version, who took it and for which organization.
+
+administration/goal_sets:
+  title: CPUC goal decisions
+  see: administering
+  guide:
+    - The CPUC adopts goals by decision about every two years. Each decision is loaded as a set of goals (cumulative goals for each cycle and
+      annual targets, for each IOU). The newest confirmed set replaces the earlier ones for every year it covers; earlier sets stay for the
+      years before. The dashboard's Goals page and the front page compare results with them.
+  how:
+    - Download the goal file template (and the counting rule file template), fill in the decision's tables, and load it.
+    - Load as a draft takes one decision's goal file; a second administrator confirms it on its page.
+    - Open a set for its goals, counting rules and checks.
+  tour:
+    - target: main table.list
+      title: Goal sets
+      text: Each decision's set, newest first, and its status.
+    - target: "#up-h"
+      title: Load a decision's goals
+      text: From the decision's tables. A set starts as a draft until a second administrator confirms it.
+    - target: "#goal-templates"
+      title: Templates
+      text: Empty goal and counting rule files with the columns the upload reads.
+
+administration/goal_set:
+  title: A goal set
+  see: administering
+  guide:
+    - One decision's goals, the cumulative cycle goals and annual targets for each IOU, the counting rules that say which CCA and REN results
+      count toward a territory, and the checks. A draft is confirmed by a second administrator, or discarded.
+  how:
+    - A second administrator chooses Confirm these goals, or Discard the draft.
+    - Download the goals gives the CSV in the goal file layout.
+  tour:
+    - target: main dl.facts
+      title: The decision
+      text: When it was adopted, with a link to it.
+    - target: "#cycle-h"
+      title: Cycle goals
+      text: Cumulative goals for each cycle and IOU.
+    - target: "#annual-h"
+      title: Annual targets
+      text: Each year's target for each IOU.
+    - heading: Counting rules
+      title: Counting rules
+      text: What counts toward each territory's goals.
+    - target: main form.actions
+      title: Confirm or discard
+      text: For a draft.
+      optional: true

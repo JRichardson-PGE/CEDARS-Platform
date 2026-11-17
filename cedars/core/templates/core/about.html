@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}About CEDARS{% endblock %}
+{% block content %}
+<div class="page-title"><h1>California Energy Data and Reporting System</h1>{% page_help "core/about" %}</div>
+<p>Program administrators file energy-efficiency budgets, claims and monthly reports here, and the CPUC reviews and publishes them.
+Published data, programs, documents and the data dictionary are open to everyone; filing and calculations need an account.</p>
+<h2>What CEDARS holds</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="What CEDARS holds">
+<table class="list">
+  <caption class="sr-only">The parts of CEDARS and what each does</caption>
+  <thead><tr><th scope="col">Part</th><th scope="col">What it does</th></tr></thead>
+  <tbody>
+  {% for name, what, url_name in modules %}<tr><th scope="row"><a href="{% url url_name %}">{{ name }}</a></th><td>{{ what }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p>Every change to CEDARS is announced in the <a href="{% url 'releases:index' %}">release notes</a> before it takes effect. Where a
+function has not moved here yet, legacy CEDARS stays its system of record until the release notes say it has.</p>
+<p><a href="{% url 'core:help' %}">Help</a> has a guide for each part, written for the people who use it.</p>
+{% endblock %}

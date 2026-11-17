@@ -1,0 +1,154 @@
+{% extends "core/base.html" %}
+{% load static data_tags %}
+{% block title %}{{ page.title }} · Portfolio dashboard{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Portfolio dashboard pages">
+  {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.nav_title }}</a>{% endfor %}
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
+</nav>
+<div class="page-title"><h1>{{ page.title }}</h1>{% page_help "data/dashboard" page.slug %}</div>
+<p>{{ page.description }} Confirmed data only; each series shows when its data last changed.</p>
+
+{% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:dashboard' page.slug %}">Start again</a></p>{% endif %}
+
+<details class="section dash-part" open data-part="filters"{% if error %} data-keep-open{% endif %}>
+<summary><h2>Filters and view</h2>{% if applied %}<span class="count">{{ applied|length }} filter{{ applied|length|pluralize }} applied</span>{% endif %}</summary>
+<div class="section-body">
+<form method="get" class="filters dash-controls" aria-label="View controls">
+  <fieldset>
+    <legend>Series</legend>
+    {% for code, label in series_choices %}<label class="check"><input type="checkbox" name="series" value="{{ code }}"{% if code in view.series %} checked{% endif %}> {{ label }}</label>{% endfor %}
+  </fieldset>
+  <label>Filing (forecast)
+    <select name="filing">
+      <option value="">Each PA's latest</option>
+      {% for value, label in filings %}<option value="{{ value }}"{% if value == view.query.filing %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>From year <input type="number" name="year_from" min="2000" max="2100" inputmode="numeric" value="{{ view.query.year_from|default_if_none:'' }}"></label>
+  <label>To year <input type="number" name="year_to" min="2000" max="2100" inputmode="numeric" value="{{ view.query.year_to|default_if_none:'' }}"></label>
+  {% if view_by %}<label>View by
+    <select name="by">{% for code, label in view_by %}<option value="{{ code }}"{% if code == view.by %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>{% endif %}
+  {% if page.kind == "goals" %}<fieldset>
+    <legend>Goals</legend>
+    <label class="check"><input type="radio" name="period" value=""{% if not period %} checked{% endif %}> Annual targets</label>
+    <label class="check"><input type="radio" name="period" value="cycle"{% if period %} checked{% endif %}> Cycle goals</label>
+  </fieldset>{% endif %}
+  <label>Metric
+    <select name="metric">{% for code, label in metric_choices %}<option value="{{ code }}"{% if code == view.metric_choice %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  {% if basis_controls %}<fieldset>
+    <legend>Savings basis</legend>
+    <label class="check"><input type="radio" name="gross" value=""{% if not gross %} checked{% endif %}> Net</label>
+    <label class="check"><input type="radio" name="gross" value="1"{% if gross %} checked{% endif %}> Gross</label>
+  </fieldset>
+  <fieldset>
+    <legend>Period</legend>
+    <label class="check"><input type="radio" name="lifecycle" value=""{% if not lifecycle %} checked{% endif %}> First year</label>
+    <label class="check"><input type="radio" name="lifecycle" value="1"{% if lifecycle %} checked{% endif %}> Lifecycle</label>
+  </fieldset>{% endif %}
+  {% for code, label, excluded in exclusions %}
+  <label>{{ label }}
+    <select name="{{ code }}"><option value="include"{% if not excluded %} selected{% endif %}>Included</option><option value="exclude"{% if excluded %} selected{% endif %}>Excluded</option></select>
+  </label>
+  {% endfor %}
+  <details class="dash-filters"{% if applied %} open{% endif %}>
+    <summary>Filters{% if applied %} ({{ applied|length }} applied){% endif %}</summary>
+    {% include "core/_pa_picker.html" %}
+    {% include "core/_program_picker.html" with picker=program_picker %}
+    {% for f in filter_fields %}
+    {% if f.options %}
+    <fieldset>
+      <legend>{{ f.label }}</legend>
+      {% for o in f.options %}<label class="check"><input type="checkbox" name="{{ f.code }}" value="{{ o }}"{% if o in f.selected %} checked{% endif %}> {{ o|code_label }}</label>{% endfor %}
+    </fieldset>
+    {% else %}
+    <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.selected|join:',' }}" autocomplete="off"><span class="helptext">{{ f.help }}</span></label>
+    {% endif %}
+    {% endfor %}
+  </details>
+  <button type="submit">Apply</button>
+</form>
+</div>
+</details>
+
+{% if applied %}
+<section aria-labelledby="applied-heading" class="applied">
+  <h2 id="applied-heading" class="sr-only">Applied filters</h2>
+  <ul class="chips">
+    {% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value|code_label }}</strong> <a href="{{ a.remove }}">Remove<span class="sr-only"> the {{ a.label }} filter {{ a.value }}</span></a></li>{% endfor %}
+    <li><a href="{% url 'data:dashboard' page.slug %}">Reset all</a></li>
+  </ul>
+</section>
+{% endif %}
+
+{% if first %}
+{% if as_of %}<p class="small muted">{% for name, when in as_of %}{{ name }} data {% if when %}as of {{ when|datetime_words }}{% else %}not published yet{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+{% if totals %}<dl class="tiles">
+  {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ totals.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
+  {% if totals.both and metric.adds_up %}<div class="tile"><dt>% of forecast</dt><dd>{{ totals.totals.percent|percent }}</dd></div>{% endif %}
+</dl>{% if totals.percent_note %}<p class="small">{{ totals.percent_note }}</p>{% endif %}{% endif %}
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+
+{# The forecast bars' hatch pattern, defined once for every chart on the page (a pattern id must be unique on the page). #}
+<svg class="chart-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-bg" width="6" height="6"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>
+</svg>
+{% for b in blocks %}
+<h2>{{ b.caption|capfirst }}</h2>
+{% if b.chart %}{% with key=page.slug|add:":"|add:b.part|add:":chart" %}<details class="section dash-part" open data-part="{{ key }}">
+<summary><h3>Chart</h3><span class="sr-only">: {{ b.caption }}</span></summary>
+<div class="section-body">{% include "data/_chart.html" with chart=b.chart caption=b.caption %}</div>
+</details>{% endwith %}{% endif %}
+{% with key=page.slug|add:":"|add:b.part|add:":table" %}<details class="section dash-part" open data-part="{{ key }}">
+<summary><h3>Table</h3><span class="sr-only">: {{ b.caption }}</span></summary>
+<div class="section-body">
+{% if b.kind == "budget" %}{% include "data/_spending_years.html" with sp=b.s %}
+{% elif b.kind == "goals" %}{% include "data/_goal_table.html" with c=b.comparison caption=b.caption %}
+{% elif b.kind == "matrix" %}{% include "data/_matrix.html" with m=b.matrix caption=b.caption by_label=b.by_label %}
+{% else %}{% include "data/_table.html" with comparison=b.comparison caption=b.caption by_label=b.by_label series_labels=b.series_labels %}
+{% endif %}
+</div>
+</details>{% endwith %}
+{% if b.kind == "budget" %}{% include "data/_spending.html" with sp=b.s %}{% endif %}
+{% endfor %}
+
+<h2>Download these rows</h2>
+<ul class="downloads">
+  {% for d in downloads %}<li>{{ d.series }}: {% for fmt, href in d.links %}<a href="{{ href }}" download>{{ fmt }}<span class="sr-only"> of the {{ d.series|lower }} rows</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}
+</ul>
+{% if downloads|length == 1 and series_labels|length > 1 %}<p class="small muted">One file holds every series shown, with a Series column first and each series' rows and total in turn.</p>{% endif %}
+<p class="small muted">Each file records its release, when its data last changed, the snapshots it was read from, the filters and the
+canonical field names. <a href="{% url 'data:metrics_csv' %}">How each metric is defined</a>.</p>
+
+<h2 id="record-downloads">Download the records behind these rows</h2>
+<p>The measure-level records these rows add up, with the same years, filters and exclusions, and the key columns. To choose other
+columns, or to look through the records first, open them on the records page.</p>
+<ul class="downloads record-downloads">
+  {% for d in record_downloads %}<li>
+    {% if not d.count %}{{ d.series }}: no records.
+    {% elif d.background %}{{ d.series }}, {{ d.count|floatformat:"0g" }} record{{ d.count|pluralize }}: more than the {{ max_rows|floatformat:"0g" }} made while you
+    wait, so the file is made in the background and you are told when it is ready.
+    {% if user.is_authenticated %}
+    <form method="post" action="{% url 'data:download_request' %}" class="inline-download">
+      {% csrf_token %}
+      <input type="hidden" name="query" value="{{ d.query }}">
+      <label>Format <span class="sr-only">of the {{ d.series|lower }} records</span>
+        <select name="format">{% for fmt, label in d.formats %}<option value="{{ fmt }}">{{ label }}</option>{% endfor %}</select>
+      </label>
+      <button type="submit">Make this download<span class="sr-only"> of the {{ d.count|floatformat:"0g" }} {{ d.series|lower }} records</span></button>
+    </form>
+    {% else %}<a href="{{ sign_in }}">Sign in to have it made<span class="sr-only"> ({{ d.series|lower }} records)</span></a> (anyone can register).{% endif %}
+    <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
+    {% else %}{{ d.series }}, {{ d.count|floatformat:"0g" }} record{{ d.count|pluralize }}:
+    {% for fmt, label, href in d.links %}<a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ d.series|lower }} records</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}
+    · <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
+    {% endif %}
+  </li>{% endfor %}
+</ul>
+{% endif %}
+{% include "data/_saved_views.html" %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'data/dashboard.js' %}" defer></script>{% endblock %}

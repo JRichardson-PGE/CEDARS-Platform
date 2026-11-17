@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Your downloads · Record downloads{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'data:records' %}">Record downloads</a></li></ol></nav>
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
+  <a href="{% url 'data:downloads' %}" aria-current="page">Your downloads</a>
+</nav>
+<div class="page-title"><h1>Your downloads</h1>{% page_help "data/downloads" %}</div>
+<p>Record downloads too large to make while you wait. Each is made in the background and you are told when it is ready.
+{% if keep_days %}A file is kept for {{ keep_days }} day{{ keep_days|pluralize }} after it is made.{% endif %}</p>
+{% if jobs %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Your downloads">
+<table class="list">
+  <caption class="sr-only">Your record downloads, newest first</caption>
+  <thead><tr><th scope="col">Asked for</th><th scope="col">Records</th><th scope="col">Format</th><th scope="col">Status</th><th scope="col">File</th></tr></thead>
+  <tbody>
+  {% for j in jobs %}
+  <tr><th scope="row"><a href="{% url 'data:download_job' j.pk %}">{{ j.created_at|datetime_words }}</a></th>
+    <td class="num">{{ j.records }}</td><td>{{ j.fmt|upper }}</td><td><span class="status {{ j.status|status_tone }}">{{ j.get_status_display }}</span></td>
+    <td>{% if j.status == "done" %}<a href="{% url 'data:download_file' j.pk %}" download>{{ j.filename }}</a>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="none-yet">None yet. Ask for one on the <a href="{% url 'data:records' %}">records page</a>.</p>{% endif %}
+{% endblock %}

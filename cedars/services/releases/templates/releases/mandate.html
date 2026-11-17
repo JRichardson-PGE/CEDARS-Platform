@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}
+{% block title %}{{ m.reference }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a></li></ol></nav>
+<div class="page-title"><h1>{{ m.reference }}: {{ m.title }}</h1>{% page_help "releases/mandate" %}</div>
+<p>{{ m.requirement|linebreaksbr }}</p>
+<dl class="facts">
+  <dt>Kind</dt><dd>{{ m.get_authority_display }}{% if m.issued_on %}, issued {{ m.issued_on|date_words }}{% endif %}</dd>
+  {% if m.document_url %}<dt>Document</dt><dd><a href="{{ m.document_url }}">{{ m.reference }} at the CPUC<span class="sr-only"> (opens the public document)</span></a></dd>{% endif %}
+  <dt>Changes</dt><dd>{{ m.get_area_display }}</dd>
+  <dt>Takes effect</dt><dd>{{ m.effective_on|date_words }}</dd>
+  <dt>Implementation status</dt><dd>{% include "releases/_mandate_status.html" %}{% if m.implemented_on %}, {{ m.implemented_on|date_words }}{% endif %}{% if m.status_note %}<br>{{ m.status_note|linebreaksbr }}{% endif %}</dd>
+  {% if m.superseded_by %}<dt>Superseded by</dt><dd>{% if m.superseded_by.published_at %}<a href="{% url 'mandates:detail' m.superseded_by.pk %}">{{ m.superseded_by }}</a>{% else %}{{ m.superseded_by.reference }}{% endif %}</dd>{% endif %}
+  {% if supersedes %}<dt>Supersedes</dt><dd>{% for s in supersedes %}<a href="{% url 'mandates:detail' s.pk %}">{{ s }}</a>{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
+  <dt>On the register since</dt><dd>{{ m.published_at|date_words }}</dd>
+</dl>
+<h2 id="carried-h">Where CEDARS carries it</h2>
+{% if links %}<ul class="links">{% for ln, url in links %}<li>{% if url %}<a href="{{ url }}">{{ ln.label }}</a>{% else %}{{ ln.label }} <span class="small muted">(no longer published)</span>{% endif %}</li>{% endfor %}</ul>
+{% else %}<p>Not linked yet: nothing in CEDARS carries it so far.</p>{% endif %}
+<h2 id="history-h">History</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="history-h">
+<table class="list">
+  <caption class="sr-only">Every change to this entry since it was published, oldest first</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Changes</th><th scope="col">Why</th></tr></thead>
+  <tbody>
+  {% for h in history %}<tr><th scope="row">{{ h.at|date_words }}</th><td>{{ h.what }}</td>
+    <td>{% for label, before, after in h.rows %}{{ label }}: {% if before %}<del>{{ before|truncatewords:25 }}</del> {% endif %}{% if after %}<ins>{{ after|truncatewords:25 }}</ins>{% else %}(cleared){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+    <td>{{ h.reason }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if can_edit %}<p class="actions"><a class="button" href="{% url 'mandates:edit' m.pk %}">Change this entry</a></p>{% endif %}
+{% endblock %}

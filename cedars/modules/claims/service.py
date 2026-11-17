@@ -1,0 +1,2756 @@
+"""Quarterly and annual claims. A claim year has five confirmations, each a deadline of the "claims" module in the submissions
+service's calendar: Q1 to Q4 on the year's quarters, then the final annual one on the year (due the following spring), as CEDARS has
+them. Each PA's filing for one of them is a submission with versions.
+
+Statewide claims (Jake, 2026-11-06) are filed on their own: a statewide program's lead PA (registry `Program.lead`) files its claims in
+five statewide confirmations (SW_PERIODS), each due before the PAs' confirmation of the same period (by default two weeks before a
+quarter, a month before the annual claim), compiled and confirmed in order as the PAs' own are. They are priced with the statewide
+allocation, so each record's results are credited to the funding PAs; a PA's own claims hold no statewide program. Each PA sees the shares
+of the statewide claims credited to it (`statewide_share`) before it files, and its year's totals (the 13th-month report) count them.
+
+    upload (.zip or .xlsx: the records new or changed since the last confirmed quarter)
+    -> compiled year to date (the earlier quarters' confirmed records, this upload's over them by primary key) -> checks -> validated
+    -> priced (Calculations, through the submissions service: the year to date, allocated) -> confirm
+    -> published: the compiled non-PII inputs, run settings and results readable by every signed-in user
+
+A quarter is compiled on the standing version of the quarter before it, so the quarters are filed in order: a quarter is confirmed only
+on the earlier quarter it was checked against, and only the most recently confirmed quarter is reopened (CEDARS' own guard). Records an
+upload changes from an earlier quarter are counted and listed, never silently replaced.
+
+An upload withdraws a claim filed earlier in the year by naming it in its Withdrawal table with the reason: the claim's records
+stay in the compiled year, marked with the confirmation that withdrew it, but are no longer priced or counted. After the due date a
+correction is a new version of the most recently confirmed confirmation (once the year's final claim is confirmed, of that one), and its
+publication writes a public change letter of what it changed against the version it replaces."""
+
+import csv
+import hashlib
+import io
+import json
+import re
+import zipfile
+from calendar import monthrange
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal, InvalidOperation
+
+from django.db import transaction
+from django.utils import timezone
+
+from cedars.core import letters, storage
+from cedars.services import audit
+from cedars.services.accounts import service as access
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.legacy import service as legacy
+from cedars.services.notifications.service import Concern
+from cedars.services.refdata import profiles as packed_profiles
+from cedars.services.refdata.models import PackVersion
+from cedars.services.registry import service as registry
+from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
+from cedars.services.rules import service as rules
+from cedars.services.specifications import moving
+from cedars.services.specifications import service as specifications
+from cedars.services.specifications.service import FieldLayout
+from cedars.services.submissions import corrections
+from cedars.services.submissions import service as submissions
+from cedars.services.submissions.corrections import Scope
+from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
+from cedars.services.vault import service as vault
+
+from . import spec, upload
+from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
+
+MODULE = "claims"
+RULE_SET = "claims"
+# The five confirmations of a claim year: (kind, the period it is on: quarter number, or 0 for the year).
+PERIODS = [("Q1 claim", 1), ("Q2 claim", 2), ("Q3 claim", 3), ("Q4 claim", 4), ("Annual (final) claim", 0)]
+# Statewide claims (Jake, 2026-11-06): each statewide program's lead PA files its claims as a filing of their own, due before the PAs'
+# claims (two weeks before a quarter's, a month before the annual claim, by default), so the funding PAs see what is credited to them
+# before they file. Same five confirmations; a lead files them as it files its own.
+SW_PERIODS = [
+    ("Q1 statewide claim", 1),
+    ("Q2 statewide claim", 2),
+    ("Q3 statewide claim", 3),
+    ("Q4 statewide claim", 4),
+    ("Annual (final) statewide claim", 0),
+]
+SW_FOR = dict(zip([k for k, _ in SW_PERIODS], [k for k, _ in PERIODS], strict=True))  # statewide kind -> the PAs' kind it comes before
+SW_LEAD_DAYS = 14  # a statewide quarter's default due date: this many days before the PAs' quarter
+SW_LEAD_MONTHS_ANNUAL = 1  # the statewide annual claim's: this many months before the PAs' annual claim
+# Only these deadlines are the module's: another "claims" deadline (one added by hand on the filing calendar) is not a claim year's.
+KINDS = [kind for kind, _ in PERIODS]
+SW_KINDS = [kind for kind, _ in SW_PERIODS]
+ALL_KINDS = KINDS + SW_KINDS
+INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirectInstallMat", "UnitEndUserRebate"]
+RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
+# Tables the CEDARS claims rule set (CET's Measure and ProgramCost specification and rules) checks; the module checks the rest.
+RULE_TABLES = ("Measure", "ProgramCost")
+CLAIM_TABLES = ("Claim", "Measure", "ContactClaim", "InfrastructureCost", "ClaimSite")  # the tables that hold a claim's own records
+
+
+# --- claim years (the CPUC sets them up)
+
+
+def default_acc(year: int) -> str:
+    """The ACC claims for a year use: that of the year's final budget filing (the engine's table), or "" without the engine."""
+    try:
+        from recet import versions
+    except ImportError:  # pragma: no cover - depends on the environment
+        return ""
+    hit = [c.acc for c in versions.claims_acc() if c.first <= year <= c.last]
+    return str(hit[0]) if hit else ""
+
+
+def due_at(day) -> datetime:
+    """A due date as the end of that day."""
+    return timezone.make_aware(datetime.combine(day, time(23, 59, 59)))
+
+
+def is_statewide(deadline: Deadline) -> bool:
+    """Whether a deadline is one of the statewide claims filings (filed by statewide programs' lead PAs)."""
+    return deadline.kind in SW_KINDS
+
+
+def filers(deadline: Deadline) -> set[int] | None:
+    """Who files for a deadline (submissions.register_filers): a statewide one, the PAs that lead a statewide program (and any that has
+    started it); the PAs' own, every PA."""
+    if not is_statewide(deadline):
+        return None
+    leads = set(Program.objects.filter(statewide=True, lead__isnull=False).values_list("lead_id", flat=True))
+    return leads | set(Submission.objects.filter(deadline=deadline).values_list("organisation_id", flat=True))
+
+
+def stream(deadline: Deadline) -> str:
+    """The run of confirmations a deadline belongs to: "statewide" or "" (the PAs' own claims). Each is compiled on its own."""
+    return "statewide" if is_statewide(deadline) else ""
+
+
+def suggested_due(year: int) -> tuple[int | None, dict[str, date]]:
+    """Due dates for a new claim year from the pattern of the latest earlier claim year that has them: each of its five confirmations'
+    dates moved on by the years between (29 February becomes the 28th). The year they come from, and the dates by kind; none when no
+    earlier claim year has deadlines."""
+    shown = Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year__lt=year).select_related("period")
+    last = shown.order_by("-period__year").values_list("period__year", flat=True).first()
+    if last is None:
+        return None, {}
+    out = {}
+    for d in shown.filter(period__year=last):
+        day = timezone.localdate(d.due_at)
+        y = day.year + (year - last)
+        out[d.kind] = day.replace(year=y, day=min(day.day, monthrange(y, day.month)[1]))
+    return last, out
+
+
+def default_sw_due(pa_due: datetime, sw_kind: str) -> datetime:
+    """A statewide confirmation's default due date: two weeks before the PAs' quarter, a month before their annual claim."""
+    if SW_FOR[sw_kind] == PERIODS[-1][0]:
+        y, m = pa_due.year, pa_due.month - SW_LEAD_MONTHS_ANNUAL
+        while m < 1:
+            y, m = y - 1, m + 12
+        day = min(pa_due.day, monthrange(y, m)[1])
+        return pa_due.replace(year=y, month=m, day=day)
+    return pa_due - timedelta(days=SW_LEAD_DAYS)
+
+
+def _sw_due(due: dict, sw_due: dict | None) -> dict:
+    """Each statewide kind's due date: the one given, else the default; refused unless it comes before the PAs' (statewide first)."""
+    out = {}
+    for kind in SW_KINDS:
+        pa_due = due[SW_FOR[kind]]
+        when = (sw_due or {}).get(kind) or default_sw_due(pa_due, kind)
+        if when >= pa_due:
+            raise AccessDenied(
+                f"The {kind} must be due before the {SW_FOR[kind]}: statewide claims are filed first, so the funding PAs see what is "
+                "credited to them before they file."
+            )
+        out[kind] = when
+    return out
+
+
+def _check_allocation(version: AllocationVersion | None) -> None:
+    if version is not None and version.status != AllocationVersion.Status.CONFIRMED:
+        raise AccessDenied(f"{version} is a draft; claims are priced only with a confirmed allocation version.")
+
+
+def _setup_fields(cy: ClaimYear) -> dict:
+    return {
+        "year": cy.year,
+        "acc": cy.acc_version,
+        "allocation_version": str(cy.allocation_version or "most recent"),
+        "cost_test_set": str(cy.cost_test_set or "in force"),
+        "notes": cy.notes,
+    }
+
+
+def _check_cost_tests(pack) -> None:
+    if pack is not None and (pack.kind != PackVersion.Kind.COST_TESTS or pack.status != PackVersion.Status.PUBLISHED):
+        raise AccessDenied(f"{pack} is not a published cost-test set; a filing is priced only on a published one.")
+
+
+@transaction.atomic
+def add_year(
+    actor,
+    *,
+    year: int,
+    acc_version: str,
+    due: dict,
+    opens: dict | None = None,
+    allocation_version=None,
+    notes="",
+    cost_test_set=None,
+    sw_due: dict | None = None,
+    filers=None,
+    specification_version=None,
+) -> ClaimYear:
+    """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same) and the
+    five statewide ones before them (`sw_due` = {kind: datetime} for SW_PERIODS; a kind left out takes `default_sw_due`), priced on an
+    ACC and an allocation version (or the most recent). `filers` are the program administrators who file the PAs' own claims
+    (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs.
+    `specification_version`: the version its filings use (specifications.moving.choices; None: the current one)."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator sets up claim years.")
+    existing = ClaimYear.objects.filter(year=year).first()
+    if existing is not None:
+        raise AccessDenied(already_set_up(existing))
+    if not acc_version:
+        raise AccessDenied("Choose the ACC the year's claims are priced on.")
+    _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
+    problems = moving.setup_problems(specification_version, MODULE, [acc_version])
+    if problems:
+        raise AccessDenied(problems[0])
+    missing = [k for k, _ in PERIODS if not due.get(k)]
+    if missing:
+        raise AccessDenied(f"Give a due date for each confirmation: {', '.join(missing)}.")
+    sw = _sw_due(due, sw_due)
+    registry.ensure_periods(year)
+    cy = ClaimYear.objects.create(
+        year=year, acc_version=acc_version, allocation_version=allocation_version, notes=notes, cost_test_set=cost_test_set
+    )
+    for kind, n in PERIODS:
+        period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
+        submissions.add_deadline(
+            actor,
+            module=MODULE,
+            kind=kind,
+            period=period,
+            due_at=due[kind],
+            opens_at=(opens or {}).get(kind),
+            specification_version=specification_version,
+        )
+    _add_sw_deadlines(actor, year, sw, specification_version)
+    audit.record("claim_year.set_up", obj=cy, after=_setup_fields(cy), actor=actor)
+    if filers is not None:
+        submissions.set_filers(actor, periods(year), filers, "Who files, as set up")
+    return cy
+
+
+def already_set_up(cy: ClaimYear) -> str:
+    """Why a claim year cannot be set up again, and where to look instead: a year loaded from legacy CEDARS' downloads (read-only, filed
+    in CEDARS), a year whose deadlines were all taken off the calendar, or one set up here (changed on its set-up page)."""
+    deadlines = list(year_deadlines(cy))
+    if legacy.imported_deadlines(deadlines):
+        return (
+            f"{cy.year} claims are already on the platform: they were imported from legacy CEDARS (each PA's year as CEDARS publishes "
+            "it, read-only), so they are filed in CEDARS, not set up here. Set up a later year to file it on the platform."
+        )
+    if deadlines and all(d.retired_at for d in deadlines):
+        return (
+            f"{cy.year} claims are already set up, but their deadlines were taken off the filing calendar. Restore them from the "
+            "year's set-up page (Restore a canceled filing) instead of setting the year up again."
+        )
+    return f"{cy.year} claims are already set up. Change their dates and pricing on the year's set-up page."
+
+
+def _add_sw_deadlines(actor, year: int, sw: dict, version=None) -> None:
+    for kind, n in SW_PERIODS:
+        period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
+        submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=sw[kind], specification_version=version)
+
+
+def missing_sw_deadlines(cy: ClaimYear) -> bool:
+    """Whether a claim year set up before statewide claims were filed on their own lacks its statewide deadlines."""
+    return not Deadline.objects.filter(module=MODULE, kind__in=SW_KINDS, period__year=cy.year).exists()
+
+
+@transaction.atomic
+def add_sw_deadlines(actor, cy: ClaimYear, sw_due: dict | None = None) -> None:
+    """Give a claim year set up before statewide claims were filed on their own its five statewide deadlines (`sw_due` as add_year's;
+    the defaults otherwise), each before the PAs' deadline it comes ahead of."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator sets up claim years.")
+    if not missing_sw_deadlines(cy):
+        raise AccessDenied(f"{cy.year} claims already have their statewide deadlines.")
+    pa = list(Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).select_related("specification_version"))
+    due = {d.kind: d.due_at for d in pa}
+    version = next((d.specification_version for d in pa if d.specification_version_id), None)  # the year is on one version
+    missing = [k for k in KINDS if k not in due]
+    if missing:
+        raise AccessDenied(f"{cy.year} claims have no {', '.join(missing)} deadline to put the statewide one before.")
+    _add_sw_deadlines(actor, cy.year, _sw_due(due, sw_due), version)
+    audit.record("claim_year.statewide_deadlines_added", obj=cy, after=_setup_fields(cy), actor=actor)
+
+
+def year_deadlines(cy: ClaimYear):
+    """The claim year's deadlines (the statewide and the PAs' four quarters and annual claims), in due order."""
+    return Deadline.objects.filter(module=MODULE, kind__in=ALL_KINDS, period__year=cy.year).select_related("period").order_by("due_at")
+
+
+def _group(cy: ClaimYear) -> tuple:
+    def remove(actor, reason):
+        audit.record("claim_year.removed", obj=cy, before=_setup_fields(cy), reason=reason, actor=actor)
+        cy.delete()
+
+    return f"{cy.year} claims", [d.pk for d in year_deadlines(cy)], remove
+
+
+def setup_groups() -> list:
+    """Each claim year's set-up and its five deadlines (submissions.register_setup_groups, for clearing a demo calendar)."""
+    return [_group(cy) for cy in ClaimYear.objects.order_by("year")]
+
+
+def removable(cy: ClaimYear) -> bool:
+    """Whether the claim year's set-up may be removed: no PA has started filing for any of its deadlines."""
+    return not submissions.filed([d.pk for d in year_deadlines(cy)])
+
+
+def remove_setup(actor, cy: ClaimYear, reason: str) -> None:
+    """Take a claim year nobody has started filing for off the calendar, set-up and deadlines, with a reason (its set-up page)."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator removes a claim year.")
+    _what, ids, remove = _group(cy)
+    submissions.remove_setup(actor, ids, remove, reason)
+
+
+@transaction.atomic
+def change_setup(
+    actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None, notes: str | None = None
+) -> ClaimYear:
+    """Change how a year's claims are priced, and its notes (`notes`; None keeps them). Versions already priced keep what they were
+    priced with; the next pricing uses the new setting."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator changes how claims are priced.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for the change.")
+    _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
+    before = _setup_fields(cy)
+    cy.acc_version, cy.allocation_version, cy.cost_test_set = acc_version, allocation_version, cost_test_set
+    if notes is not None:
+        cy.notes = notes.strip()
+    cy.save()
+    audit.record("claim_year.setup_changed", obj=cy, before=before, after=_setup_fields(cy), reason=reason, actor=actor)
+    return cy
+
+
+def acc_needs() -> list[tuple[str, str]]:
+    """The claim years with a confirmation still to come, and the ACC each is priced on (submissions.register_acc_needs)."""
+    years = set(Deadline.objects.filter(module=MODULE, due_at__gte=timezone.now()).values_list("period__year", flat=True))
+    return [(f"{cy.year} claims", cy.acc_version) for cy in ClaimYear.objects.filter(year__in=years).order_by("year") if cy.acc_version]
+
+
+def periods(year: int, statewide: bool = False) -> list[Deadline]:
+    """The year's deadlines in filing order: Q1 to Q4, then the annual one; the PAs' own claims, or with `statewide` the statewide ones."""
+    kinds = SW_KINDS if statewide else KINDS
+    ds = Deadline.objects.filter(module=MODULE, kind__in=kinds, period__year=year).select_related("period")
+    return sorted(ds, key=number)
+
+
+def same_run(deadline: Deadline) -> list[Deadline]:
+    """The deadlines of the year compiled with this one: the statewide confirmations, or the PAs' own."""
+    return periods(deadline.period.year, statewide=is_statewide(deadline))
+
+
+def counterpart(deadline: Deadline) -> Deadline | None:
+    """The statewide confirmation a PA's confirmation comes after (or, for a statewide one, the PAs' confirmation it comes before)."""
+    if is_statewide(deadline):
+        kind = SW_FOR[deadline.kind]
+    else:
+        kind = next((k for k, pa in SW_FOR.items() if pa == deadline.kind), "")
+    return Deadline.objects.filter(module=MODULE, kind=kind, period=deadline.period_id).select_related("period").first()
+
+
+def number(deadline: Deadline) -> int:
+    """A deadline's place in its year: 1 to 4 for the quarters, 5 for the annual confirmation."""
+    return deadline.period.number if deadline.period.kind == ReportingPeriod.Kind.QUARTER else 5
+
+
+def last_quarter(deadline: Deadline) -> int:
+    """The latest ClaimYearQuarter a deadline's records may carry."""
+    return min(number(deadline), 4)
+
+
+def claim_year(deadline: Deadline) -> ClaimYear:
+    return ClaimYear.objects.select_related("allocation_version").get(year=deadline.period.year)
+
+
+def label(deadline: Deadline) -> str:
+    return f"{deadline.period.year} {deadline.kind}"
+
+
+# --- who sees what
+
+
+def _org_reader(user, organisation) -> bool:
+    return any(access.has_permission(user, organisation, f"{MODULE}.{a}") for a in ("read", "submit", "confirm"))
+
+
+def _cpuc_reader(user) -> bool:
+    org = access.cpuc()
+    return access.is_system_admin(user) or (
+        org is not None and any(access.has_permission(user, org, f"{MODULE}.{a}") for a in ("read", "approve"))
+    )
+
+
+def can_read_submission(user, submission: Submission) -> bool:
+    return _org_reader(user, submission.organisation) or _cpuc_reader(user)
+
+
+def can_read(user, v: SubmissionVersion) -> bool:
+    """A published version is public to every signed-in user; the rest only to the organization and CPUC staff."""
+    if not user.is_authenticated:
+        return False
+    return v.status == SubmissionVersion.Status.PUBLISHED or can_read_submission(user, v.submission)
+
+
+def standing(organisation, deadline: Deadline) -> SubmissionVersion | None:
+    """The published version of a PA's filing for one confirmation."""
+    return (
+        SubmissionVersion.objects.filter(
+            submission__organisation=organisation, submission__deadline=deadline, status=SubmissionVersion.Status.PUBLISHED
+        )
+        .order_by("-number")
+        .first()
+    )
+
+
+def _versions(organisation, year: int):
+    return SubmissionVersion.objects.filter(
+        submission__organisation=organisation,
+        submission__deadline__module=MODULE,
+        submission__deadline__kind__in=ALL_KINDS,
+        submission__deadline__period__year=year,
+    ).select_related("submission__deadline__period")
+
+
+def base_for(organisation, deadline: Deadline) -> SubmissionVersion | None:
+    """What a confirmation's upload goes over: the standing version of the latest earlier confirmation that has one."""
+    earlier = [d for d in same_run(deadline) if number(d) < number(deadline)]
+    for d in reversed(earlier):
+        v = standing(organisation, d)
+        if v is not None:
+            return v
+    return None
+
+
+def later_locked(organisation, deadline: Deadline) -> Deadline | None:
+    """A later confirmation of the same year that the organization has confirmed, if any."""
+    later = [d for d in same_run(deadline) if number(d) > number(deadline)]
+    for d in later:
+        sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
+        v = submissions.latest(sub) if sub else None
+        if v is not None and v.locked:
+            return d
+    return None
+
+
+def year_standing(organisation, year: int, statewide: bool = False) -> tuple[SubmissionVersion | None, list[int], bool]:
+    """The version whose compiled tables are the PA's year to date (the standing version of its latest confirmation), the quarters
+    confirmed, and whether the final annual confirmation is; with `statewide`, of the statewide claims it files as a lead PA."""
+    latest, quarters, final = None, [], False
+    for d in periods(year, statewide=statewide):
+        v = standing(organisation, d)
+        if v is None:
+            continue
+        latest = v
+        if number(d) <= 4:
+            quarters.append(number(d))
+        else:
+            final = True
+    return latest, quarters, final
+
+
+# --- the upload, compiled over the year to date
+
+
+@dataclass
+class Problem:
+    """A module check's finding, in the rule library's format (rules.Finding)."""
+
+    row: int
+    record_id: str
+    table: str
+    field: str
+    rule_id: str
+    severity: str
+    message: str
+    fix: str
+    value: str = ""
+
+
+def _key(lay: spec.Layout, table: str, row: dict) -> tuple:
+    """A row's primary key (the version's key of the table); CEDARS compares keys ignoring case and surrounding spaces."""
+    return tuple(row.get(c, "").strip().lower() for c in lay.KEYS[table])
+
+
+def _claim(row: dict) -> str:
+    return row.get("ClaimID", "").strip().lower()
+
+
+@dataclass
+class Compiled:
+    tables: dict[str, upload.Table]
+    replaced: dict[str, int] = field(default_factory=dict)
+    added: dict[str, int] = field(default_factory=dict)
+    changed_claims: list[str] = field(default_factory=list)
+
+
+def compile_tables(
+    lay: spec.Layout,
+    base: dict[str, upload.Table],
+    own: dict[str, upload.Table],
+    withdrawn_in: str = "",
+    corrected: dict[str, upload.Table] | None = None,
+) -> Compiled:
+    """The year to date, as the filing's specification version `lay` lays the tables out: the base's rows with this upload's over them
+    by primary key. For the tables whose rows for a claim are a set (the version's tables replaced by claim) an upload's rows for a
+    claim replace all the claim's earlier rows. The upload's withdrawals are marked with the
+    confirmation that makes them (`withdrawn_in`); a correction that withdraws a claim the version it corrects filed (`corrected`, that
+    version's compiled tables) keeps that claim's records as they were filed. Columns are the template's, in its order, that either
+    side has."""
+    out = Compiled({})
+    for name in lay.TABLES:
+        b, o = base.get(name), own.get(name)
+        if b is None and o is None:
+            continue
+        have = set((b.columns if b else []) + (o.columns if o else []))
+        own_rows = list(o.rows) if o else []
+        if name == "Withdrawal" and own_rows:
+            have.add("WithdrawnIn")
+            own_rows = [{**r, "WithdrawnIn": withdrawn_in} for r in own_rows]
+        columns = [c for c in lay.columns(name) if c in have]
+        base_rows = list(b.rows) if b else []
+        if name in lay.BY_CLAIM:
+            claims = {_claim(r) for r in own_rows}
+            before = {_claim(r) for r in base_rows}
+            kept = [r for r in base_rows if _claim(r) not in claims]
+            out.replaced[name] = len(claims & before)
+            out.added[name] = len(claims - before)
+        else:
+            keys = {_key(lay, name, r) for r in own_rows}
+            before = {_key(lay, name, r) for r in base_rows}
+            kept = [r for r in base_rows if _key(lay, name, r) not in keys]
+            out.replaced[name] = len(keys & before)
+            out.added[name] = len(keys - before)
+            if name == "Measure":
+                out.changed_claims = sorted(k[0] for k in keys & before)
+        out.tables[name] = upload.Table(name, columns, kept + own_rows)
+    if corrected:
+        have = {_claim(r) for name in CLAIM_TABLES for r in out.tables.get(name, upload.Table(name, [], [])).rows}
+        keep = withdrawn(own) - have
+        for name in CLAIM_TABLES:
+            rows = [r for r in corrected.get(name, upload.Table(name, [], [])).rows if _claim(r) in keep]
+            if rows:
+                t = out.tables.get(name) or upload.Table(name, [], [])
+                columns = [c for c in lay.columns(name) if c in set(t.columns) | set(corrected[name].columns)]
+                out.tables[name] = upload.Table(name, columns, t.rows + rows)
+    return out
+
+
+def withdrawn(tables: dict[str, upload.Table]) -> set[str]:
+    """The claims the tables withdraw, as compared keys: their records stay, marked withdrawn, but are not priced or counted."""
+    return {_claim(r) for r in tables.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows if _claim(r)}
+
+
+def _prefix(v: SubmissionVersion) -> str:
+    return f"claims/{v.submission_id}/v{v.number}/"
+
+
+def own_file(v: SubmissionVersion) -> dict | None:
+    return next((f for f in v.files or [] if f.get("key", "").endswith("claims.zip")), None)
+
+
+def own_tables(v: SubmissionVersion) -> dict[str, upload.Table]:
+    f = own_file(v)
+    return upload.from_zip(storage.store("uploads").get_bytes(f["key"])) if f else {}
+
+
+def compiled_tables(v: SubmissionVersion) -> dict[str, upload.Table]:
+    key = (v.findings or {}).get("compiled_key")
+    if not key or not storage.store("uploads").exists(key):
+        return {}
+    return upload.from_zip(storage.store("uploads").get_bytes(key))
+
+
+@transaction.atomic
+def upload_claims(
+    actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None
+) -> SubmissionVersion:
+    """Take a PA's upload for one confirmation: start the submission (or use its open draft), keep the upload as this version's records
+    (the version's earlier upload is deleted: superseded uploads are not kept), then compile and check it (`check`).
+    `sources`: the files a combined upload was made of (upload.combine), kept with the version's file entry."""
+    if deadline.module != MODULE or deadline.kind not in ALL_KINDS or deadline.period_id is None:
+        raise AccessDenied("That is not a claims deadline.")
+    claim_year(deadline)
+    _require_in_order(organisation, deadline)
+    lay = spec.for_filing(deadline)  # the tables and columns of the filing's specification version
+    tables = {name: upload.without_system_fields(t, lay) for name, t in upload.read(data, filename, lay).items() if t.rows}
+    if not tables:
+        raise upload.UploadError("The file has no records: each table it holds has only its column names.")
+    v = submissions.start(actor, deadline, organisation)
+    extra = {"uploaded_as": filename}
+    ignored = {t.name: t.ignored for t in tables.values() if t.ignored}
+    if ignored:
+        extra["ignored_columns"] = ignored
+    if sources:
+        extra["sources"] = sources
+    v = _store_upload(actor, v, tables, extra, lay)
+    return check(actor, v)
+
+
+def _store_upload(actor, v: SubmissionVersion, tables: dict[str, upload.Table], extra: dict, lay: spec.Layout) -> SubmissionVersion:
+    """Keep `tables` as the version's records (its claims.zip, in a folder named by its SHA-256, in the version's table order) and
+    attach it as the version's file; the version's earlier upload is deleted once this is recorded (superseded uploads are not kept)."""
+    content = upload.to_zip(tables, lay.TABLES)
+    sha = hashlib.sha256(content).hexdigest()
+    folder = f"{_prefix(v)}{sha[:12]}/"
+    store = storage.store("uploads")
+    store.put_bytes(folder + "claims.zip", content)
+    # the superseded upload, once this one is recorded; a reopened version starts with its predecessor's files, which stay with it
+    old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
+    transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
+    entry = {"name": "claims.zip", "key": folder + "claims.zip", "sha256": sha, "bytes": len(content), **extra}
+    return submissions.attach_files(actor, v, [entry])
+
+
+def corrected_version(v: SubmissionVersion) -> SubmissionVersion | None:
+    """The published version a correction (version 2 or later) replaces."""
+    if v.number < 2:
+        return None
+    return (
+        SubmissionVersion.objects.filter(submission=v.submission_id, number__lt=v.number, status=SubmissionVersion.Status.PUBLISHED)
+        .select_related("submission__deadline__period", "submission__organisation")
+        .order_by("-number")
+        .first()
+    )
+
+
+def _adopt(actor, v: SubmissionVersion, f: dict) -> dict:
+    """Copy a predecessor's upload into this version's own folder, so its compiled tables, job and findings are written there and the
+    published version's files are never changed or deleted."""
+    store = storage.store("uploads")
+    content = store.get_bytes(f["key"])
+    entry = {**f, "key": f"{_prefix(v)}{f['sha256'][:12]}/claims.zip"}
+    store.put_bytes(entry["key"], content)
+    submissions.attach_files(actor, v, [entry])
+    return entry
+
+
+def earlier_unconfirmed(organisation, deadline: Deadline) -> Deadline | None:
+    """The first earlier confirmation of the year that has an upload but is not confirmed yet: it must be confirmed before this one
+    takes an upload, as each confirmation is compiled on the one before it. None when this one may be uploaded."""
+    for d in same_run(deadline):
+        if number(d) >= number(deadline):
+            break
+        sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
+        v = submissions.latest(sub) if sub else None
+        if v is not None and not v.locked:
+            return d
+    return None
+
+
+def _require_in_order(organisation, deadline: Deadline) -> None:
+    later = later_locked(organisation, deadline)
+    if later is not None:
+        raise AccessDenied(
+            f"{organisation.code}'s {label(later)} is already confirmed, and it was compiled on this one. Put corrections to these "
+            "records in the latest confirmation's next upload."
+        )
+    d = earlier_unconfirmed(organisation, deadline)
+    if d is not None:
+        raise AccessDenied(f"Confirm the {label(d)} first: each confirmation is compiled on the one before it.")
+
+
+def _full_check(own, comp, deemed, org, deadline, year, base, corrected, rs, lay, v) -> tuple[list, list[str], str]:
+    """Every record's checks: the module's own and the rule set's (`_rule_findings`) on the upload's own records."""
+    problems = deemed + derive_checks(
+        own,
+        comp.tables,
+        org,
+        year,
+        last_quarter(deadline),
+        base,
+        corrected,
+        statewide=is_statewide(deadline),
+        rules_run=rs is not None,
+        lay=lay,
+    )
+    found, notes, rule_set = _rule_findings(
+        own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+    )
+    return problems + found, notes, rule_set
+
+
+@transaction.atomic
+def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict | None = None, *, checked=()) -> SubmissionVersion:
+    """Compile the version's records over the year to date (the standing version of the confirmation before it), run the module's
+    checks and the claims rule set on its own records, write the compiled tables and the job to price, and record the result: validated
+    when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since.
+
+    After a correction in place `scope` says which records changed and `before` is the version's summary before it: only
+    the changed records and those whose checks they can affect are checked again (`_scoped`); every other record keeps its findings.
+    The compiled tables, the job, the program lines and the claim index are always rebuilt whole.
+
+    The rules run in the worker of the engine release the filing's specification version names (rules.engine_run). A check does not
+    wait for them: the version is recorded as being checked with the module's findings so far, and when the jobs end `finish_check`
+    checks it again with them (`checked`), taking their findings. A correction's few records are waited for, up to the
+    check_wait_seconds limit; past it the whole version is checked that way instead."""
+    v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    if v.locked:  # before anything is written: a published version's files never change
+        raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
+    deadline, org = v.submission.deadline, v.submission.organisation
+    year = deadline.period.year
+    lay = spec.for_filing(deadline)  # the tables, keys and fields of the filing's specification version, on any date
+    own = own_tables(v)
+    if not own:
+        raise AccessDenied("Upload the claims first.")
+    base_v = base_for(org, deadline)
+    base = compiled_tables(base_v) if base_v else {}
+    previous = corrected_version(v)
+    corrected = compiled_tables(previous) if previous else {}
+    deemed, etrm_summary = fill_deemed(lay, own, base)
+    comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
+    rs = specifications.rule_set_for_filing(deadline, RULE_SET)  # the rules of the filing's specification version, on any date
+    release = specifications.engine_release_of(specifications.of_filing(deadline))  # whose worker runs them
+    rescope = None
+    if scope:
+        with rules.engine_run(release, purpose="correction") as quick:
+            rescope = _scoped(
+                own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs, lay
+            )
+        if quick.failed:  # the worker could not answer in time: the whole version is checked instead, without waiting
+            rescope = None
+    with rules.engine_run(release, wait=False, purpose="filing", caller={"module": MODULE, "version": v.pk}, finished=checked) as run:
+        if rescope is not None:
+            problems, notes, rule_set, rechecked = rescope
+        else:
+            problems, notes, rule_set = _full_check(own, comp, deemed, org, deadline, year, base, corrected, rs, lay, v)
+    problems = specifications.apply_checks_for_filing(deadline, problems)  # the built-in checks as the filing's version has them
+    own_f = own_file(v)
+    store = storage.store("uploads")
+    if not own_f["key"].startswith(_prefix(v)):  # a reopened version's predecessor's upload: copy it, never write beside the original
+        own_f = _adopt(actor, v, own_f)
+        v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    folder = own_f["key"].rsplit("/", 1)[0] + "/"
+    compiled = upload.to_zip(comp.tables, lay.TABLES)
+    store.put_bytes(folder + "compiled.zip", compiled)
+    parents = parent_profiles(comp.tables)
+    job = job_zip(comp.tables, parents, lay)
+    if job:
+        store.put_bytes(folder + "job.zip", job)
+    if job and parents.file:
+        store.put_bytes(folder + "parent_profiles.parquet", parents.file)
+    store.put_bytes(folder + "findings.json", json.dumps([p.__dict__ for p in problems]).encode())
+    _replace_lines(v, lines(comp.tables, year))
+    _replace_records(v, records(comp.tables))
+    summary = _summary(problems, sum(len(t.rows) for t in own.values()), notes, rule_set, folder + "findings.json")
+    summary.update(
+        {
+            "base": base_v.pk if base_v else None,
+            "base_sha256": (base_v.findings or {}).get("compiled_sha256", "") if base_v else "",
+            "base_label": f"{label(base_v.submission.deadline)} version {base_v.number}" if base_v else "",
+            "compiled_key": folder + "compiled.zip",
+            "compiled_sha256": hashlib.sha256(compiled).hexdigest(),
+            "job_key": folder + "job.zip" if job else "",
+            "job_sha256": hashlib.sha256(job).hexdigest() if job else "",
+            "parent_profiles_key": folder + "parent_profiles.parquet" if job and parents.file else "",
+            "parent_profiles_sha256": hashlib.sha256(parents.file).hexdigest() if job and parents.file else "",
+            "true_ups": parents.true_ups[:500],
+            "true_ups_count": len(parents.true_ups),
+            "tables": {t: len(own[t].rows) for t in lay.TABLES if t in own},
+            "compiled": {t: len(comp.tables[t].rows) for t in lay.TABLES if t in comp.tables},
+            "replaced": {t: n for t, n in comp.replaced.items() if n},
+            "added": {t: n for t, n in comp.added.items() if n},
+            "changed_claims": comp.changed_claims[:200],
+            "changed_claims_count": len(comp.changed_claims),
+            "withdrawn": len(withdrawn(own)),
+            "withdrawn_total": len(withdrawn(comp.tables)),
+            "etrm": etrm_summary,
+            "columns": {name: list(t.columns) for name, t in own.items()},
+        }
+    )
+    if etrm_summary.get("note") and etrm_summary["note"] not in summary["notes"]:
+        summary["notes"] = [*summary["notes"], etrm_summary["note"]]
+    if rescope is not None:
+        summary["checked_again"] = {"records": rechecked, "since": (before or {}).get("checked_at", "")}
+        summary["checked_at"] = (before or {}).get("checked_at", "")
+        summary["notes"] = [
+            f"Checked again after a correction: {rechecked:,} record{'s' if rechecked != 1 else ''} (the ones changed and those whose "
+            "checks they affect); every other record keeps its findings from the last full check. Check again checks every record.",
+            *summary["notes"],
+        ]
+    else:
+        summary["checked_at"] = timezone.now().isoformat()
+    if run.pending:  # the rules are still being run by the release's worker: recorded as being checked, finished by finish_check
+        summary["checking"] = run.checking()
+        return submissions.record_checking(actor, v, rs, summary)
+    return submissions.record_validation(actor, v, rs, summary)
+
+
+def finish_check(job) -> None:
+    """A check job a claims version's check submitted has ended (rules.jobs finisher): once every job of the version's check has
+    ended, check the version again with them, so it takes their findings. A job of a check the version has since replaced (a new upload,
+    a correction, Check again) is ignored."""
+    pk = (job.caller or {}).get("version")
+    with transaction.atomic():
+        v = SubmissionVersion.objects.select_for_update().filter(pk=pk).first()
+        now = submissions.checking(v)
+        if now is None or str(job.pk) not in (now.get("jobs") or []):
+            return
+        done = rules.jobs.all_ended(now["jobs"])
+        if done is not None:
+            check(None, v, checked=done)
+
+
+# --- correcting records in place
+
+
+def _old_findings(previous: dict | None) -> list[dict] | None:
+    key = (previous or {}).get("findings_key")
+    if not key or not storage.store("uploads").exists(key):
+        return None
+    return json.loads(storage.store("uploads").get_bytes(key))
+
+
+def _rule_set_label(rs) -> str:
+    return f"{rs.label} ({rs.effective_from})" if rs else ""
+
+
+def _related(own: dict[str, upload.Table], scope: Scope, lay: spec.Layout) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
+    """The lines to check again after a correction: (for the module's checks, for the claims rule set). The module's checks look at
+    the records changed, those with the same key (duplicates), and those whose references the change can make or break: the claim's
+    other records and the true-ups naming it (a Claim, Measure, by-claim or Withdrawal record changed), the program's measures (a
+    ProgramCost record), the records at a site (a Site record). The rule set checks each Measure and ProgramCost record on its own,
+    so it looks only at the records changed and those with the same key."""
+    keys: dict[str, set[tuple]] = defaultdict(set)
+    claims, prgs, sites = set(), set(), set()
+    for c in scope.changes:
+        for r in (c.before, c.after):
+            if not r:
+                continue
+            keys[c.table].add(_key(lay, c.table, r))
+            if c.table in (*CLAIM_TABLES, "Withdrawal") and _claim(r):
+                claims.add(_claim(r))
+            if c.table == "ProgramCost" and r.get("PrgID", "").strip():
+                prgs.add(r["PrgID"].strip().lower())
+            if c.table == "Site" and r.get("SiteID", "").strip():
+                sites.add(r["SiteID"].strip().lower())
+    module: dict[str, set[int]] = defaultdict(set)
+    engine: dict[str, set[int]] = defaultdict(set)
+    for name, t in own.items():
+        changed = scope.lines(name)
+        for i, r in enumerate(t.rows, start=2):
+            same = i in changed or _key(lay, name, r) in keys.get(name, ())
+            take = (
+                same
+                or (name in (*CLAIM_TABLES, "Withdrawal") and _claim(r) in claims)
+                or (name == "Claim" and r.get("ParentClaimID", "").strip().lower() in claims)
+                or (name == "Measure" and r.get("PrgID", "").strip().lower() in prgs)
+                or (name in ("Claim", "ClaimSite", "Participant") and r.get("SiteID", "").strip().lower() in sites)
+            )
+            if take:
+                module[name].add(i)
+            if same and name in RULE_TABLES:
+                engine[name].add(i)
+    return module, engine
+
+
+def _subset(own: dict[str, upload.Table], lines: dict[str, set[int]]) -> tuple[dict[str, upload.Table], dict[str, list[int]]]:
+    """The tables cut to the given lines, and for each the line each of its rows came from."""
+    sub, back = {}, {}
+    for name, ls in lines.items():
+        if not ls or name not in own:
+            continue
+        order = sorted(ls)
+        sub[name] = upload.Table(name, own[name].columns, [own[name].rows[i - 2] for i in order])
+        back[name] = order
+    return sub, back
+
+
+def _moved(p, back: dict[str, list[int]]):
+    """A finding on a cut table, moved to its record's line in the whole table (a table-wide finding, line 1, stays)."""
+    row = p.row if p.row < 2 else back[p.table][p.row - 2]
+    return Problem(row, p.record_id, p.table, p.field, p.rule_id, p.severity, p.message, p.fix, p.value)
+
+
+def _scoped(
+    own,
+    compiled,
+    deemed,
+    organisation,
+    year,
+    last_q,
+    base,
+    corrected,
+    scope: Scope,
+    previous: dict | None,
+    statewide=False,
+    rs=None,
+    lay: spec.Layout | None = None,
+):
+    """A correction's check ("that row re-validated"): the module's checks on the records `_related` names, the claims rule
+    set `rs` (the filing's version's) on the changed Measure and ProgramCost records, and every other record's findings carried over to
+    its new line. None when the whole version must be checked instead: no earlier findings, the version was last checked against
+    another rule set, or a table's columns changed."""
+    old = _old_findings(previous)
+    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label(rs) or _wide(rs):
+        return None
+    before_columns = (previous or {}).get("columns")
+    now_columns = {name: list(t.columns) for name, t in own.items()}
+    if before_columns is not None and before_columns != now_columns:
+        return None
+    module, engine = _related(own, scope, lay)
+    sub, back = _subset(own, module)
+    problems = [p for p in deemed if p.row in module.get(p.table, ())]
+    problems += [
+        _moved(p, back)
+        for p in derive_checks(
+            sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide, rules_run=rs is not None, lay=lay
+        )
+    ]
+    notes = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
+    rule_set = (previous or {}).get("rule_set", "")
+    sub_e, back_e = _subset(own, engine)
+    if sub_e:
+        found, notes, rule_set = _rule_findings(sub_e, year, rs, lay=lay, organisation=organisation, linked=compiled)
+        for f in found:
+            row = f.row if f.row < 2 or f.table not in back_e else back_e[f.table][f.row - 2]
+            problems.append(Problem(row, f.record_id, f.table, f.field, f.rule_id, f.severity, f.message, f.fix, f.value))
+    kept = []
+    for f in old:
+        t, row = f.get("table", ""), f.get("row", 0)
+        if row >= 2:
+            new = scope.line_map.get(t, {}).get(row, row) if t in scope.line_map else row
+            if new is None:
+                continue  # the record was deleted
+            again = module if str(f.get("rule_id", "")).startswith("CLM-") else engine
+            if new in again.get(t, ()):
+                continue  # checked again: its findings now are the new ones
+            f = {**f, "row": new}
+        kept.append(Problem(**f))
+    seen, out = set(), []
+    for p in kept + problems:
+        k = (p.table, p.row, p.field, p.rule_id, p.message)
+        if k not in seen:
+            seen.add(k)
+            out.append(p)
+    out.sort(key=lambda p: (lay.TABLES.index(p.table) if p.table in lay.TABLES else 99, p.row, p.severity != "reject"))
+    rechecked = len({(n, i) for lines in (module, engine) for n, ls in lines.items() for i in ls})
+    return out, notes, rule_set, rechecked
+
+
+@transaction.atomic
+def correct_records(actor, v: SubmissionVersion, tables: dict, scope: Scope) -> SubmissionVersion:
+    """Keep a correction's tables (corrections.apply's) as the version's new upload and check what it changed (the record editor and
+    partial corrections, through the submissions service's corrections)."""
+    v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    previous = dict(v.findings or {})
+    if stale(v):
+        previous = {}  # compiled over a confirmation that has changed since: check the whole version on the one that stands
+    f = own_file(v) or {}
+    own = {name: upload.Table(name, t.columns, t.rows) for name, t in tables.items() if t.rows}
+    lay = spec.for_filing(v.submission.deadline)
+    v = _store_upload(actor, v, own, {"uploaded_as": f.get("uploaded_as", "claims.zip"), "corrected": True}, lay)
+    return check(actor, v, scope=scope, before=previous)
+
+
+# --- deemed claims against eTRM
+
+
+def _decimals(text: str) -> int:
+    return len(text.split(".", 1)[1]) if "." in text else 0
+
+
+def _same(f: FieldLayout, filed: str, etrm_value: str) -> bool:
+    """Whether a filed value agrees with eTRM's: numbers to the precision eTRM's download shows them at, flags as flags, text without
+    regard to case."""
+    if f.type in ("number", "integer"):
+        a, b = _num(filed), _num(etrm_value)
+        if a is not None and b is not None:
+            tol = Decimal(5) * Decimal(10) ** -(_decimals(etrm_value) + 1)
+            return abs(a - b) <= tol + Decimal("1e-9") * max(abs(a), abs(b))
+    if f.type == "flag" and _flag(filed) is not None:
+        return _flag(filed) == _flag(etrm_value)
+    return filed.strip().casefold() == etrm_value.strip().casefold()
+
+
+def fill_deemed(lay: spec.Layout, own: dict[str, upload.Table], base: dict[str, upload.Table]) -> tuple[list[Problem], dict]:
+    """Check the upload's deemed claims (ClaimType Deemed with a MeasDetailID) against the published eTRM permutations pack in force,
+    by MeasDetailID: a blank Claim or Measure field that eTRM gives is filled in from it (in `own`, so the compiled tables and
+    the job carry it, while the stored upload stays as filed), and a filed value that differs from eTRM's rejects the record (Jake,
+    2026-10-30: deemed values are eTRM's), except the NTG fields, which can vary and are a warning (`etrm.WARN_ONLY`). Where eTRM says
+    "Any", any value is valid and the PA supplies it: the field is neither filled nor compared, so a blank one is still required. A
+    MeasDetailID the pack does not have is rejected when the pack has its measure version, and a
+    warning (not checked) when it does not. A permutation not in effect in the claim's quarter is a warning."""
+    from cedars.services.refdata import etrm
+    from cedars.services.refdata import service as refdata
+
+    claims_in = {r.get("ClaimID", ""): (i, r) for i, r in enumerate(base.get("Claim", upload.Table("Claim", [], [])).rows, start=0)}
+    own_claims = own.get("Claim")
+    for i, r in enumerate(own_claims.rows if own_claims else [], start=2):
+        claims_in[r.get("ClaimID", "")] = (i, r)
+    measures = defaultdict(list)
+    m = own.get("Measure")
+    for i, r in enumerate(m.rows if m else [], start=2):
+        measures[r.get("ClaimID", "")].append((i, r))
+    deemed = {
+        cid: (i, r)
+        for cid, (i, r) in claims_in.items()
+        if r.get("ClaimType", "").strip().lower() == "deemed" and r.get("MeasDetailID", "").strip() and (i >= 2 or cid in measures)
+    }
+    if not deemed:
+        return [], {}
+    pack = refdata.in_force(etrm.KIND)
+    if pack is None:
+        return [], {"deemed": len(deemed), "note": "Deemed claims were not checked against eTRM: no published eTRM permutations pack."}
+    found = etrm.lookup(pack, [r["MeasDetailID"] for _, r in deemed.values()])
+    known = etrm.versions(pack, [etrm.measure_version(r["MeasDetailID"]) for _, r in deemed.values()])
+    problems: list[Problem] = []
+    filled: dict[str, int] = defaultdict(int)
+    differ = varied = unchecked = 0
+
+    def fill(table: str, i: int, r: dict, rid: str, field_map: dict, values: dict, compare: bool) -> None:
+        nonlocal differ, varied
+        t = own.get(table)
+        types = {f.name: f for f in lay.fields(table)}
+        for name, col in field_map.items():
+            theirs = values.get(col, "")
+            if not theirs or theirs.strip().lower() == etrm.ANY:
+                continue
+            mine = r.get(name, "")
+            if not mine:
+                r[name] = theirs
+                filled[name] += 1
+                if t is not None and name not in t.columns:
+                    t.columns.append(name)
+            elif compare and not _same(types[name], mine, theirs):
+                differ += name not in etrm.WARN_ONLY
+                varied += name in etrm.WARN_ONLY
+                problems.append(
+                    Problem(
+                        i,
+                        rid,
+                        table,
+                        name,
+                        "CLM-ETRM",
+                        "warning" if name in etrm.WARN_ONLY else "reject",
+                        f"{name} {mine} differs from eTRM's {theirs} ({col})",
+                        f"Enter eTRM's {theirs} or leave it blank to have it filled in; if the measure is not this permutation, "
+                        "give the MeasDetailID of the one it is.",
+                        mine,
+                    )
+                )
+
+    for cid, (i, r) in deemed.items():
+        mdid = r["MeasDetailID"].strip()
+        p = found.get(mdid.lower())
+        if p is None:
+            mv = etrm.measure_version(mdid)
+            if i < 2:  # a claim confirmed earlier this year, with new Measure records in this upload: its MeasDetailID was checked then
+                unchecked += 1
+            elif mv in known:
+                why = f"MeasDetailID {mdid} is not a permutation of {mv.upper()} in eTRM"
+                fix = "Copy the Measure Detail ID of the permutation the measure was installed under from eTRM."
+                problems.append(Problem(i, cid, "Claim", "MeasDetailID", "CLM-ETRM", "reject", why, fix, mdid))
+            else:
+                unchecked += 1
+                why = f"MeasDetailID {mdid} was not checked: the eTRM pack in force has no permutations of {mv.upper() or 'its measure'}"
+                fix = "Nothing to fix if the ID is right; the measure version is not in the platform's eTRM data yet."
+                problems.append(Problem(i, cid, "Claim", "MeasDetailID", "CLM-ETRM", "warning", why, fix, mdid))
+            continue
+        if i >= 2:
+            fill("Claim", i, r, cid, etrm.CLAIM_FIELDS, p.values, True)
+        for mi, mr in measures.get(cid, []):
+            fill("Measure", mi, mr, cid, etrm.MEASURE_FIELDS, p.values, True)
+            fill("Measure", mi, mr, cid, etrm.MEASURE_DESCRIPTIONS, p.values, False)
+            q = _quarter_dates(mr.get("ClaimYearQuarter", ""))
+            if q and ((p.end_date and q[0] > p.end_date) or (p.start_date and q[1] < p.start_date)):
+                problems.append(
+                    Problem(
+                        mi,
+                        cid,
+                        "Measure",
+                        "ClaimYearQuarter",
+                        "CLM-ETRM",
+                        "warning",
+                        f"The permutation {mdid} is in effect {p.start_date or 'from the start'} to {p.end_date or 'now'}, not in "
+                        f"{mr['ClaimYearQuarter']}",
+                        "Check the MeasDetailID: use the measure version in effect when it was installed.",
+                        mr["ClaimYearQuarter"],
+                    )
+                )
+    summary = {
+        "deemed": len(deemed),
+        "checked": len(deemed) - unchecked - sum(1 for p in problems if p.severity == "reject"),
+        "filled": dict(sorted(filled.items())),
+        "filled_total": sum(filled.values()),
+        "differ": differ,
+        "ntg_differ": varied,
+        "pack": refdata.pin([pack])[etrm.KIND],
+    }
+    summary["note"] = (
+        f"{summary['checked']:,} of {len(deemed):,} deemed claims checked against {pack}: {summary['filled_total']:,} blank values "
+        f"filled from eTRM, {differ:,} filed values differ from it (rejected), {varied:,} NTG values differ (warnings)."
+    )
+    return problems, summary
+
+
+def _quarter_dates(text: str) -> tuple[date, date] | None:
+    m = re.fullmatch(r"(\d{4})Q([1-4])", text.strip().upper())
+    if not m:
+        return None
+    y, q = int(m.group(1)), int(m.group(2))
+    end = date(y, 3 * q, 31 if q in (1, 4) else 30)
+    return date(y, 3 * q - 2, 1), end
+
+
+def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = None, lay: spec.Layout | None = None) -> bytes:
+    """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) less the withdrawn claims, and the ProgramCost
+    table. b"" when there are no measures to price. `parents`: the true-ups' parent profiles, written to ReCET's
+    AC_Elec_Impact_Profile_Parent columns (the columns only when some true-up has one)."""
+    m = tables.get("Measure")
+    gone = withdrawn(tables)
+    rows = [r for r in (m.rows if m else []) if _claim(r) not in gone]
+    if not rows:
+        return b""
+    columns = ["CEInputID" if c == "ClaimID" else c for c in m.columns]
+    rows = [_as_ceinput(r) for r in rows]
+    if parents and parents.columns:
+        columns += [c for c in PARENT_COLUMNS if c not in columns]
+        for r in rows:
+            first, second = parents.columns.get(r["CEInputID"].strip().lower(), ("", ""))
+            r[PARENT_COLUMNS[0]], r[PARENT_COLUMNS[1]] = first, second
+    measure = upload.Table("Measure", columns, rows)
+    cost = tables.get("ProgramCost") or upload.Table("ProgramCost", (lay or spec.current()).columns("ProgramCost"), [])
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("Measure.csv", upload.to_csv(measure.columns, measure.rows))
+        z.writestr("ProgramCost.csv", upload.to_csv(cost.columns, cost.rows))
+    return out.getvalue()
+
+
+def _as_ceinput(row: dict) -> dict:
+    out = dict(row)
+    out["CEInputID"] = out.pop("ClaimID", "")
+    return out
+
+
+# --- a true-up priced against its parent's profile
+
+# ReCET's Measure columns (0.1.89): a record naming a parent profile is priced again on it, and the run writes the difference
+# (<X>Incremental: ElecBen, ElecSupplyCost, the water-energy streams and every test's benefits) beside its own values.
+PARENT_COLUMNS = ("AC_Elec_Impact_Profile_Parent", "AC_Elec_Impact_Profile_Parent_2nd_Baseline")
+ENGINE_PAS = {"PGE", "SCE", "SDGE", "SCG"}
+INCREMENTAL_SHOWN = [
+    ("TotalSystemBenefitIncremental", "Total system benefit"),
+    ("ElecBenIncremental", "Electric benefit"),
+    ("TRCBenIncremental", "TRC benefits"),
+    ("PACBenIncremental", "PAC benefits"),
+]
+
+
+@dataclass
+class ParentProfiles:
+    """What the job carries for its true-ups: `columns` {compared ClaimID: (parent's 1st-baseline profile, 2nd)} as the engine is given
+    them, `file` the supplied 8,760s of the pinned versions (ReCET's profiles_8760 file, Parquet; b"" when none is needed) and `true_ups`
+    one entry per true-up: claim, parent, the parent's profiles, the versions pinned and the library they were read from."""
+
+    columns: dict[str, tuple[str, str]] = field(default_factory=dict)
+    file: bytes = b""
+    true_ups: list[dict] = field(default_factory=list)
+
+
+def _true_up_parents(tables: dict[str, upload.Table]) -> dict[str, str]:
+    """{true-up's compared ClaimID: its parent's ClaimID} for the NMEC true-ups the tables price."""
+    gone = withdrawn(tables)
+    return {
+        _claim(r): r.get("ParentClaimID", "").strip()
+        for r in tables.get("Claim", upload.Table("Claim", [], [])).rows
+        if _flag(r.get("NMEC_TU_Flag", "")) and r.get("ParentClaimID", "").strip() and _claim(r) not in gone
+    }
+
+
+def parent_profiles(tables: dict[str, upload.Table]) -> ParentProfiles:
+    """Each true-up's parent profile, pinned to the version the parent was priced on. The parent's Measure record and library
+    are its standing confirmed version's (this year's earlier confirmation or an earlier year's): the profile it names is read back from
+    the impact-profile library that version's run pinned and supplied to the engine as "<profile> (v<version>)", so the true-up is priced
+    against those 8,760s whatever the library holds when it runs. A parent only these tables file (not confirmed yet, priced in the same
+    run) is named as it is: the same run prices both on the same library. A parent priced before libraries were pinned, or one whose
+    profile is not in its library, is named as it is too, and the entry says so."""
+    asks = _true_up_parents(tables)
+    out = ParentProfiles()
+    if not asks:
+        return out
+    own = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
+    compiled: dict[int, dict[str, dict]] = {}
+    catalogs: dict[int, list] = {}
+    packs: dict[int, PackVersion | None] = {}
+    # {(name, territory): (pack, (name, pa, target sector, catalog row))}: one block per name, whichever library it was read from (a
+    # profile's numbered version never changes, so the same name and version is the same 8,760s in every library that holds it)
+    supplied: dict[tuple[str, str], tuple[PackVersion, tuple]] = {}
+    for cid, parent in sorted(asks.items()):
+        if cid not in own:
+            continue
+        record = find_claim(parent)
+        pack = None
+        if record is not None:
+            v = record.version
+            if v.pk not in compiled:
+                m = compiled_tables(v).get("Measure", upload.Table("Measure", [], []))
+                compiled[v.pk] = {_claim(r): r for r in m.rows}
+                packs[v.pk] = packed_profiles.library_of(v.calculation, v.pack_versions)
+            row, pack = compiled[v.pk].get(parent.lower()), packs[v.pk]
+            source = f"{label(v.submission.deadline)} {v.submission.deadline.period.year}, version {v.number}"
+        else:
+            row, source = own.get(parent.lower()), "filed in these claims"
+        if row is None:
+            continue
+        mine = own[cid]
+        territory = (mine.get("IOU_AC_Territory") or row.get("IOU_AC_Territory") or "").strip()
+        sector = (mine.get("AC_Elec_Target_Sector") or row.get("AC_Elec_Target_Sector") or "").strip()
+        entry = {"claim": mine.get("ClaimID", cid), "parent": parent, "source": source, "library": str(pack) if pack else ""}
+        names = []
+        for i, col in enumerate(("AC_Elec_Impact_Profile", "AC_Elec_Impact_Profile_2nd_Baseline")):
+            profile = (row.get(col) or "").strip()
+            name, version = profile, None
+            if profile and pack is not None:
+                if pack.pk not in catalogs:
+                    catalogs[pack.pk] = packed_profiles.catalog(pack)
+                found = packed_profiles.find(catalogs[pack.pk], profile, territory, sector)
+                if found is not None and found.version is not None and found.shape_id is not None:
+                    version = found.version
+                    name = f"{profile} (v{version})"
+                    sector_only = ""
+                    taken = supplied.get((name.lower(), territory.upper()))
+                    if taken is not None and taken[1][3].target_sector.lower() != found.target_sector.lower():
+                        name, sector_only = f"{profile} / {found.target_sector} (v{version})", found.target_sector  # another sector's
+                    pa_code = territory if territory.upper() in ENGINE_PAS else ""  # the engine's supplied file knows the IOUs only
+                    supplied.setdefault((name.lower(), territory.upper()), (pack, (name, pa_code, sector_only, found)))
+                else:
+                    entry["note"] = f"{profile} is not in {pack}, so it is named as it is (the library in force when priced)."
+            names.append(name)
+            entry["profile" if i == 0 else "profile_2nd"] = profile
+            entry["version" if i == 0 else "version_2nd"] = version
+        if record is None:
+            entry["note"] = "The parent is filed in these claims, so both are priced in the same run on the same profile library."
+        elif pack is None and names[0]:
+            entry["note"] = "The parent was priced before runs pinned their profile library, so its profile is named as it is."
+        out.columns[cid] = (names[0], names[1])
+        out.true_ups.append(entry)
+    by_pack: dict[int, tuple[PackVersion, list]] = {}
+    for pack, block in supplied.values():
+        by_pack.setdefault(pack.pk, (pack, []))[1].append(block)
+    out.file = _join_supplied([packed_profiles.supplied_file(blocks, pack) for pack, blocks in by_pack.values()])
+    return out
+
+
+def true_up_programs(t: "Table") -> list[tuple["Row", dict]]:
+    """The programs of a version's table whose true-ups were priced against a parent profile, with their incremental sums."""
+    keys = [k for k, _ in INCREMENTAL_SHOWN]  # a program with no true-up sums to 0 (the group sums skip the blanks)
+    return [(r, {k: r.sums.get(k) for k in keys}) for r in t.rows if any(r.sums.get(k) for k in keys)]
+
+
+def incremental_by_claim(v: SubmissionVersion, claim_ids) -> dict[str, dict]:
+    """{compared ClaimID: {incremental column: value}} for the claims asked for, from the measure-level results of the run the version
+    was priced on; {} when it has none or wrote no incremental columns (no true-up named a parent profile)."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    key = ((v.calculation or {}).get("results") or {}).get("measure_level")
+    wanted = {c.strip().lower() for c in claim_ids if c}
+    if not key or not wanted or not str(key).endswith(".parquet"):
+        return {}
+    try:
+        f = pq.ParquetFile(pa.BufferReader(storage.store("results").get_bytes(key)))
+    except (storage.StorageError, OSError, pa.ArrowException):
+        return {}
+    columns = [c for c in ["CEInputID", "ParentElecPricingStatus", *(k for k, _ in INCREMENTAL_SHOWN)] if c in f.schema_arrow.names]
+    if "CEInputID" not in columns or len(columns) < 3:
+        return {}
+    out = {}
+    for batch in f.iter_batches(columns=columns, batch_size=50_000):
+        ids = pc.utf8_lower(pc.utf8_trim_whitespace(batch.column("CEInputID").cast(pa.string())))
+        mask = pc.is_in(ids, value_set=pa.array(sorted(wanted)))
+        for row in batch.filter(mask).to_pylist():
+            out[str(row["CEInputID"]).strip().lower()] = {k: val for k, val in row.items() if k != "CEInputID"}
+    return out
+
+
+def true_up_entry(r: ClaimRecord) -> dict | None:
+    """The parent profile a confirmed true-up was priced against, as its version's check recorded it."""
+    cid = r.claim_id.strip().lower()
+    return next((e for e in (r.version.findings or {}).get("true_ups", []) if str(e.get("claim", "")).strip().lower() == cid), None)
+
+
+def _join_supplied(files: list[bytes]) -> bytes:
+    """One supplied 8,760 file from the files read out of each library pack."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not files:
+        return b""
+    if len(files) == 1:
+        return files[0]
+    table = pa.concat_tables(pq.read_table(pa.BufferReader(f)) for f in files)
+    buf = io.BytesIO()
+    pq.write_table(table, buf, compression="zstd")
+    return buf.getvalue()
+
+
+# --- the module's checks
+
+YEAR_QUARTER = re.compile(r"^(\d{4})Q([1-4])$", re.IGNORECASE)
+CA_ZIP = re.compile(r"^(\d{5})(-\d{4})?$")
+TRUE = {"1", "true", "yes", "y", "t"}
+FALSE = {"0", "false", "no", "n", "f"}
+DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M")
+
+
+def _num(value: str) -> Decimal | None:
+    """A cell as a number: blank is 0, anything else not a number is None."""
+    s = (value or "").strip()
+    if not s:
+        return Decimal(0)
+    try:
+        d = Decimal(s)
+    except InvalidOperation:
+        return None
+    return d if d.is_finite() else None
+
+
+def _flag(value: str) -> bool | None:
+    s = (value or "").strip().lower()
+    return True if s in TRUE else False if s in FALSE else None
+
+
+def _date(value: str) -> date | None:
+    s = (value or "").strip()
+    for fmt in DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _type_problem(f: FieldLayout, value: str) -> str | None:
+    """What is wrong with a non-blank value for its field's type in the specification version, or None."""
+    if f.type == "text" and f.max_length and len(value) > f.max_length:
+        return f"is longer than {f.max_length} characters"
+    if f.type == "number" and _num(value) is None:
+        return "should be a number"
+    if f.type == "integer" and not re.fullmatch(r"-?\d+(\.0+)?", value):
+        return "should be a whole number"
+    if f.type == "flag" and _flag(value) is None:
+        return "should be 0 or 1 (or True or False)"
+    if f.type == "date" and _date(value) is None:
+        return "should be a date (YYYY-MM-DD or MM/DD/YYYY)"
+    return None
+
+
+FIX = {
+    "number": "Enter a plain number: no text, units, commas or currency symbols.",
+    "integer": "Enter a whole number.",
+    "flag": "Enter 0 or 1 (or True or False).",
+    "date": "Write the date as YYYY-MM-DD (or MM/DD/YYYY).",
+}
+
+
+def _type_fix(f: FieldLayout) -> str:
+    if f.type == "text":
+        return f"Shorten it to {f.max_length} characters or fewer."
+    return FIX[f.type]
+
+
+def derive_checks(
+    own: dict[str, upload.Table],
+    compiled: dict[str, upload.Table],
+    organisation,
+    year: int,
+    last_q: int,
+    base: dict[str, upload.Table] | None = None,
+    corrected: dict[str, upload.Table] | None = None,
+    statewide: bool = False,
+    rules_run: bool = False,
+    lay: spec.Layout | None = None,
+) -> list[Problem]:
+    """The module's checks (rule IDs CLM-*), on the upload's own records, with references checked against the compiled year to date:
+    the template's columns, required fields and types for the tables the claims rule set does not cover (it covers Measure and
+    ProgramCost), primary keys, ID prefixes, the claim year and quarter, programs in the registry and the PA's own (a statewide
+    program only in the statewide claims filing, by its lead PA; `statewide`: this is that filing, which holds nothing else), the
+    links between
+    the tables, withdrawals against the year so far (`base`, and `corrected`: the compiled tables of the version a correction replaces),
+    and CEDARS' own data rules for the Claim and Site tables that a record can
+    be checked against on its own. `rules_run`: the filing's version has a claims rule set, which checks Measure and ProgramCost's
+    fields; without one the module checks their required fields and types itself. `lay`: the filing's specification version, whose
+    tables, keys, required fields and types these are."""
+    if lay is None:
+        raise ValueError("derive_checks needs the filing's specification version (lay).")
+    problems: list[Problem] = []
+    code = organisation.code
+
+    def add(table, i, rid, fld, rule, message, fix, value="", severity="reject"):
+        problems.append(Problem(i, rid, table, fld, rule, severity, message, fix, value))
+
+    def rid_of(table, row):
+        return " / ".join(row.get(c, "") for c in lay.KEYS[table])
+
+    # columns, required fields, types and keys
+    for name, t in own.items():
+        missing = [c for c in lay.required(name) if c not in t.columns]
+        for c in missing:
+            add(
+                name,
+                1,
+                "",
+                c,
+                "CLM-COL",
+                _both_names(f"{name} has no {c} column"),
+                _both_names(f"Add the {c} column; every {name} record needs it."),
+            )
+        if missing:
+            continue
+        checked = name not in RULE_TABLES or not rules_run
+        seen: dict[tuple, int] = {}
+        for i, r in enumerate(t.rows, start=2):
+            rid = rid_of(name, r)
+            if checked:
+                for f in lay.fields(name):
+                    value = r.get(f.name, "")
+                    if not value:
+                        if f.required:
+                            add(name, i, rid, f.name, "CLM-REQ", f"{f.name} is blank", f"Fill in {f.name}.")
+                        continue
+                    why = _type_problem(f, value)
+                    if why:
+                        add(name, i, rid, f.name, "CLM-TYPE", f"{f.name} {why}", _type_fix(f), value)
+                k = _key(lay, name, r)
+                if name not in lay.BY_CLAIM and k in seen:
+                    add(name, i, rid, ", ".join(lay.KEYS[name]), "CLM-KEY", f"{name} has this key on line {seen[k]} too",
+                        "Keep one record per key; to correct a record, change it in place.")  # fmt: skip
+                seen.setdefault(k, i)
+        for p in specifications.list_problems(lay.version_layout, name, t.rows, year=year):  # a list made for the specification
+            add(name, p["index"] + 2, rid_of(name, t.rows[p["index"]]), p["field"], "CLM-LIST", p["message"], p["fix"], p["value"])
+
+    # IDs and years
+    for name in ("Claim", "Measure"):
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            cid = r.get("ClaimID", "")
+            if cid and not any(cid.upper().startswith(f"{p}-{year}") for p in (code.upper(), "SW")):
+                add(name, i, cid, "ClaimID", "CLM-ID", f"ClaimID {cid} does not start with {code}-{year} (or SW-{year})",
+                    f"Start each ClaimID with the PA code and claim year, e.g. {code}-{year}-0001.", cid)  # fmt: skip
+    for i, r in enumerate(own.get("Site", upload.Table("Site", [], [])).rows, start=2):
+        sid = r.get("SiteID", "")
+        if sid and not any(sid.upper().startswith(p) for p in (code.upper(), "SW")):
+            add(
+                "Site",
+                i,
+                sid,
+                "SiteID",
+                "CLM-ID",
+                f"SiteID {sid} does not start with {code} (or SW)",
+                f"Start each SiteID with {code}.",
+                sid,
+            )
+    for name in ("Measure", "ProgramCost"):
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            raw = r.get("ClaimYearQuarter", "")
+            m = YEAR_QUARTER.match(raw.strip())
+            if m and (int(m.group(1)) != year or int(m.group(2)) > last_q):
+                add(name, i, rid_of(name, r), "ClaimYearQuarter", "CLM-YEAR",
+                    f"ClaimYearQuarter {raw} is not a quarter of {year} up to Q{last_q}",
+                    f"Use a quarter from {year}Q1 to {year}Q{last_q}; later claims go in their own quarter's upload.", raw)  # fmt: skip
+    for name in ("ProgramCost", "Participant"):
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            raw = r.get("PrgYear", "")
+            if raw and raw.split(".")[0] != str(year):
+                add(name, i, rid_of(name, r), "PrgYear", "CLM-YEAR", f"PrgYear {raw} is not the claim year {year}",
+                    f"Use {year}: these are {year} claims.", raw)  # fmt: skip
+
+    # programs
+    ids = {
+        r.get("PrgID", "")
+        for name in ("Measure", "ProgramCost", "Participant", "InfrastructureCost")
+        if name in own
+        for r in own[name].rows
+    }
+    programs = {p.prg_id: p for p in Program.objects.filter(prg_id__in=ids)}
+    for name in ("Measure", "ProgramCost", "Participant", "InfrastructureCost"):
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            prg = r.get("PrgID", "")
+            if not prg:
+                continue
+            p = programs.get(prg)
+            if p is None:
+                add(name, i, rid_of(name, r), "PrgID", "CLM-PRG", f"PrgID {prg} is not in the program registry",
+                    "Use the PrgID of a program in the Programs catalog, or ask for the program to be added first.", prg)  # fmt: skip
+            elif statewide and not p.statewide:
+                add(name, i, rid_of(name, r), "PrgID", "CLM-SW", f"{prg} is not a statewide program",
+                    f"The statewide claims filing holds only the statewide programs {code} leads; claim {prg} in "
+                    f"{code}'s own claims.", prg)  # fmt: skip
+            elif not statewide and p.statewide:
+                add(name, i, rid_of(name, r), "PrgID", "CLM-SW", f"{prg} is a statewide program",
+                    "Statewide programs are claimed by their lead PA in the statewide claims filing, due before the PAs' claims, so "
+                    "the funding PAs see their shares first; take these records out of this upload.", prg)  # fmt: skip
+            elif why := registry.filing_problem(p, organisation):
+                add(name, i, rid_of(name, r), "PrgID", "CLM-ORG", why,
+                    f"Claim only {code}'s programs and the statewide programs it leads.", prg)  # fmt: skip
+
+    # links between the tables (the compiled year to date)
+    claims = {_claim(r) for r in compiled.get("Claim", upload.Table("Claim", [], [])).rows}
+    measures = {_claim(r): r for r in compiled.get("Measure", upload.Table("Measure", [], [])).rows}
+    sites = {r.get("SiteID", "").strip().lower() for r in compiled.get("Site", upload.Table("Site", [], [])).rows}
+    costs = {(r.get("PrgID", "").strip().lower()) for r in compiled.get("ProgramCost", upload.Table("ProgramCost", [], [])).rows}
+    for i, r in enumerate(own.get("Measure", upload.Table("Measure", [], [])).rows, start=2):
+        if r.get("ClaimID") and _claim(r) not in claims:
+            add("Measure", i, r["ClaimID"], "ClaimID", "CLM-REF", f"Measure {r['ClaimID']} has no Claim record",
+                "Add its Claim record (this upload's or an earlier confirmed quarter's).", r["ClaimID"])  # fmt: skip
+        prg = r.get("PrgID", "")
+        if prg and prg in programs and prg.strip().lower() not in costs:
+            add("Measure", i, r.get("ClaimID", ""), "PrgID", "CLM-REF", f"{prg} has no {year} ProgramCost record",
+                f"Add {prg}'s {year} ProgramCost record (its year-to-date costs, which may be zero).", prg)  # fmt: skip
+    for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
+        cid = r.get("ClaimID", "")
+        if cid and _claim(r) not in measures:
+            add("Claim", i, cid, "ClaimID", "CLM-REF", f"Claim {cid} has no Measure record",
+                "Add its Measure record: every claim is priced from it.", cid)  # fmt: skip
+        site = r.get("SiteID", "")
+        if site and site.strip().lower() not in sites:
+            add("Claim", i, cid, "SiteID", "CLM-REF", f"Site {site} has no Site record", "Add the Site record for it.", site)
+    for name in lay.BY_CLAIM:
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            if r.get("ClaimID") and _claim(r) not in claims:
+                add(name, i, r["ClaimID"], "ClaimID", "CLM-REF", f"{name} names claim {r['ClaimID']}, which has no Claim record",
+                    "Use the ClaimID of a claim in this upload or an earlier confirmed quarter.", r["ClaimID"])  # fmt: skip
+    for i, r in enumerate(own.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows, start=2):
+        site = r.get("SiteID", "")
+        if site and site.strip().lower() not in sites:
+            add("ClaimSite", i, rid_of("ClaimSite", r), "SiteID", "CLM-REF", f"Site {site} has no Site record",
+                "Add the Site record for it.", site)  # fmt: skip
+    for i, r in enumerate(own.get("Participant", upload.Table("Participant", [], [])).rows, start=2):
+        site = r.get("SiteID", "")
+        if site and site.strip().lower() not in sites:
+            add("Participant", i, rid_of("Participant", r), "SiteID", "CLM-REF", f"Site {site} has no Site record",
+                "Add the Site record, or leave SiteID blank for a count that covers all of the program's sites.", site)  # fmt: skip
+
+    # withdrawals: only a claim filed in an earlier confirmation (or in the version a correction replaces), once, with its
+    # records left as they were filed; a withdrawn ClaimID is never filed again
+    earlier = {_claim(r): r.get("WithdrawnIn", "") for r in (base or {}).get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+    gone = withdrawn(own)
+    filed = {
+        _claim(r)
+        for t in (base or {}, corrected or {})
+        for name in ("Claim", "Measure")
+        for r in t.get(name, upload.Table(name, [], [])).rows
+    }
+    for i, r in enumerate(own.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows, start=2):
+        cid, k = r.get("ClaimID", ""), _claim(r)
+        if not cid:
+            continue
+        if k in earlier:
+            add("Withdrawal", i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was already withdrawn in the {earlier[k]}",
+                "Leave it out: a claim is withdrawn once.", cid)  # fmt: skip
+        elif k not in filed:
+            add("Withdrawal", i, cid, "ClaimID", "CLM-WD", f"Claim {cid} is not filed in {year}, so it cannot be withdrawn",
+                f"Name a ClaimID already confirmed in {year}; to drop a claim of this upload, leave it out.", cid)  # fmt: skip
+    for name in CLAIM_TABLES:
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            cid, k = r.get("ClaimID", ""), _claim(r)
+            if k in gone:
+                add(name, i, cid, "ClaimID", "CLM-WD", f"This upload withdraws claim {cid} and also files {name} records for it",
+                    "Leave its records out: a withdrawn claim keeps the records it was filed with.", cid)  # fmt: skip
+            elif k in earlier:
+                add(name, i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was withdrawn in the {earlier[k]}",
+                    "File it again under a new ClaimID: a withdrawn claim keeps its ID in the year's history.", cid)  # fmt: skip
+
+    # NMEC chains: a true-up's parent is a claim the PA filed, this year so far or in a confirmed earlier year, not withdrawn,
+    # and never the claim itself or one of its own true-ups
+    if any(r.get("ParentClaimID") for r in own.get("Claim", upload.Table("Claim", [], [])).rows):
+        before = earlier_records(organisation, year)
+        parents = {_claim(r): r.get("ParentClaimID", "").strip().lower() for r in compiled.get("Claim", upload.Table("Claim", [], [])).rows}
+        out_now = withdrawn(compiled)
+        for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
+            cid, parent = r.get("ClaimID", ""), r.get("ParentClaimID", "")
+            p = parent.strip().lower()
+            if not p:
+                continue
+            older = before.get(p)
+            if p == _claim(r):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", "ParentClaimID is the claim itself",
+                    "Give the ClaimID of the claim this true-up adjusts.", parent)  # fmt: skip
+            elif p not in parents and older is None:
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is not a claim {code} has filed",
+                    f"Give a ClaimID {code} filed this year or confirmed in an earlier year.", parent)  # fmt: skip
+            elif p in out_now or (p not in parents and older.withdrawn):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is a withdrawn claim",
+                    "A true-up adjusts a claim that stands; give the ClaimID of the claim it replaces, if any.", parent)  # fmt: skip
+            elif _cycle(_claim(r), parents):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is one of this claim's own true-ups",
+                    "A chain runs from the original claim to its latest true-up; check the ParentClaimIDs.", parent)  # fmt: skip
+            else:
+                impact = measures[p].get("MeasImpactType", "") if p in measures else (older.impact_type if older else "")
+                if "NMEC" not in impact.upper():
+                    add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is not a NMEC claim ({impact or 'none'})",
+                        "Check the parent: a true-up adjusts a NMEC claim.", parent, severity="warning")  # fmt: skip
+
+    # CEDARS' data rules on the Claim and Site tables
+    for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
+        _claim_rules(add, i, r, measures.get(_claim(r), {}), organisation)
+    for i, r in enumerate(own.get("Site", upload.Table("Site", [], [])).rows, start=2):
+        sid = r.get("SiteID", "")
+        if r.get("SiteState") and r["SiteState"].strip().upper() != "CA":
+            add("Site", i, sid, "SiteState", "CLM-SITE", f"SiteState is {r['SiteState']}, not CA",
+                "Enter CA: claims are for California sites.", r["SiteState"])  # fmt: skip
+        z = r.get("SiteZipCode", "").strip()
+        m = CA_ZIP.match(z)
+        if z and not (m and 90001 <= int(m.group(1)) <= 96162):
+            add("Site", i, sid, "SiteZipCode", "CLM-SITE", f"SiteZipCode {z} is not a California ZIP code",
+                "Enter the site's five-digit California ZIP code (90001 to 96162).", z)  # fmt: skip
+        if _flag(r.get("Residential_Flag", "")) is False and not r.get("NAICSCode"):
+            add("Site", i, sid, "NAICSCode", "CLM-SITE", "NAICSCode is blank for a non-residential site", "Fill in the site's NAICS code.")
+    return problems
+
+
+def _cycle(start: str, parents: dict[str, str]) -> bool:
+    """Whether following ParentClaimIDs up from a claim comes back to it."""
+    seen, k = set(), parents.get(start, "")
+    while k and k not in seen:
+        if k == start:
+            return True
+        seen.add(k)
+        k = parents.get(k, "")
+    return False
+
+
+def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
+    """The Claim rules of CEDARS' 2026 data rules that need only the claim and its measure."""
+    cid = r.get("ClaimID", "")
+    impact = measure.get("MeasImpactType", "")
+    if _flag(r.get("NMEC_TU_Flag", "")) and not r.get("ParentClaimID"):
+        add("Claim", i, cid, "ParentClaimID", "CLM-NMEC", "ParentClaimID is blank on a NMEC true-up",
+            "Give the ClaimID of the claim this true-up adjusts.")  # fmt: skip
+    if "NMEC" in impact.upper() and not r.get("NMEC_TU_Flag"):
+        add("Claim", i, cid, "NMEC_TU_Flag", "CLM-NMEC", "NMEC_TU_Flag is blank on a NMEC claim",
+            "Enter 1 if the claim is a true-up of an earlier NMEC claim, else 0.")  # fmt: skip
+    if impact in ("Cust-SEM", "Cust-SEM-FuelSub"):
+        for fld in ("ParticipantID", "SEM_Phase"):
+            if not r.get(fld):
+                add("Claim", i, cid, fld, "CLM-SEM", f"{fld} is blank on a SEM claim ({impact})",
+                    f"Fill in {fld}: it links the SEM participant's claims across the engagement.")  # fmt: skip
+    if r.get("SEM_Phase") and impact and impact not in ("Cust-SEM", "Cust-SEM-FuelSub"):
+        add("Claim", i, cid, "SEM_Phase", "CLM-SEM", f"SEM_Phase is filled in, but the measure's MeasImpactType is {impact}",
+            "Use MeasImpactType Cust-SEM or Cust-SEM-FuelSub for a SEM claim, or leave SEM_Phase blank.", r["SEM_Phase"])  # fmt: skip
+    if r.get("ClaimType", "").strip().lower() == "deemed":
+        for fld in ("MeasDetailID", "ProjectID", "MeasImpactCalcType"):
+            if not r.get(fld):
+                add("Claim", i, cid, fld, "CLM-DEEMED", f"{fld} is blank on a deemed claim", f"Fill in {fld}: deemed claims need it.")
+    if impact.endswith("FuelSub") and not r.get("TotalCustomerInfrastructureCosts"):
+        add("Claim", i, cid, "TotalCustomerInfrastructureCosts", "CLM-FUELSUB",
+            "TotalCustomerInfrastructureCosts is blank on a fuel substitution claim",
+            "Enter the customer's infrastructure costs (0 if there were none) and add its InfrastructureCost record.")  # fmt: skip
+    pct = r.get("PartialPaymentPercent", "")
+    n = _num(pct)
+    if pct and n is not None and not (0 <= n <= 1):
+        add("Claim", i, cid, "PartialPaymentPercent", "CLM-PAYMENT", f"PartialPaymentPercent {pct} is not between 0 and 1",
+            "Enter the share paid as a fraction, e.g. 0.5 for half.", pct)  # fmt: skip
+    if _flag(r.get("PartialPaymentFinal_Flag", "")) and not pct:
+        add("Claim", i, cid, "PartialPaymentPercent", "CLM-PAYMENT", "PartialPaymentPercent is blank on a final partial payment",
+            "Enter the share of the incentive paid.")  # fmt: skip
+    if organisation.pa_type in ("CCA", "REN") and _flag(r.get("CCAREN_Flag", "")) is not True:
+        add("Claim", i, cid, "CCAREN_Flag", "CLM-CCAREN", f"CCAREN_Flag is not 1 on a {organisation.pa_type}'s claim",
+            "Enter 1: every claim a CCA or REN files has it.", r.get("CCAREN_Flag", ""))  # fmt: skip
+
+
+def _rule_tables(rs) -> list[str]:
+    """The tables a claims rule set has rules for (CEDARS' own cover Measure and ProgramCost; a version's may cover any table)."""
+    return sorted(set(rs.rules.values_list("table", flat=True))) if rs is not None else []
+
+
+def _wide(rs) -> bool:
+    """Whether a rule set has rules beyond CEDARS' own reach: on a table other than Measure and ProgramCost, or with a condition on
+    another table, the program or who files. A correction is then checked whole (`_scoped`), since a change to one record can
+    change another record's findings."""
+    if rs is None:
+        return False
+    return bool(set(_rule_tables(rs)) - set(RULE_TABLES)) or rules.reads(rs)
+
+
+def _rule_frame(table: str, t: upload.Table):
+    """A table as the engine reads it: raw text under the canonical names; a Measure record's ClaimID is its CEInputID too, as CET's
+    rules name it."""
+    rows = [{**r, "CEInputID": r.get("ClaimID", "")} for r in t.rows] if table == "Measure" else t.rows
+    cols = list(t.columns) + (["CEInputID"] if table == "Measure" and "CEInputID" not in t.columns else [])
+    return rules.read_table(upload.to_csv(cols, rows))
+
+
+def _rule_findings(
+    own: dict[str, upload.Table],
+    year: int | None,
+    rs,
+    *,
+    lay: "spec.Layout | None" = None,
+    organisation=None,
+    upload_date=None,
+    linked: dict[str, upload.Table] | None = None,
+) -> tuple[list, list[str], str]:
+    """Claims rule set `rs` (the filing's specification version's, or the version the pre-upload checker was given, `precheck`) on the
+    upload's own records of every table the set has rules for, run by the engine with the claim year as the filing year. A condition on
+    another table reads the linked record of `linked` (the compiled year to date; else the upload itself) by the tables' keys
+    (`lay`), on Program the registry's record and on Filer the filing organization. A table without the specification's columns is
+    rejected on those columns before its rules run."""
+    if rs is None:
+        return [], ["No claims rule set is published yet, so only the module's own checks ran."], ""
+    out, notes = [], set()
+    try:
+        frames = {table: _rule_frame(table, t) for table, t in own.items() if t.rows and table in _rule_tables(rs)}
+    except (rules.EngineMissing, ImportError) as e:  # the engine (and pandas with it) is not installed here
+        raise AccessDenied(f"{e} The claims cannot be validated on this server.") from None
+    ctx = rules.CheckContext(upload_date=upload_date or timezone.localdate())
+    if organisation is not None:
+        ctx.filer = rules.filer_record(organisation)
+    if rules.reads(rs, rules.PROGRAM):
+        ctx.programs = rules.program_records({r.get("PrgID", "") for t in own.values() for r in t.rows})
+    source = linked or own
+    ctx.tables = {}
+    for name in source:
+        if name in frames and source is own:
+            ctx.tables[name] = frames[name]
+        elif rules.reads(rs, name) or name in frames:
+            ctx.tables[name] = _rule_frame(name, source[name])
+    ctx.keys = {name: list(lay.KEYS[name]) for name in lay.TABLES} if lay is not None else rules.layout_of(rs)["keys"]
+    for table, df in frames.items():
+        have = {c.lower() for c in df.columns}
+        names = rules.spec_columns(rs, table)
+        missing = [c for c in names if c.lower() not in have and _recet_name(c).lower() not in have]
+        skip: set[str] = set()
+        if missing:  # every missing column is reported; the rules that do not read one still run (UI review 3, U1)
+            out += [
+                Problem(
+                    1,
+                    "",
+                    table,
+                    c if c != "CEInputID" else "ClaimID",
+                    "CLM-COL",
+                    "reject",
+                    rules.canonical_text(f"{table} has no {c} column"),
+                    rules.canonical_text(f"Add the {c} column (it may be blank)."),
+                )
+                for c in missing
+            ]  # fmt: skip
+            skip = rules.needing(rs, table, missing)
+            notes.add(rules.missing_columns_note(table, len(missing), len(skip), "claims specification"))
+        if table not in RULE_TABLES:  # the module reports a missing required column; a rule reading an absent one is not run
+            absent = {c for r in rs.rules.filter(table=table) for c in rules.columns_needed(r)}
+            absent = [c for c in absent if c.lower() not in have and _recet_name(c).lower() not in have]
+            if absent:
+                skipped = rules.needing(rs, table, absent)
+                skip |= skipped
+                notes.add(rules.missing_columns_note(table, len(absent), len(skipped), "claims specification"))
+        id_col = {"Measure": "CEInputID", "ProgramCost": "PrgID"}.get(table) or (list(lay.KEYS[table]) if lay is not None else "")
+        try:
+            found, n = rules.check(rs, table, df, filing_year=year, id_column=id_col, skip=skip, context=ctx)
+        except (KeyError, ValueError) as e:  # the engine could not apply a rule: the version cannot be called valid
+            out.append(Problem(1, "", table, "", "CLM-RULES", "reject", f"The {table} records could not be checked: {e}",
+                               "Tell the CPUC's CEDARS support; the file may be fine."))  # fmt: skip
+            continue
+        out += found
+        notes.update(n)
+    return out, sorted(notes), f"{rs.label} ({rs.effective_from})"
+
+
+def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[list, list[str], int]:
+    """The pre-upload checker's claims step (rules.precheck): one table read as an upload reads it (upload.read: canonical names,
+    unknown and system columns dropped, values trimmed) and checked by `_rule_findings`, the step `check` runs, against version `rs`.
+    The claim year is `filing_year`, else the one year the table's records are for."""
+    from cedars.services.rules.precheck import YEAR_COLUMN, CheckError, year_of
+
+    rules.require_engine()
+    try:
+        lay = spec.current()  # the current version's columns: the checker reads a table as a new filing's upload does
+        t = upload.without_system_fields(upload.table_from_csv(table, content, lay), lay)
+    except upload.UploadError as e:
+        raise CheckError(str(e)) from None
+    notes = []
+    if filing_year is None and t.rows:
+        filing_year = year_of(r.get(YEAR_COLUMN[table], "") for r in t.rows)
+        if filing_year is not None:
+            notes.append(f"Checked as {filing_year} claims, the year of every record; give the claim year to check for another.")
+    found, rule_notes, _ = _rule_findings({table: t}, filing_year, rs, lay=lay)
+    return found, notes + rule_notes, len(t.rows)
+
+
+def _both_names(text: str) -> str:
+    """A finding's words with both names of a renamed field, "AC_Elec_Impact_Profile (E3MeaElecEndUseShape)", as the rules' findings
+    give them; the text as written where the engine is not installed."""
+    try:
+        return rules.canonical_text(text)
+    except rules.EngineMissing:
+        return text
+
+
+def _recet_name(column: str) -> str:
+    from recet.fieldnames import recet_name
+
+    return recet_name(column)
+
+
+def _summary(problems: list, records: int, notes: list[str], rule_set: str, key: str) -> dict:
+    rejected = {(p.table, p.row, p.record_id) for p in problems if p.severity == "reject"}
+    warned = {(p.table, p.row, p.record_id) for p in problems if p.severity != "reject"} - rejected
+    return {
+        "records": records,
+        "rejected": len(rejected),
+        "warnings": len(warned),
+        "notes": notes,
+        "rule_set": rule_set,
+        "findings_key": key,
+        "findings": len(problems),
+        "by_rule": rules.by_rule(problems),
+    }
+
+
+def findings(v: SubmissionVersion) -> list[dict]:
+    key = (v.findings or {}).get("findings_key")
+    if not key or not storage.store("uploads").exists(key):
+        return []
+    return json.loads(storage.store("uploads").get_bytes(key))
+
+
+def findings_csv(v: SubmissionVersion) -> str:
+    return rules.findings_csv([rules.Finding(**f) for f in findings(v)])
+
+
+# --- each program's year to date
+
+
+def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
+    """Each program's year to date from the compiled tables: its ProgramCost row for the year, its measures' rebates and incentives,
+    its number of claims and the totals filed on them, leaving out withdrawn claims."""
+    out: dict[str, dict] = {}
+
+    def line(prg: str) -> dict:
+        return out.setdefault(
+            prg,
+            {"prg_id": prg, "pa": "", "program_costs": {}, "on_bill_financing": Decimal(0), "rebates_and_incentives": Decimal(0),
+             "claims": 0, "filed": defaultdict(float)},
+        )  # fmt: skip
+
+    for r in tables.get("ProgramCost", upload.Table("ProgramCost", [], [])).rows:
+        if r.get("PrgYear", "").split(".")[0] != str(year) or not r.get("PrgID"):
+            continue
+        ln = line(r["PrgID"])
+        ln["pa"] = r.get("PA", "")
+        ln["program_costs"] = {f: str(_num(r.get(f, "")) or 0) for f, _ in PROGRAM_COST_FIELDS}
+        ln["on_bill_financing"] = _num(r.get("OnBillFinancing", "")) or Decimal(0)
+    claim_rows = {_claim(r): r for r in tables.get("Claim", upload.Table("Claim", [], [])).rows}
+    gone = withdrawn(tables)
+    for r in tables.get("Measure", upload.Table("Measure", [], [])).rows:
+        if not r.get("PrgID") or _claim(r) in gone:
+            continue
+        ln = line(r["PrgID"])
+        units = _num(r.get("NumUnits", "")) or Decimal(0)
+        ln["rebates_and_incentives"] += units * sum((_num(r.get(f, "")) or Decimal(0)) for f in INCENTIVE_FIELDS)
+        ln["claims"] += 1
+        c = claim_rows.get(_claim(r), {})
+        for f in FILED_TOTALS:
+            ln["filed"][f] += float(_num(c.get(f, "")) or 0)
+    return [{**ln, "filed": dict(ln["filed"])} for ln in out.values()]
+
+
+def records(tables: dict[str, upload.Table]) -> list[dict]:
+    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord)."""
+    measures = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
+    sites = defaultdict(list)
+    for r in tables.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows:
+        sites[_claim(r)].append(r.get("SiteID", ""))
+    gone = withdrawn(tables)
+    out = []
+    for r in tables.get("Claim", upload.Table("Claim", [], [])).rows:
+        k = _claim(r)
+        if not k:
+            continue
+        m = measures.get(k, {})
+        out.append(
+            {
+                "claim_id": r.get("ClaimID", "").strip(),
+                "prg_id": m.get("PrgID", ""),
+                "impact_type": m.get("MeasImpactType", "")[:60],
+                "parent_claim_id": r.get("ParentClaimID", "").strip(),
+                "true_up": bool(_flag(r.get("NMEC_TU_Flag", ""))),
+                "participant_id": r.get("ParticipantID", "").strip(),
+                "sem_phase": r.get("SEM_Phase", "").strip(),
+                "project_id": r.get("ProjectID", "").strip(),
+                "site_id": r.get("SiteID", "").strip(),
+                "sites": sorted(set(sites.get(k, []))),
+                "withdrawn": k in gone,
+                "filed": {f: float(_num(r.get(f, "")) or 0) for f in FILED_TOTALS},
+            }
+        )
+    return out
+
+
+def _replace_records(v: SubmissionVersion, rows: list[dict]) -> None:
+    ClaimRecord.objects.filter(version=v).delete()
+    ClaimRecord.objects.bulk_create(ClaimRecord(version=v, **row) for row in rows)
+
+
+def _replace_lines(v: SubmissionVersion, rows: list[dict]) -> None:
+    ClaimProgramLine.objects.filter(version=v).delete()
+    ClaimProgramLine.objects.bulk_create(ClaimProgramLine(version=v, **row) for row in rows)
+    ClaimResult.objects.filter(version=v).delete()
+
+
+def ensure_checked(v: SubmissionVersion) -> None:
+    """A reopened version (n+1) starts with its predecessor's upload: compile and check it."""
+    if v.locked or v.findings or not own_file(v):
+        return
+    check(None, v)
+
+
+# --- pricing and confirming
+
+
+def price(actor, v: SubmissionVersion) -> str:
+    """Price a validated version's year to date on the year's ACC, with ACC-per-record checks for claims; a year with
+    statewide programs is allocated with the year's allocation version, or the most recent confirmed one with factors for the year, and
+    the run records which. Returns the run's id."""
+    import tempfile
+    from pathlib import Path
+
+    cy = claim_year(v.submission.deadline)
+    key = (v.findings or {}).get("job_key")
+    if not key:
+        raise AccessDenied("There are no measures to price yet.")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "job.zip"
+        path.write_bytes(storage.store("uploads").get_bytes(key))
+        name = f"{v.submission.organisation.code} {label(v.submission.deadline)}, version {v.number}"
+        statewide = is_statewide(v.submission.deadline) or (
+            Program.objects.filter(prg_id__in=v.claim_lines.values("prg_id"), statewide=True).exists()
+        )
+        return submissions.price(
+            actor,
+            v,
+            path,
+            name=name,
+            acc_version=cy.acc_version,
+            allocation_version=cy.allocation_version,
+            settings={"allocate_statewide": statewide, "acc_purpose": "claims"},
+            cost_test_set=cy.cost_test_set,
+            profiles_8760=parent_profiles_file(v),
+        )
+
+
+def parent_profiles_file(v: SubmissionVersion) -> bytes | None:
+    """The supplied 8,760s of the version's true-ups' parent profiles, or None when its job names none."""
+    key = (v.findings or {}).get("parent_profiles_key")
+    return storage.store("uploads").get_bytes(key) if key else None
+
+
+def pricing_run(v: SubmissionVersion) -> str | None:
+    """The run started for the version since its records last changed, while it has not ended; the pages use
+    submissions.pricing_run, which also tells them about a run that ended without pricing the version."""
+    state = submissions.pricing_run(v, reset_on=("submission.files_attached", "submission.validated"))
+    return state["id"] if state and not state["ended"] else None
+
+
+def priced(v: SubmissionVersion) -> bool:
+    """A finished run on exactly the version's current year-to-date job."""
+    job = (v.findings or {}).get("job_sha256")
+    return bool(v.calculation and job and v.calculation.get("job_sha256") == job)
+
+
+def stale(v: SubmissionVersion) -> bool:
+    """The confirmation before this one has changed since the version was compiled on it."""
+    if v.locked or not v.findings:
+        return False
+    current = base_for(v.submission.organisation, v.submission.deadline)
+    if (current.pk if current else None) != v.findings.get("base"):
+        return True
+    return bool(current) and (current.findings or {}).get("compiled_sha256", "") != v.findings.get("base_sha256", "")
+
+
+def confirm(actor, v: SubmissionVersion) -> SubmissionVersion:
+    """Confirm the priced version: the sign-off on exactly the results reviewed; publication follows with no further calculation."""
+    if stale(v):
+        raise AccessDenied("An earlier confirmation has changed since this version was compiled on it. Check it again, then price it.")
+    _require_in_order(v.submission.organisation, v.submission.deadline)
+    if not priced(v):
+        raise AccessDenied("Price this version first: confirming needs a finished run on exactly these records.")
+    return submissions.confirm(actor, v, v.calculation["input_hash"])
+
+
+def unconfirm(actor, v: SubmissionVersion, reason: str = "") -> SubmissionVersion:
+    later = later_locked(v.submission.organisation, v.submission.deadline)
+    if later is not None:
+        raise AccessDenied(f"The {label(later)} is confirmed on top of this one; it cannot be un-confirmed now.")
+    return submissions.unconfirm(actor, v, reason)
+
+
+def request_reopen(actor, submission: Submission, reason: str):
+    """After the due date, only the most recently confirmed claim period can be reopened (as CEDARS has it): a later confirmation is
+    compiled on this one."""
+    later = later_locked(submission.organisation, submission.deadline)
+    if later is not None:
+        raise AccessDenied(
+            f"Only the most recently confirmed period can be reopened, and the {label(later)} is confirmed. Correct these records in it."
+        )
+    return submissions.request_reopen(actor, submission, reason)
+
+
+def import_results(v: SubmissionVersion) -> bool:
+    """Read the version's priced results into ClaimResult rows (once per run): the run's group sums, summed by credited PA and program.
+    False when the version has none."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    calc = v.calculation or {}
+    key = (calc.get("results") or {}).get("group_sums")
+    if not key:
+        return False
+    if ClaimResult.objects.filter(version=v, run=calc["run"]).exists():
+        return True
+    table = pq.read_table(pa.BufferReader(storage.store("results").get_bytes(key)))
+    sums: dict[tuple, dict] = {}
+    for row in table.to_pylist():
+        k = (str(row.get("_pa") or ""), str(row.get("_prg") or ""))
+        s = sums.setdefault(k, {"name": "", "n": 0, "values": defaultdict(float)})
+        s["name"] = s["name"] or str(row.get("_prgname") or "")
+        s["n"] += int(row.get("_n") or 0)
+        for c, val in row.items():
+            if c not in RESULT_KEYS and isinstance(val, int | float) and val == val:  # NaN != NaN: a blank sum
+                s["values"][c] += float(val)
+    with transaction.atomic():
+        ClaimResult.objects.filter(version=v).delete()
+        ClaimResult.objects.bulk_create(
+            ClaimResult(version=v, run=calc["run"], pa=k[0], prg_id=k[1], program_name=s["name"], measures=s["n"], values=dict(s["values"]))
+            for k, s in sums.items()
+        )
+    return True
+
+
+def on_publish(v: SubmissionVersion) -> None:
+    """Publication hook: the results the version was confirmed on are read now, so the published version holds them; a correction
+    (version 2 or later) gets its change letter."""
+    if v.submission.deadline.kind in ALL_KINDS:
+        import_results(v)
+        if v.number > 1:
+            write_change_letter(v)
+
+
+def on_unpublish(v: SubmissionVersion) -> None:
+    """Un-confirmed before the due date: nothing is kept apart from the version, which goes back to validated."""
+
+
+# --- personal information (the PII vault)
+
+
+PII_KEYS = [
+    ("ContactClaim", "ContactID", "PII_Contact"),
+    ("Site", "SiteID", "PII_Site"),
+    ("Claim", "SiteID", "PII_Site"),
+    ("ClaimSite", "SiteID", "PII_Site"),
+]
+
+
+def pii_keys(v: SubmissionVersion) -> dict[str, set[str]]:
+    """The ContactIDs and SiteIDs the version's compiled claims name (compared in lower case): a PII file may hold only these."""
+    t = compiled_tables(v)
+    keys = {"PII_Contact": set(), "PII_Site": set()}
+    for table, column, pii in PII_KEYS:
+        if table in t:
+            keys[pii] |= {r.get(column, "").strip().lower() for r in t[table].rows if r.get(column, "").strip()}
+    return keys
+
+
+def pii_versions(v: SubmissionVersion) -> list[int]:
+    """The version and the earlier versions of its submission, newest first: a reopened version reads its predecessor's PII until it
+    has its own."""
+    return list(v.submission.versions.filter(number__lte=v.number).order_by("-number").values_list("pk", flat=True))
+
+
+def upload_pii(actor, v: SubmissionVersion, data: bytes, filename: str, assurance: str | None):
+    """Check a PII file against the version's compiled claims and keep it in the vault. Only while the version is
+    open, and only once its claims are checked: the PII joins them by ContactID and SiteID."""
+    if v.locked:
+        raise AccessDenied("This version is confirmed. Ask to reopen it to change its personal information.")
+    ensure_checked(v)
+    v.refresh_from_db()
+    keys = pii_keys(v)
+    if not any(keys.values()):
+        raise AccessDenied("Upload and check the claims first: the PII file may name only their ContactIDs and SiteIDs.")
+    lay = spec.for_filing(v.submission.deadline).version_layout
+    return vault.store(actor, v.submission.organisation, v.pk, data, filename, keys, assurance, lay)
+
+
+def pii(v: SubmissionVersion):
+    """The version's PII upload as it stands (its own, else its predecessor's), or None."""
+    return vault.latest(pii_versions(v)) if vault.enabled() else None
+
+
+# --- withdrawals and corrections
+
+
+def withdrawals(v: SubmissionVersion) -> list[dict]:
+    """The claims withdrawn in the year to date of a version, in the order withdrawn: ClaimID, reason, the confirmation that withdrew it
+    and the date it was confirmed (blank while that confirmation is not)."""
+    rows = compiled_tables(v).get("Withdrawal")
+    if rows is None:
+        return []
+    org, year = v.submission.organisation, v.submission.deadline.period.year
+    when = {f"{label(x.submission.deadline)}, version {x.number}": x.confirmed_at for x in _versions(org, year)}
+    return [
+        {"claim": r.get("ClaimID", ""), "reason": r.get("WithdrawalReason", ""), "withdrawn_in": r.get("WithdrawnIn", ""),
+         "confirmed_at": when.get(r.get("WithdrawnIn", ""))}
+        for r in rows.rows
+    ]  # fmt: skip
+
+
+LETTER_LIST = 200  # claims listed by name in each group of a change letter; the counts are always whole
+LETTER_FIGURES = [
+    ("claims", "Claims", "count"),
+    ("expenditures", "Expenditures", "money"),
+    ("TotalSystemBenefit", "Total system benefit", "money"),
+    ("FirstYearNetKWh", "First-year net kWh", "number"),
+    ("FirstYearNetThm", "First-year net therms", "number"),
+]
+
+
+def _claim_records(tables: dict[str, upload.Table]) -> dict[str, tuple[str, tuple]]:
+    """{claim key: (ClaimID as filed, every record of the claim)} over the tables that hold a claim's records."""
+    out: dict[str, tuple[str, list]] = {}
+    for name in CLAIM_TABLES:
+        for r in tables.get(name, upload.Table(name, [], [])).rows:
+            k = _claim(r)
+            if k:
+                out.setdefault(k, (r.get("ClaimID", ""), []))[1].append((name, tuple(sorted((c, x) for c, x in r.items() if x))))
+    return {k: (cid, tuple(sorted(recs))) for k, (cid, recs) in out.items()}
+
+
+def _table_changes(before: dict[str, upload.Table], after: dict[str, upload.Table], lay: spec.Layout) -> list[dict]:
+    """Each table's records before and after, and how many the correction added, changed and removed (by primary key; by claim for
+    the tables whose rows for a claim are a set)."""
+    out = []
+    for name in lay.TABLES:
+        b, a = before.get(name), after.get(name)
+        if b is None and a is None:
+            continue
+        group = _claim if name in lay.BY_CLAIM else (lambda r, n=name: _key(lay, n, r))
+        rows_b, rows_a = defaultdict(set), defaultdict(set)
+        for rows, into in ((b.rows if b else [], rows_b), (a.rows if a else [], rows_a)):
+            for r in rows:
+                into[group(r)].add(tuple(sorted((c, x) for c, x in r.items() if x)))
+        both = rows_b.keys() & rows_a.keys()
+        out.append(
+            {
+                "table": name,
+                "before": len(b.rows) if b else 0,
+                "after": len(a.rows) if a else 0,
+                "added": len(rows_a.keys() - rows_b.keys()),
+                "changed": sum(1 for k in both if rows_a[k] != rows_b[k]),
+                "removed": len(rows_b.keys() - rows_a.keys()),
+            }
+        )
+    return out
+
+
+def _figures(r: "Row") -> dict:
+    out = {}
+    for key, _, kind in LETTER_FIGURES:
+        x = r.claims if key == "claims" else r.value(key)
+        out[key] = None if x is None else (int(x) if kind == "count" else float(x))
+    return out
+
+
+def correction_changes(previous: SubmissionVersion, v: SubmissionVersion) -> dict:
+    """What a correction changed against the version it replaces: claims added, changed (any of their records), removed, withdrawn
+    (with the reason) and reinstated; each table's records; each program whose year to date changed, before and after; and the totals."""
+    before, after = compiled_tables(previous), compiled_tables(v)
+    a, b = _claim_records(before), _claim_records(after)
+    wa = {_claim(r): r for r in before.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+    wb = {_claim(r): r for r in after.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+
+    def listed(ids: list) -> dict:
+        return {"count": len(ids), "ids": ids[:LETTER_LIST]}
+
+    claims = {
+        "added": listed(sorted(b[k][0] for k in b.keys() - a.keys())),
+        "changed": listed(sorted(b[k][0] for k in a.keys() & b.keys() if a[k][1] != b[k][1])),
+        "removed": listed(sorted(a[k][0] for k in a.keys() - b.keys())),
+        "reinstated": listed(sorted(wa[k].get("ClaimID", "") for k in wa.keys() - wb.keys())),
+    }
+    gone = sorted(wb.keys() - wa.keys())
+    claims["withdrawn"] = {
+        "count": len(gone),
+        "ids": [{"claim": wb[k].get("ClaimID", ""), "reason": wb[k].get("WithdrawalReason", "")} for k in gone[:LETTER_LIST]],
+    }
+    tb, ta = table(previous), table(v)
+    rows_b, rows_a = {r.prg_id: r for r in tb.rows}, {r.prg_id: r for r in ta.rows}
+    programs = []
+    for prg in sorted(rows_b.keys() | rows_a.keys()):
+        fb = _figures(rows_b[prg]) if prg in rows_b else None
+        fa = _figures(rows_a[prg]) if prg in rows_a else None
+        if fb != fa:
+            name = (rows_a.get(prg) or rows_b.get(prg)).name
+            programs.append({"prg_id": prg, "name": name, "before": fb, "after": fa})
+    return {
+        "previous_label": f"{label(previous.submission.deadline)}, version {previous.number}",
+        "claims": claims,
+        "tables": _table_changes(before, after, spec.for_filing(v.submission.deadline)),
+        "programs": programs,
+        "totals": {"before": _figures(tb.total), "after": _figures(ta.total)},
+        "priced": {"before": tb.priced, "after": ta.priced},
+    }
+
+
+def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
+    """Write a correction's change letter on its publication (once); None when there is no earlier published version to compare."""
+    if ChangeLetter.objects.filter(version=v).exists():
+        return None
+    previous = corrected_version(v)
+    if previous is None:
+        return None
+    changes = correction_changes(previous, v)
+    in_place = corrections.summary(v)
+    if in_place:
+        changes["in_place"] = in_place  # what was corrected record by record on the version
+    letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
+    c = changes["claims"]
+    audit.record(
+        "claims.change_letter_published",
+        obj=letter,
+        reason=v.reason,
+        after={
+            "version": v.pk,
+            "previous": previous.pk,
+            **{k: c[k]["count"] for k in ("added", "changed", "removed", "withdrawn", "reinstated")},
+            "programs": len(changes["programs"]),
+        },
+        organisation=v.submission.organisation,
+    )
+    return letter
+
+
+def change_letters(*, organisation=None, year: int | None = None):
+    """Published change letters, newest first."""
+    out = ChangeLetter.objects.select_related("version__submission__deadline__period", "version__submission__organisation", "previous")
+    if organisation is not None:
+        out = out.filter(version__submission__organisation=organisation)
+    if year is not None:
+        out = out.filter(version__submission__deadline__period__year=year)
+    return out
+
+
+def notice(v: SubmissionVersion, event) -> Concern:
+    """What a notification about one of the module's versions says (registered with the notification service): the programs it
+    claims, or for a published correction the programs it changed, a summary and the page to open."""
+    what = f"{v.submission.organisation.code} {label(v.submission.deadline)}"
+    link = f"/claims/versions/{v.pk}/"
+    lines = list(v.claim_lines.all())
+    programs = {ln.prg_id for ln in lines}
+    if event.action == "submission.published":
+        letter = ChangeLetter.objects.filter(version=v).first()
+        if letter is not None:
+            c = letter.changes or {}
+            counts = c.get("claims", {})
+            claims = ", ".join(
+                f"{k} {counts.get(k, {}).get('count', 0):,}" for k in ("added", "changed", "removed", "withdrawn", "reinstated")
+            )
+            parts = [
+                f"Reason: {letter.reason}" if letter.reason else "",
+                f"Claims {claims}.",
+                corrections.summary_text(c.get("in_place") or {}),
+                letters.summary(c, LETTER_FIGURES),
+            ]
+            return Concern(
+                programs={p["prg_id"] for p in c.get("programs", [])},
+                link=f"/claims/changes/{letter.pk}/",
+                title=f"Corrected claims: {what}, version {v.number}",
+                body="\n".join(x for x in parts if x) + "\nThe change letter has every change.",
+            )
+        n = sum(ln.claims for ln in lines)
+        return Concern(
+            programs=programs,
+            link=link,
+            title=f"Claims published: {what}",
+            body=f"{len(programs)} program{'s' if len(programs) != 1 else ''}, {n:,} claim{'s' if n != 1 else ''} year to date.",
+        )
+    return Concern(programs=programs, link=link)
+
+
+# --- links between claims: NMEC chains, SEM participants, projects
+
+
+def standing_versions(*, organisation=None, year: int | None = None) -> list[SubmissionVersion]:
+    """Each PA's year to date that stands: per organization and claim year, the published version of its latest confirmation (a lead
+    PA's statewide claims stand on their own beside its own claims)."""
+    qs = SubmissionVersion.objects.filter(
+        status=SubmissionVersion.Status.PUBLISHED, submission__deadline__module=MODULE, submission__deadline__kind__in=ALL_KINDS
+    ).select_related("submission__deadline__period", "submission__organisation")
+    if organisation is not None:
+        qs = qs.filter(submission__organisation=organisation)
+    if year is not None:
+        qs = qs.filter(submission__deadline__period__year=year)
+    best: dict[tuple, SubmissionVersion] = {}
+    for v in qs:
+        k = (v.submission.organisation_id, v.submission.deadline.period.year, is_statewide(v.submission.deadline))
+        rank = (number(v.submission.deadline), v.number)
+        if k not in best or rank > (number(best[k].submission.deadline), best[k].number):
+            best[k] = v
+    return list(best.values())
+
+
+def _standing_records(**filters):
+    versions = standing_versions()
+    return (
+        ClaimRecord.objects.filter(version__in=versions, **filters)
+        .select_related("version__submission__deadline__period", "version__submission__organisation")
+        .order_by("version__submission__deadline__period__year", "claim_id")
+    )
+
+
+def earlier_records(organisation, year: int) -> dict[str, ClaimRecord]:
+    """The PA's confirmed claims of earlier claim years, by compared ClaimID: the parents a true-up may name."""
+    versions = [v for v in standing_versions(organisation=organisation) if v.submission.deadline.period.year < year]
+    return {r.claim_id.strip().lower(): r for r in ClaimRecord.objects.filter(version__in=versions)}
+
+
+def find_claim(claim_id: str) -> ClaimRecord | None:
+    """A confirmed claim, wherever it stands (ClaimIDs carry the PA code and claim year, so they are unique)."""
+    return _standing_records(claim_id__iexact=claim_id.strip()).first()
+
+
+@dataclass
+class ChainLink:
+    record: ClaimRecord
+    depth: int
+    change: dict  # {Claim total field: this claim's filed value less its parent's}
+
+
+def chain(claim_id: str) -> list[ChainLink]:
+    """A NMEC claim's chain end to end: from the original claim down through every true-up, in filing order, with each
+    true-up's filed totals against its parent's (the true-up's adjustment). Empty when the claim is not confirmed."""
+    start = find_claim(claim_id)
+    if start is None:
+        return []
+    org = start.version.submission.organisation
+    mine = list(_standing_records(version__submission__organisation=org))
+    by_id = {r.claim_id.lower(): r for r in mine}
+    root, seen = start, {start.claim_id.lower()}
+    while root.parent_claim_id and root.parent_claim_id.lower() in by_id and root.parent_claim_id.lower() not in seen:
+        root = by_id[root.parent_claim_id.lower()]
+        seen.add(root.claim_id.lower())
+    children = defaultdict(list)
+    for r in mine:
+        if r.parent_claim_id:
+            children[r.parent_claim_id.lower()].append(r)
+    out, todo, done = [], [(root, 0, None)], set()
+    while todo:
+        r, depth, parent = todo.pop()
+        if r.claim_id.lower() in done:
+            continue
+        done.add(r.claim_id.lower())
+        change = {f: r.filed.get(f, 0.0) - parent.filed.get(f, 0.0) for f in FILED_TOTALS} if parent else {}
+        out.append(ChainLink(r, depth, change))
+        todo += [(c, depth + 1, r) for c in sorted(children[r.claim_id.lower()], key=lambda c: c.claim_id, reverse=True)]
+    return out
+
+
+def participant_claims(participant_id: str):
+    """Every confirmed claim of one SEM participant, across years and phases."""
+    return _standing_records(participant_id__iexact=participant_id.strip())
+
+
+def project_claims(project_id: str, organisation=None):
+    """Every confirmed claim of one project (ProjectID, the project key): the meters of a multi-meter project, a population
+    cohort and its projects, a claim before and after it was reclassified."""
+    qs = _standing_records(project_id__iexact=project_id.strip())
+    return qs.filter(version__submission__organisation=organisation) if organisation is not None else qs
+
+
+def links_csv(v: SubmissionVersion) -> str:
+    """The version's claims with their links (project, NMEC parent, SEM participant and phase, sites), for downloads and evaluation
+    samples grouped by project."""
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(["ClaimID", "PrgID", "ProjectID", "ParentClaimID", "NMEC_TU_Flag", "MeasImpactType", "ParticipantID", "SEM_Phase",
+                "SiteID", "ClaimSites", "Status"])  # fmt: skip
+    for r in v.claim_records.all():
+        w.writerow([r.claim_id, r.prg_id, r.project_id, r.parent_claim_id, int(r.true_up), r.impact_type, r.participant_id,
+                    r.sem_phase, r.site_id, ";".join(r.sites), "withdrawn" if r.withdrawn else "active"])  # fmt: skip
+    return out.getvalue()
+
+
+# --- results by program
+
+METRICS = [
+    ("expenditures", "Expenditures", "money", "Program costs plus measure rebates and incentives, year to date, nominal dollars"),
+    ("TotalSystemBenefit", "Total system benefit", "money", "Total system benefit (TSB), present value"),
+    ("TRC", "TRC", "ratio", "Total Resource Cost ratio: TRC benefits / TRC cost"),
+    ("PAC", "PAC", "ratio", "Program Administrator Cost ratio: PAC benefits / PAC cost"),
+    ("FirstYearNetKWh", "First-year net kWh", "number", "First-year net electric savings, as priced"),
+    ("FirstYearNetKW", "First-year net kW", "number", "First-year net peak demand savings, as priced"),
+    ("FirstYearNetThm", "First-year net therms", "number", "First-year net gas savings, as priced"),
+    ("TotalFirstYearNetkWh", "Filed first-year net kWh", "filed", "The claims' own TotalFirstYearNetkWh, as filed"),
+    ("TotalFirstYearNetTherm", "Filed first-year net therms", "filed", "The claims' own TotalFirstYearNetTherm, as filed"),
+]
+RATIOS = {"TRC": ("TRCBen", "TRCCost"), "PAC": ("PACBen", "PACCost")}
+# Filed first-year savings and what they priced to: a pair that disagrees by more than SAVINGS_TOLERANCE (and one unit) is marked on
+# the version page, since a filed total that does not match its records is usually a mistake in the file (UI review 3, U1).
+SAVINGS_PAIRS = (("TotalFirstYearNetkWh", "FirstYearNetKWh"), ("TotalFirstYearNetTherm", "FirstYearNetThm"))
+SAVINGS_TOLERANCE = 0.01
+
+
+def savings_differ(r: "Row") -> set[str]:
+    """The filed first-year savings of a priced row (a program or the total) that differ from what its records priced to."""
+    out = set()
+    if not r.priced:
+        return out
+    for filed, priced in SAVINGS_PAIRS:
+        a, b = r.value(filed), r.value(priced)
+        if a is None or b is None:
+            continue
+        a, b = float(a), float(b)
+        if abs(a - b) > max(1.0, SAVINGS_TOLERANCE * max(abs(a), abs(b))):
+            out.add(filed)
+    return out
+
+
+@dataclass
+class Row:
+    prg_id: str
+    name: str = ""
+    pa: str = ""
+    program_costs: Decimal = Decimal(0)
+    rebates: Decimal = Decimal(0)
+    on_bill_financing: Decimal = Decimal(0)
+    by_field: dict = field(default_factory=lambda: defaultdict(Decimal))
+    claims: int = 0
+    filed: dict = field(default_factory=lambda: defaultdict(float))
+    sums: dict = field(default_factory=lambda: defaultdict(float))
+    priced: bool = False
+
+    @property
+    def expenditures(self) -> Decimal:
+        return self.program_costs + self.rebates
+
+    def value(self, key: str):
+        if key == "expenditures":
+            return self.expenditures
+        if key in FILED_TOTALS:
+            return self.filed.get(key, 0.0)
+        if key in RATIOS:
+            ben, cost = (self.sums.get(c) for c in RATIOS[key])
+            return ben / cost if ben is not None and cost else None
+        return self.sums.get(key) if self.priced else None
+
+    def add(self, other: "Row") -> None:
+        self.program_costs += other.program_costs
+        self.rebates += other.rebates
+        self.on_bill_financing += other.on_bill_financing
+        self.claims += other.claims
+        for k, val in other.by_field.items():
+            self.by_field[k] += val
+        for k, val in other.filed.items():
+            self.filed[k] += val
+        for k, val in other.sums.items():
+            self.sums[k] += val
+        self.priced = self.priced or other.priced
+
+
+@dataclass
+class Table:
+    rows: list[Row]
+    total: Row
+    pas: list[str]
+    priced: bool
+
+
+def table(v: SubmissionVersion, *, pa: str = "") -> Table:
+    """The version's year to date by program: what was filed (costs, incentives, the claims' own totals) and the priced results summed
+    over the credited PAs (or one credited PA)."""
+    ensure_checked(v)
+    import_results(v)
+    results = list(v.claim_results.filter(run=(v.calculation or {}).get("run", "")))
+    rows: dict[str, Row] = {}
+    for ln in v.claim_lines.all():
+        r = rows.setdefault(ln.prg_id, Row(ln.prg_id))
+        r.pa = ln.pa
+        costs = {k: Decimal(val) for k, val in (ln.program_costs or {}).items()}
+        for k, val in costs.items():
+            r.by_field[k] += val
+        r.program_costs += sum(costs.values(), Decimal(0))
+        r.rebates += ln.rebates_and_incentives
+        r.on_bill_financing += ln.on_bill_financing
+        r.claims += ln.claims
+        for k, val in (ln.filed or {}).items():
+            r.filed[k] += val
+    for res in results:
+        if pa and res.pa != pa:
+            continue
+        r = rows.setdefault(res.prg_id, Row(res.prg_id))
+        r.name = r.name or res.program_name
+        r.priced = True
+        for k, val in res.values.items():
+            r.sums[k] += val
+    names = {
+        p.prg_id: p for p in Program.objects.filter(prg_id__in=rows).prefetch_related("versions")
+    }  # the name in force in the claim year
+    year = v.submission.deadline.period.year
+    for r in rows.values():
+        p = names.get(r.prg_id)
+        pv = registry.version_for_year(p, year) if p else None
+        if pv is not None:
+            r.name = pv.name or r.name
+    shown = sorted(rows.values(), key=lambda r: r.prg_id)
+    total = Row("Total")
+    for r in shown:
+        total.add(r)
+    return Table(shown, total, sorted({r.pa for r in results if r.pa}), bool(results))
+
+
+def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
+    """(label, area, key) of what a confirmed version publishes so it can be reproduced: the compiled non-PII year-to-date
+    inputs (every table of the template, the infrastructure cost table among them), this version's own upload, the job priced,
+    the run's job spec and its receipt. A version imported from legacy CEDARS publishes the tables it was loaded as and its
+    reconciliation report."""
+    if v.imported:
+        return legacy.published_files(v)
+    s, calc, out = v.findings or {}, v.calculation or {}, []
+    if s.get("compiled_key"):
+        out.append(("Year-to-date inputs (every claims table, compiled)", "uploads", s["compiled_key"]))
+    f = own_file(v)
+    if f:
+        out.append(("This version's upload (its new and changed records)", "uploads", f["key"]))
+    if s.get("job_key"):
+        out.append(("The job priced (Measure and ProgramCost)", "uploads", s["job_key"]))
+    if calc.get("spec_key"):
+        out.append(("Run settings (job spec)", "results", calc["spec_key"]))
+    if calc.get("receipt_key"):
+        out.append(("Run receipt (engine, reference data, outputs)", "results", calc["receipt_key"]))
+    return out
+
+
+# --- what other modules read (through the submissions service)
+
+
+def year_totals(organisation, year: int) -> list[dict]:
+    """A PA's confirmed claims for a year by program (submissions.claims_totals; the Monthly reports module's 13th-month report reads it):
+    the year to date of its latest confirmation. Expenditures = the ten ProgramCost fields + the measures' rebates and incentives;
+    savings and TSB are the priced first-year values summed over every credited PA. Then the statewide programs' shares credited to the
+    PA from their lead PAs' standing statewide claims (`statewide_share`): expenditures = TotalExpenditures, its share of the program
+    costs plus its measures' rebates and incentives. A legacy year's statewide unallocated claims (the SW version, `legacy.py`) are
+    outside every total: none."""
+    out = []
+    v, quarters, final = year_standing(organisation, year)
+    if v is not None and not (v.calculation or {}).get("outside_totals"):
+        for r in table(v).rows:
+            s = r.sums
+            out.append(
+                {
+                    "prg_id": r.prg_id,
+                    "pa": r.pa or organisation.code,
+                    "year": year,
+                    "quarters": quarters,
+                    "final": final,
+                    "records": r.claims,
+                    "expenditures": r.expenditures,
+                    "incentives": r.rebates,
+                    **_savings(s),
+                }
+            )
+    for sh in statewide_share(organisation, year):
+        val = sh["values"]
+        out.append(
+            {
+                "prg_id": sh["prg_id"],
+                "pa": organisation.code,
+                "year": year,
+                "quarters": sh["quarters"],
+                "final": sh["final"],
+                "records": sh["measures"],
+                "expenditures": Decimal(str(round(val.get("TotalExpenditures", 0.0), 2))),
+                "incentives": Decimal(str(round(val.get("RebatesandIncents", 0.0), 2))),
+                "statewide_lead": sh["lead"].code,
+                **_savings(val),
+            }
+        )
+    return out
+
+
+def _savings(s: dict) -> dict:
+    return {
+        "gross_kwh": s.get("FirstYearGrossKWh", 0.0),
+        "gross_kw": s.get("FirstYearGrossKW", 0.0),
+        "gross_therm": s.get("FirstYearGrossThm", 0.0),
+        "net_kwh": s.get("FirstYearNetKWh", 0.0),
+        "net_kw": s.get("FirstYearNetKW", 0.0),
+        "net_therm": s.get("FirstYearNetThm", 0.0),
+        "tsb": s.get("TotalSystemBenefit", 0.0),
+    }
+
+
+def statewide_leads(year: int) -> list:
+    """The PAs that have filed statewide claims for the year (as lead PAs), by code."""
+    from cedars.services.accounts.models import Organisation
+
+    ids = Submission.objects.filter(deadline__module=MODULE, deadline__kind__in=SW_KINDS, deadline__period__year=year).values(
+        "organisation"
+    )
+    return list(Organisation.objects.filter(pk__in=ids).order_by("code"))
+
+
+def statewide_share(organisation, year: int) -> list[dict]:
+    """The statewide claims credited to a PA in a claim year, by program: from each lead PA's standing statewide year to date (its latest
+    confirmed statewide confirmation), the results its run credited to the PA. Each row: prg_id, name, lead (the lead PA), version (the
+    published statewide version), label, quarters, final, measures and values ({output column: sum}). Only confirmed statewide claims
+    count: a lead's draft is its own until it confirms. A legacy year has none here (its PA files hold their statewide shares)."""
+    out = []
+    for lead in statewide_leads(year):
+        v, quarters, final = year_standing(lead, year, statewide=True)
+        if v is None or not import_results(v):
+            continue
+        results = v.claim_results.filter(run=(v.calculation or {}).get("run", ""), pa__iexact=organisation.code)
+        for res in results:
+            out.append(
+                {
+                    "prg_id": res.prg_id,
+                    "name": res.program_name,
+                    "lead": lead,
+                    "version": v,
+                    "label": f"{label(v.submission.deadline)}, version {v.number}",
+                    "quarters": quarters,
+                    "final": final,
+                    "measures": res.measures,
+                    "values": dict(res.values),
+                }
+            )
+    return sorted(out, key=lambda r: (r["prg_id"], r["lead"].code))
+
+
+def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
+    """Where each statewide confirmation of the year stands for the lead PAs: [{"deadline", "confirmed": [codes], "open": [codes]}],
+    in filing order; with `deadline` (a PA's confirmation), only the statewide one it comes after."""
+    sw = [counterpart(deadline)] if deadline is not None else periods(year, statewide=True)
+    out = []
+    for d in sw:
+        if d is None:
+            continue
+        confirmed, started = [], []
+        for sub in Submission.objects.filter(deadline=d).select_related("organisation").order_by("organisation__code"):
+            (confirmed if standing(sub.organisation, d) is not None else started).append(sub.organisation.code)
+        out.append({"deadline": d, "confirmed": confirmed, "open": started})
+    return out
+
+
+def deadline_page(deadline) -> str:
+    """The claims period page of one of a claim year's deadlines, for the filing calendar; "" for any other claims deadline."""
+    from django.urls import reverse
+
+    if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
+        return ""
+    return reverse("claims:period", args=[deadline.pk])
+
+
+def setup_link(deadline) -> str:
+    """The set-up page of the claim year a deadline belongs to, for the filing calendar and Filing sets; "" for any other."""
+    from django.urls import reverse
+
+    if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
+        return ""
+    return reverse("claims:setup", args=[deadline.period.year])
+
+
+# --- the specification's example files
+
+
+# what the module's own checks accept for the fields they read (a site in California, a measure that is not fuel substitution)
+EXAMPLE_VALUES = {"SiteState": "CA", "SiteZipCode": "94105", "MeasImpactType": "Cust-Gen"}
+EXAMPLE_REFERENCE = ("CLM-PRG", "CLM-SW", "CLM-ORG", "CLM-ETRM", "CLM-CHAIN", "CLM-WD")  # need the registry, eTRM or the year so far
+
+
+def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -> list[Problem]:
+    """A specification version's example records (specifications.examples), checked as a claim filed by `pa` for `year`'s fourth
+    quarter: the module's checks and the version's rule set, the built-in checks as the version has them. Nothing is stored."""
+    from cedars.services.accounts.models import Organisation
+
+    lay = spec.Layout(specifications.layout(version))
+    org = Organisation(pk=0, code=pa, name="Example PA", pa_type="IOU")  # never saved (no such row): no program is its own
+    own = {t: upload.Table(t, lay.columns(t), [dict(r) for r in rs]) for t, rs in rows.items() if t in lay.TABLES and rs}
+    rs = specifications.rule_set_of(version, RULE_SET)
+    problems = derive_checks(own, own, org, year, 4, rules_run=rs is not None, lay=lay)
+    with rules.engine_run(specifications.engine_release_of(version), purpose="example"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(own, year, rs, lay=lay, organisation=org)
+    return specifications.apply_checks(version, problems + found)
+
+
+# --- the impact test (specifications.impact)
+
+
+def impact_rows(v: SubmissionVersion) -> dict[str, tuple[list[str], list[dict]]]:
+    """The records an organization filed in a confirmed claims version (its own upload), for the impact test."""
+    return {name: (list(t.columns), [dict(r) for r in t.rows]) for name, t in own_tables(v).items()}
+
+
+def _impact_tables(version, tables: dict[str, upload.Table]) -> dict[str, upload.Table]:
+    from cedars.services.specifications import impact
+
+    fitted = impact.refit(version, {n: (t.columns, t.rows) for n, t in tables.items()})
+    return {n: upload.Table(n, cols, rows) for n, (cols, rows) in fitted.items()}
+
+
+def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[str], list[dict]]]) -> list[Problem]:
+    """A confirmed claims version's own records checked as `check` checks them, but under specification `version`: its tables and
+    fields, its rule set and its built-in checks, against the same year so far. Nothing is stored."""
+    deadline, org = v.submission.deadline, v.submission.organisation
+    year = deadline.period.year
+    lay = spec.Layout(specifications.layout(version))
+    own = {n: upload.Table(n, cols, records) for n, (cols, records) in rows.items() if n in lay.TABLES}
+    base_v = base_for(org, deadline)
+    base = _impact_tables(version, compiled_tables(base_v)) if base_v else {}
+    previous = corrected_version(v)
+    corrected = _impact_tables(version, compiled_tables(previous)) if previous else {}
+    deemed, _ = fill_deemed(lay, own, base)
+    comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
+    rs = specifications.rule_set_of(version, RULE_SET)
+    problems = deemed + derive_checks(
+        own,
+        comp.tables,
+        org,
+        year,
+        last_quarter(deadline),
+        base,
+        corrected,
+        statewide=is_statewide(deadline),
+        rules_run=rs is not None,
+        lay=lay,
+    )
+    with rules.engine_run(specifications.engine_release_of(version), purpose="impact test"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(
+            own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+        )
+    return specifications.apply_checks(version, problems + found)
+
+
+# --- moving a filing set to another specification version (specifications.moving)
+
+
+def recheck(v: SubmissionVersion) -> None:
+    """Check an open claims version again after its claim year moved to another specification version (as CEDARS)."""
+    check(None, v)
+
+
+def setup_accs(deadline: Deadline) -> list[str]:
+    cy = ClaimYear.objects.filter(year=deadline.period.year).first() if deadline.period_id else None
+    return [cy.acc_version] if cy else []

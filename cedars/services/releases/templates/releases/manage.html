@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}Write release notes{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'releases:index' %}">Release notes</a></li></ol></nav>
+<div class="page-title"><h1>Write release notes</h1>{% page_help "releases/manage" %}</div>
+<p>Draft a note, list its changes, then publish it at least {{ notice_days }} days before it takes effect (a shorter notice needs a
+reason, which the note shows). Publishing tells everyone subscribed to release notes; a published note never changes and can only be
+withdrawn. Every step is in the audit log.</p>
+
+<section class="card" aria-labelledby="check-h">
+  <h2 id="check-h">Check: {{ health.label }}</h2>
+  <p>{{ health.summary }}</p>
+  {% if health.items %}<ul>{% for i in health.items %}<li>{% if i.link %}<a href="{{ i.link }}">{{ i.label }}</a>{% else %}{{ i.label }}{% endif %}. {{ i.detail }}</li>{% endfor %}</ul>{% endif %}
+  <p class="small">This site runs release {{ running }}. Each guide's release is recorded by <code>manage.py help_revisions --update</code> when the guide changes.</p>
+</section>
+
+<h2>Drafts</h2>
+{% if drafts %}
+<ul class="links">{% for n in drafts %}<li><a href="{% url 'releases:edit' n.pk %}">{{ n.title }}</a>: takes effect {{ n.effective_on|date_words }}, {{ n.changes.all|length }} change{{ n.changes.all|length|pluralize }}</li>{% endfor %}</ul>
+{% else %}<p>No drafts.</p>{% endif %}
+
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">New release note</h2>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Save the draft</button></div>
+  </form>
+</section>
+
+<h2>The limits and their settings</h2>
+<p>A limit change names one of these. Change the setting on the day the note says, so the Limits page shows the new value.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Limits and their settings">
+<table class="list">
+  <caption class="sr-only">Each limit, its value now and the setting that sets it</caption>
+  <thead><tr><th scope="col">Limit</th><th scope="col">Now</th><th scope="col">Setting</th></tr></thead>
+  <tbody>{% for lim in limits %}<tr><th scope="row">{{ lim.label }}</th><td>{{ lim.current }}</td><td><code>{{ lim.setting }}</code></td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endblock %}

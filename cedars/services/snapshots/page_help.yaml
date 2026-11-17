@@ -1,0 +1,75 @@
+# Help for each page (cedars/core/page_help.py): publication holds and the publication scan.
+
+snapshots/holds:
+  title: Publication holds
+  see: reviewing
+  guide:
+    - >-
+      Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may
+      be personal information: email addresses, phone numbers, street addresses, Social Security numbers and account numbers. A filing
+      with a hit is held, the public data keep what was published before, and the filing's organization and the CPUC system
+      administrators are told.
+    - The filing's organization sees its own holds here, and those who confirm its filings certify a hold whose findings are not
+      personal information, which releases it. CPUC system administrators see every hold and can release them too.
+  how:
+    - Open a held filing to see which columns matched, how many records, masked examples and the first record IDs.
+    - System administrators change what the scan looks for on the Publication scan settings page.
+  tour:
+    - heading: Waiting
+      title: Waiting
+      text: Filings held by the scan and not yet released or replaced by a corrected version.
+    - heading: Released or replaced
+      title: Released or replaced
+      text: Holds the filing organization certified or an administrator released, with the reason, and holds a newer version replaced.
+
+snapshots/hold:
+  title: A held publication
+  see: reviewing
+  guide:
+    - One confirmed filing whose records the scan for personal information held back from the public dashboards and downloads, what
+      the scan found, and what happens next. Examples are masked; the values themselves are never shown or kept outside the filing.
+  how:
+    - Download the records found for the list of every record behind the findings (record ID, program, column, what the value looks
+      like; never the value), to look into them in the filing.
+    - If the values are personal information, the filing's organization corrects the filing (un-confirm it before the due date, or
+      request a correction after it). The corrected version is scanned in its own right.
+    - If they are not, someone who confirms the organization's filings certifies that with the reason, which releases it (Certify and
+      release). A CPUC system administrator can also release it, or change the scan settings and scan it again.
+  tour:
+    - heading: What the scan found
+      title: What the scan found
+      text: Each column with values that look like personal information, with how many records, masked examples and the first records.
+    - target: "#hold-records"
+      title: Download the records found
+      text: Every record behind the findings as CSV, for the filing's organization to look into. The values are not in it.
+      optional: true
+    - heading: What happens next
+      title: What happens next
+      text: How a held filing is corrected or released.
+      optional: true
+    - heading: Certify it is not personal information
+      title: Certify it
+      text: For those who confirm the organization's filings. Give the reason; the release is audited and the CPUC is told.
+      optional: true
+    - heading: Release it
+      title: Release it
+      text: For CPUC system administrators. Give the reason the values are not personal information; the release is audited.
+      optional: true
+
+snapshots/scan_settings:
+  title: Publication scan settings
+  see: administering
+  guide:
+    - For CPUC system administrators. What the scan for personal information looks for before a filing is published, and the columns
+      it leaves out (keys such as CEInputID that are never personal information). Every change needs a reason and is in the audit log.
+  how:
+    - Tick the patterns to look for, choose the columns to leave out in the two lists (the data dictionary's fields, searched by name or
+      definition) or list them one per line in the box, give the reason and Save.
+    - A change applies to the next publication; open a held filing and scan it again to apply it there.
+  tour:
+    - heading: Look for
+      title: Look for
+      text: The kinds of personal information the scan searches for.
+    - target: "#exempt"
+      title: Columns left out
+      text: Columns the scan skips, compared without case. The two lists above fill this box from the data dictionary.

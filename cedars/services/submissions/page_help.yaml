@@ -1,0 +1,372 @@
+# Help for each page (cedars/core/page_help.py): the filing calendar and requests to correct filings.
+
+submissions/calendar:
+  title: The filing calendar
+  guide:
+    - >-
+      Every filing's due date, budgets, claims and monthly reports, with when each opens. It opens on this year: twelve small months,
+      each due date colored and marked by its filing type (the key above the months says which is which). Point at a date, or move to
+      it with Tab, to see what is due on it. The Month view spells out each day's deadlines; the List view shows them soonest first,
+      over a range of dates.
+    - >-
+      Choose filing types above the calendar; in the List view, due dates too (the last 3 and next 9 months by default). The line
+      above says what is shown, and the page's address keeps your choice, so a copied link shows the same view.
+    - After a due date a confirmed filing is corrected as a new version, through a request to reopen that a CPUC approver decides.
+  how:
+    - Select Year, Month or List to change the view.
+    - >-
+      In the Year view, point at a colored date or move to it with Tab to see its deadlines (Escape hides them), and select it to
+      open its month. Select the year before or after, This year, or enter a year and select Go.
+    - In the Month view, select the month before or after, This month, or enter a month (YYYY-MM) and select Go.
+    - Select Budgets, Claims or Monthly reports to show only those filings; select a chosen type again to take it away, or All types for every filing.
+    - In the List view, select Last 3 and next 9 months, This year or All for the due dates, or enter From and To dates and select Show these dates.
+    - Select a filing to go to its page, where your organization files it.
+    - >-
+      Add a filing (CPUC system administrators) opens a page of what can be set up: a budget filing, a claim year or a year of monthly
+      reports. Setting one up puts its deadlines on the calendar; the calendar itself only changes them.
+    - >-
+      Change beside a deadline (CPUC system administrators) opens its page to change its due date, opening date or notes with a
+      reason (a budget filing's name and program years too), or to cancel that one filing; for everyone else History shows every
+      change made to it. Show canceled filings lists the canceled ones.
+    - >-
+      Filing sets (CPUC system administrators) lists every budget filing, claim year and year of monthly reports set up, each with
+      an Edit link to its set-up page.
+  see: getting-started
+  tour:
+    - target: "#add-filing"
+      title: Add a filing, or edit a filing set
+      text: >-
+        For CPUC system administrators. Add a filing chooses what to set up; its set-up puts it on the calendar. Filing sets lists
+        what is set up, to edit one.
+      optional: true
+    - target: "#calendar-view"
+      title: Year, month or list
+      text: A whole year of small months, one month with each deadline spelled out, or every deadline in a range of dates as a list.
+    - target: "#type-filter"
+      title: Filing types
+      text: Show one filing type or several. The chosen ones are filled and checked; select one again to take it away.
+    - target: "#date-filter"
+      title: Due dates
+      text: In the List view, the last 3 and next 9 months (the default), this calendar year, or every date.
+      optional: true
+    - target: "#custom-range"
+      title: Custom dates
+      text: Any range of due dates. Leave From or To blank to leave that end open.
+      optional: true
+    - target: main p.showing
+      title: What is shown
+      text: How many deadlines match, for which types and dates, with a link back to every deadline.
+    - target: "#year-legend"
+      title: Key
+      text: The color and mark of each filing type. A date split in colors has more than one type due.
+      optional: true
+    - target: "#year-grid"
+      title: The year
+      text: Every month at once. Point at a colored date, or Tab to it, for what is due; select it to open its month.
+      optional: true
+    - target: "#month-grid"
+      title: The month
+      text: Each day with what is due on it, its module and period. Select a filing to open it. Move between months above the calendar.
+      optional: true
+    - target: main table.list
+      title: Deadlines
+      text: Each filing, when it opens and when it is due. Select one to open it, or History (Change for administrators) for its changes.
+      optional: true
+    - heading: Corrections after the due date
+      title: Corrections after the due date
+      text: How a confirmed filing is corrected once its due date has passed.
+      optional: true
+
+submissions/deadline_new:
+  title: Add a filing
+  guide:
+    - >-
+      For CPUC system administrators. A filing goes on the filing calendar when it is set up: a budget filing (one deadline, for any
+      number of program years), a claim year (four quarterly claims and the annual claim) or a year of monthly reports (twelve months and the 13th-month report).
+      Each set-up page asks for the dates and what the filing is priced on, and puts its deadlines on the calendar.
+    - After that a deadline is changed from the calendar, on its own page.
+  how:
+    - Select Set up on what to add. Its set-up page opens.
+  see: getting-started
+  tour:
+    - target: "#setup-choices"
+      title: What can be set up
+      text: Each kind of filing, what it puts on the calendar, and the page that sets it up.
+
+submissions/reopen_requests:
+  title: Requests to correct filings
+  see: reviewing
+  guide:
+    - After its due date a confirmed filing is corrected as a new version, for that organization and period only, and the version filed
+      stays readable. A PA asks to reopen with a reason; a CPUC approver approves or declines it.
+  how:
+    - A CPUC approver chooses Approve reopening or Decline reopening, with a reason.
+  tour:
+    - heading: Waiting for you
+      title: Waiting for you
+      text: Each request with its reason. Approve reopening, or decline with a reason.
+    - heading: Decided
+      title: Decided
+      text: Requests already decided, and by whom.
+      optional: true
+
+submissions/records:
+  title: Correcting records
+  see: correcting-records
+  guide:
+    - >-
+      Single records of an open draft (a filing not yet confirmed, or the new draft an un-confirm or a reopen leaves) are changed,
+      added or deleted here without uploading the whole file again. A confirmed version never changes.
+    - >-
+      Each change is checked as soon as it is saved: the record itself and the records whose checks it can affect. Every other record
+      keeps its findings. The version is then priced again before it is confirmed, and every change is in the audit trail with the
+      record before and after.
+  how:
+    - Start from Records with findings, rejected records first, and choose Correct beside one.
+    - Find a record by its key or any value, then open it to change it or delete it.
+    - Add a record to any table of the filing.
+    - Upload a partial correction (only the changed and new records, with a Delete table for records to remove), preview it, then apply it.
+  tour:
+    - heading: Records with findings
+      title: Records with findings
+      text: >-
+        This version's records that its checks found something on, rejected ones first, each with its rules and a link to correct it.
+        A finding about a whole table (a missing column) is said above them; it is fixed by uploading a corrected file.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: Find a record
+      title: Find a record
+      text: Search by key or any value, in one table or every table. Records filed in an earlier confirmation are found too.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: "Found:"
+      title: What was found
+      text: Each record, where it is, and a link to correct it.
+      optional: true
+    - heading: Add a record
+      title: Add a record
+      text: A form for a new record of the table you choose.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: Upload a partial correction
+      title: Partial corrections
+      text: A file of only the changed and new records; you see every change before it is applied.
+      optional: true  # a confirmed version has no editor, only the reason
+    - target: '#why-not-now'
+      title: Why not now
+      text: Corrections need an open draft; this says what to do instead.
+      optional: true
+
+submissions/record:
+  title: One record
+  see: correcting-records
+  guide:
+    - >-
+      The record's fields, with what its last check found beside the fields concerned. The fields with findings come first, then the
+      key, then the rest in sections (for a measure, the sections of the engine's input field reference). Each field's type and
+      definition are behind its "i" button; a field whose value comes from a value list suggests its codes as you type.
+    - >-
+      Saving checks this record and those whose checks it can affect again, and says what the check found, with a way back to the
+      filing.
+    - >-
+      A record filed in an earlier confirmation is corrected by adding the corrected record to this version, where it stands over the
+      earlier one; its key stays.
+  how:
+    - Type part of a field's name in Find a field to jump to it.
+    - Change the fields and choose Save and check (or Add and check for a new record); the Save bar stays at the bottom of the window.
+    - Delete this record removes it from this version, after you confirm.
+  tour:
+    - target: "#saved"
+      title: Saved
+      text: The change is saved and checked; go back to the filing, or on to the other records with findings.
+      optional: true  # only right after saving
+    - heading: Findings on this record
+      title: Findings
+      text: What the last check found on this record, rejects first, each linked to its field.
+      optional: true
+    - target: "#find-field"
+      title: Find a field
+      text: Type part of a field's name and choose Go to jump to it.
+    - target: "#fields-found"
+      title: Fields with findings
+      text: The fields the last check found something on, first, each with what was found and how to fix it.
+      optional: true  # a record without findings
+    - heading: Fields
+      title: Fields
+      text: >-
+        Every field of the table, in sections; the "i" button beside a field gives its type and definition, and a value list's codes
+        are suggested as you type.
+    - target: "#in-reason"
+      title: Why
+      text: An optional reason, kept with the change in the audit trail.
+    - target: "#save-bar"
+      title: Save
+      text: Save and check, delete the record or cancel; the bar stays at the bottom of the window as you go down the fields.
+
+submissions/record_delete:
+  title: Deleting a record
+  see: correcting-records
+  guide:
+    - >-
+      Deleting a record takes it out of this draft version. The records that refer to it are checked again, and the deletion is in the
+      audit trail with the record as it was. A claim filed in an earlier confirmation is withdrawn instead, never deleted.
+  how:
+    - Choose Delete and check, or Keep it.
+  tour:
+    - target: main table.list
+      title: The record
+      text: Its values, as they stand.
+    - target: "#del-reason"
+      title: Why
+      text: An optional reason, kept in the audit trail.
+
+submissions/correction:
+  title: A partial correction's preview
+  see: correcting-records
+  guide:
+    - >-
+      What applying the file would change, record by record, before anything is changed. Applying it checks the records it changes and
+      those whose checks they affect, and records each change in the audit trail with the file's name and SHA-256.
+    - >-
+      It applies only to the records as they stood when it was previewed: if another correction or upload changed them since, preview
+      it again.
+  how:
+    - Read the changes, or download them all as CSV.
+    - Apply and check, or Do not apply.
+  tour:
+    - heading: What would change
+      title: By table
+      text: How many records each table would have changed, added, deleted or carried in.
+    - heading: Record by record
+      title: Record by record
+      text: Each record, what happens to it, and each field before and after.
+    - heading: Apply it
+      title: Apply it
+      text: Apply the correction, with an optional reason.
+
+submissions/filing_sets:
+  title: Filing sets
+  see: administering
+  guide:
+    - >-
+      Every filing set on the calendar, for CPUC system administrators: each budget filing, claim year and year of monthly reports
+      that has been set up, with how many filings it holds (and how many are canceled), what it has due next and whether anybody has
+      filed for it yet.
+    - >-
+      Edit opens the set's set-up page. There you change what it is priced on, its due dates and who files, cancel one of its filings
+      or restore a canceled one, and remove the whole set while nobody has filed for it.
+  how:
+    - Select Edit beside a filing set to open its set-up page.
+    - Add a filing sets up a new budget filing, claim year or year of monthly reports.
+  tour:
+    - target: main table.filing-sets
+      title: The filing sets
+      text: Each set, its filings, what is due next and whether anybody has filed. Edit opens its set-up page.
+      optional: true
+    - target: main .head-row .actions
+      title: Add a filing
+      text: Set up a new budget filing, claim year or year of monthly reports.
+
+submissions/deadline:
+  title: A filing deadline
+  see: administering
+  guide:
+    - One deadline on the filing calendar, when it opens and is due, its notes and every change made to it, with the reason.
+    - >-
+      A CPUC system administrator changes its due date, opening date and notes here; for a budget filing also its name and its
+      program years (any number of them, until a PA starts filing). Each change needs a reason and is kept in the history; those who
+      follow the filing calendar are told, and reminders are sent again for a new due date.
+    - >-
+      What is due does not change, nor does a claim's or monthly report's period. Any one filing, one quarter's claim, one month's
+      report or one budget filing, is canceled (taken off the calendar, kept here with its history, and restorable) as long as no
+      organization has started it; the rest of its filing set stays as it is. Its filing set's page, linked here, edits the whole set.
+  how:
+    - >-
+      Change this deadline (CPUC system administrators) takes a new name and program years (a budget filing), due date, opening date
+      or notes and the reason, then Save the change.
+    - Cancel the filing takes it off the calendar with a reason; Restore to the calendar puts a canceled one back.
+    - Edit the filing set it belongs to opens the set-up page of its claim year, year of monthly reports or budget filing.
+  tour:
+    - target: "#deadline-facts"
+      title: The deadline
+      text: When it is due and opens, its notes, and the filing's page when a module set it up.
+    - heading: Change this deadline
+      title: Change this deadline
+      text: For CPUC system administrators. A new name or program years (a budget filing), due date, opening date or notes, with the reason.
+      optional: true
+    - heading: Cancel this filing
+      title: Cancel this filing
+      text: Takes this one filing off the calendar, while no organization has started it. The rest of its set stays.
+      optional: true
+    - heading: Restore this filing
+      title: Restore this filing
+      text: Puts a canceled filing back on the calendar.
+      optional: true
+    - heading: History
+      title: History
+      text: Every change to the deadline, oldest first, with the reason given.
+
+submissions/workflow_settings:
+  title: Workflow settings
+  guide:
+    - >-
+      For CPUC system administrators. Each kind of filing (budgets, claims, monthly reports) has two settings: whether a confirmed
+      filing can be corrected after its due date (with an approver's approval, with a reason and no approval, or not at all), and
+      whether a first version can still be confirmed after the due date, marked late.
+    - >-
+      A change applies at once to every filing of that kind. Versions already confirmed or corrected stay as they are. Every change
+      needs a reason, is in the audit log and is listed under its filing type. The filing calendar shows the settings to everyone.
+    - >-
+      When a change leaves program administrators less room than before (corrections harder, or late confirmation refused), the page
+      offers a release note with the change already written in, so you can tell them before their next filing.
+  how:
+    - Open Change the settings under a filing type, choose the settings, give the reason and select Save.
+    - After a change that tightens the rules, select Write a release note to announce it.
+  see: administering
+  tour:
+    - target: "#release-note-offer"
+      title: Tell the program administrators
+      text: Shown after a change that tightens the rules, with a release note started for you.
+      optional: true
+    - target: "#wf-budgets-h"
+      title: Budgets
+      text: How a budget filing may be corrected after its due date, and whether it may be confirmed late.
+    - target: "#wf-claims-h"
+      title: Claims
+      text: The same two settings for claims.
+    - target: "#wf-monthly-h"
+      title: Monthly reports
+      text: The same two settings for monthly reports.
+
+submissions/delegations:
+  title: Approver delegates
+  guide:
+    - >-
+      A CPUC approver names a delegate to decide for them on the days they choose, for example while on leave. The delegate decides
+      correction requests after a due date (budgets, claims, monthly reports) and, for programs, program change requests, in the
+      approver's name; each decision records that it was made as a delegate. Ending a delegation early stops it at once; decisions
+      already made stay as made.
+    - >-
+      A delegate must be a member of the CPUC who can read the module. A CPUC system administrator can name or end a delegate on an
+      approver's behalf, with a reason. Ending a delegation early stops it at once; decisions already made stay as made. Every
+      delegation, and every early end, is in the audit log.
+  how:
+    - Choose the approvals, enter the delegate's email and the first and last day, and select Name the delegate.
+    - Open End early beside a delegation and select End it now to stop it before its last day.
+    - CPUC system administrators enter the approver's email to name a delegate on their behalf, and give the reason.
+  see: reviewing
+  tour:
+    - target: "#name-h"
+      title: Name a delegate
+      text: Who decides for you, in which approvals, and for which days.
+      optional: true
+    - target: "#for-me-h"
+      title: You decide for
+      text: The approvers you decide for, and until when.
+      optional: true
+    - target: "#own-h"
+      title: Your delegates
+      text: The delegates you have named, in force, coming or over, to end early.
+      optional: true
+    - target: "#every-h"
+      title: Every delegation
+      text: For CPUC system administrators, every delegation in force or coming, to end one on an approver's behalf.
+      optional: true
+

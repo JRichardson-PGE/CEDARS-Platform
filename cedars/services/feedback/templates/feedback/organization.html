@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% load feedback_tags %}
+{% block title %}Requests from {{ organisation.code }}'s members{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'feedback:mine' %}">My requests</a></li></ol></nav>
+<div class="page-title"><h1>Requests from {{ organisation.code }}'s members</h1>{% page_help "feedback/organization" %}</div>
+<p>The questions, problems and accessibility barriers that people sent to the CPUC's CEDARS team while acting for {{ organisation.code }}, and where each stands. You can read them and the CPUC's answers; only the sender and the CPUC add to one. Ideas, comments, security concerns and anything a sender kept private are not here.</p>
+{% pager page label="Pages of requests" previous="Newer" next="Older" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Requests from {{ organisation.code }}'s members">
+<table class="list" id="organization-requests">
+  <caption class="sr-only">Requests from {{ organisation.code }}'s members, the most recently active first</caption>
+  <thead><tr><th scope="col">Sent</th><th scope="col">What</th><th scope="col">From</th><th scope="col">Page</th><th scope="col">Message</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for fb in page %}
+  <tr>
+    <td class="nowrap"><a href="{% url 'feedback:request' fb.pk %}">{{ fb.created_at|datetime_words }}<span class="sr-only">: open this request</span></a></td>
+    <td>{{ fb.get_kind_display }}</td>
+    <td>{{ fb.user|person }}</td>
+    <td class="small"><code>{{ fb.page }}</code></td>
+    <td>{{ fb.message|truncatechars:160 }}</td>
+    <td><span class="status {{ fb.status|request_class }}">{{ fb.get_status_display }}</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="6">Nobody acting for {{ organisation.code }} has sent a question, a problem or an accessibility barrier.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page label="Pages of requests" previous="Newer" next="Older" where="below" %}
+{% endblock %}

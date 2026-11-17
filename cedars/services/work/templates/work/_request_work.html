@@ -1,0 +1,13 @@
+{% if can_see %}
+<section class="card" aria-labelledby="work-h" id="request-work">
+  <h2 id="work-h">Work item</h2>
+  {% if item %}
+  <p>This request is joined to <a href="{% url 'work:item' item.pk %}">{{ item.number }}: {{ item.title }}</a> ({{ item.get_status_display }}).</p>
+  {% elif can_propose %}
+  <p>If answering it takes a fix or an improvement, join it to a work item, or propose a new one from it.</p>
+  <p><a class="button" href="{% url 'work:from_request' fb.pk %}">Make or join a work item</a></p>
+  {% else %}
+  <p>This request is not joined to a work item.</p>
+  {% endif %}
+</section>
+{% endif %}

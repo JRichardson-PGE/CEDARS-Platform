@@ -1,0 +1,140 @@
+{% extends "core/base.html" %}
+{% block title %}{{ pack }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li>{% if cost_set %}<a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>{% else %}<a href="{% url 'refdata:index' %}">Data packs</a>{% endif %}</li></ol></nav>
+<div class="page-title"><h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>{% page_help "refdata/detail" %}</div>
+<dl class="facts">
+  <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>
+  <dt>Status</dt><dd><span class="status {{ pack.status|status_tone }}">{{ pack.get_status_display }}</span>{% if pack.published_at %}, published {{ pack.published_at|date_words }} by {{ pack.published_by|person|default:"the system" }}{% endif %}</dd>
+  {% if pack.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ pack.withdrawn_reason }}</dd>{% endif %}
+  {% if pack.acc_year %}<dt>ACC</dt><dd>{{ pack.acc_year }} ACC</dd>{% endif %}
+  {% if cost_set %}<dt>In force</dt><dd>{% if cost_in_force %}Yes, the set in force today{% elif pack.status == "published" %}Not today (its program years are under The set){% elif pack.status == "draft" %}Not until it is published{% else %}No: it was withdrawn{% endif %}</dd>
+  {% else %}<dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>{% endif %}
+  <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
+  {% if manager %}<dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>{% endif %}
+  <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
+  {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
+  {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}
+  <dt>Registered</dt><dd>{{ pack.registered_at|date_words }} by {{ pack.registered_by|person|default:"the system" }}</dd>
+</dl>
+
+{% if cost_set %}
+<section aria-labelledby="set-h">
+<h2 id="set-h">The set</h2>
+<dl class="facts">
+  <dt>Set</dt><dd>{{ cost_set.label }} ({{ cost_set.id }}, version {{ cost_set.version }}){% if cost_set.draft %}. The file is marked draft, so it is never published{% endif %}</dd>
+  <dt>Program years</dt><dd>{{ cost_years }}</dd>
+  <dt>Tests</dt><dd>{% for tid, label in cost_set.tests.items %}{{ tid }}: {{ label }}{% if tid in cost_set.headline %} (headline){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+  <dt>File</dt><dd><a href="{% url 'refdata:cost_test_file' pack.pk %}" download="{{ cost_file }}">Download the set file ({{ cost_file }})</a><br><span class="small">SHA-256 <code>{{ cost_sha }}</code></span></dd>
+</dl>
+<p class="small muted">The file is the set exactly as runs read it. To make a set of your own, download this one and change it: New run takes it
+as your own cost-test set file for an analysis run. A registered set never changes; the CPUC registers a changed set under a new version.</p>
+{% if cost_grid.tests %}
+<h3 id="grid-h">How the tests are built</h3>
+{% include "refdata/_test_grid.html" with grid=cost_grid grid_id="grid" level="4" %}
+{% endif %}
+{% if cost_words %}
+<h3 id="words-h">The set in words</h3>
+<p>Each test as the engine writes it out: what its benefits and costs add up, column by column.</p>
+<pre class="log" tabindex="0" role="region" aria-labelledby="words-h">{{ cost_words }}</pre>
+{% elif cost_problem %}
+<h3 id="words-h">The set in words</h3>
+<p><strong>The engine installed here cannot load this set.</strong> What it says:</p>
+<pre class="log" tabindex="0" role="region" aria-labelledby="words-h">{{ cost_problem }}</pre>
+{% endif %}
+<p><a href="{% url 'refdata:cost_tests' %}">Every cost-test set</a></p>
+</section>
+{% endif %}
+
+{% if etrm %}
+<section aria-labelledby="perm-h">
+<h2 id="perm-h">Permutations</h2>
+<p>{{ permutations|floatformat:"0g" }} published permutations, by Measure Detail ID. Claims check each deemed claim's MeasDetailID against the
+published pack in force: blank fields are filled from it and filed values that differ are flagged.</p>
+<form method="get" class="stack form-narrow" role="search">
+  <div class="field"><label for="mdid">Measure Detail ID (a claim's MeasDetailID)</label><input type="text" id="mdid" name="id" value="{{ mdid }}" maxlength="255"></div>
+  <div class="actions"><button type="submit">Look it up</button></div>
+</form>
+{% if mdid %}
+  {% if permutation %}
+  <h3>{{ permutation.measure_detail_id }}</h3>
+  <p>Measure version {{ permutation.measure_version_id|upper }}, in effect {{ permutation.start_date|date_words|default:"from the start" }} to {{ permutation.end_date|date_words|default:"now" }}.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Permutation values">
+  <table class="list">
+    <caption class="sr-only">The permutation's values under eTRM's column names, and the claims fields each fills</caption>
+    <thead><tr><th scope="col">eTRM column</th><th scope="col">Value</th><th scope="col">Fills</th></tr></thead>
+    <tbody>{% for col, value, fills in values %}<tr><th scope="row">{{ col }}</th><td>{{ value }}</td><td>{{ fills }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>This pack has no permutation {{ mdid }}.</p>{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
+<h2>Tie-outs</h2>
+{% if requirements %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Required checks">
+<table class="list">
+  <caption class="sr-only">Checks this kind of pack must pass before it is published, with the latest result</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Latest result</th></tr></thead>
+  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.words }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date_words }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>This kind of pack needs no tie-out before it is published.</p>{% endif %}
+<p class="small"><a href="{% url 'refdata:checks' %}">The checks each kind of pack needs</a>{% if pack.checks_at_publication is not None %}. This pack keeps the checks it was published under, whatever has changed since{% endif %}.</p>
+{% if report_form %}
+<section class="card" aria-labelledby="rec-h">
+  <h3 id="rec-h">Record a check's result</h3>
+  <p>Upload the JSON report the reconciliation script or the engine's tie-out wrote. The result is read from the report and kept with it.</p>
+  <form method="post" action="{% url 'refdata:record_check' pack.pk %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in report_form %}{{ field.as_field_group }}{% endfor %}
+    {% before_upload guide="reference-data#acceptance-checks" guide_label="how acceptance checks work" rules_note="the report is read for its result, not checked against filing rules" %}
+    <div class="actions"><button type="submit">Record the result</button></div>
+  </form>
+</section>
+{% endif %}
+{% if tie_outs %}
+<h3>Every result</h3>
+<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date_words }}: {{ t.words }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Files</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Files in the manifest">
+<table class="list">
+  <caption class="sr-only">Files in this pack with their SHA-256{% if pack.files > 200 %}, the first 200{% endif %}</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for path, m in files %}<tr><th scope="row"><code>{{ path }}</code></th><td>{{ m.bytes|filesizeformat }}</td><td class="small"><code>{{ m.sha256 }}</code></td></tr>{% endfor %}</tbody>
+</table>
+</div>
+
+{% if manager %}
+{% if pack.status == "draft" %}
+<section class="card" aria-labelledby="act-h">
+  <h2 id="act-h">Publish or discard</h2>
+  {% if outstanding %}<p>Publishing needs a passed result of these checks: {% for r in outstanding %}{{ r.words }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+  <p>Once published, filing runs can use the pack. A published pack is kept for good: it can be withdrawn, never discarded.</p>
+  <form method="post" class="actions">{% csrf_token %}
+    <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>
+    {% if cost_set and engine_here %}<button type="submit" name="action" value="engine_check">Check it with the engine again</button>{% endif %}
+  </form>
+  <details class="discard">
+    <summary>Discard the draft</summary>
+    <p>Discarding deletes the draft and its tie-out results. It cannot be undone; register the files again to start over.</p>
+    <form method="post" class="stack form-narrow">{% csrf_token %}
+      <div class="field"><label for="discard-reason">Why you are discarding it</label><input id="discard-reason" name="reason" type="text" required maxlength="500"></div>
+      <div class="actions"><button type="submit" name="action" value="discard">Discard the draft</button></div>
+    </form>
+  </details>
+</section>
+{% elif pack.status == "published" %}
+<section class="card" aria-labelledby="act-h">
+  <h2 id="act-h">Withdraw</h2>
+  <p>New runs stop using a withdrawn pack. Runs and filings that used it keep naming it, and it stays stored so they can be reproduced.</p>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <div class="field"><label for="withdraw-reason">Why you are withdrawing it</label><input id="withdraw-reason" name="reason" type="text" required maxlength="500"></div>
+    <div class="actions"><button type="submit" name="action" value="withdraw">Withdraw</button></div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

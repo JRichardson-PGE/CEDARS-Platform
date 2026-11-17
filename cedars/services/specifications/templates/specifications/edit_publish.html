@@ -1,0 +1,61 @@
+{% extends "core/base.html" %}
+{% block title %}Publish: {{ v.specification.name }}, {{ v.name }} ({{ v.get_status_display|lower }}){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} ({{ v.get_status_display|lower }})</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_publish" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<section aria-labelledby="checks-h">
+  <h2 id="checks-h">Checks before publishing</h2>
+  {% if problems %}
+  <p>Settle these first:</p>
+  <ul id="publish-problems">{% for p in problems %}<li><span class="status bad">To settle</span> {{ p.text }}
+    {% if p.part == "settings" %}<a href="{% url 'specifications:edit_settings' v.specification.code v.slug %}">Settings</a>{% elif p.part == "fields" %}<a href="{% url 'specifications:edit' v.specification.code v.slug %}">Tables and fields</a>{% elif p.part == "rules" %}<a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a>{% elif p.part == "examples" %}<a href="{% url 'specifications:edit_examples' v.specification.code v.slug %}">Examples</a>{% elif p.part == "changes" %}<a href="{% url 'specifications:edit_changes' v.specification.code v.slug %}">Changes</a>{% endif %}</li>{% endfor %}</ul>
+  {% else %}
+  <p id="publish-problems"><span class="status ok">Passed</span> The tables, fields and settings are consistent, every locked field is
+  kept, every example passes the version's checks, and the version changes something from the one it was copied from.</p>
+  {% endif %}
+  {% url 'specifications:edit_impact' v.specification.code v.slug as impact_url %}
+  <p id="publish-impact">{% if not impact_test %}<span class="status warn">Not run</span> The <a href="{{ impact_url }}">impact test</a> has
+  not been run on this draft: it runs when the version is published, and its result is kept with the version.{% elif impact_stale %}<span
+  class="status warn">Out of date</span> The draft has changed since the <a href="{{ impact_url }}">impact test</a> was run: it runs again
+  when the version is published.{% else %}<span class="status info">Impact test</span> {% with r=impact_test.report %}{% if r.filings %}Of
+  {{ r.records }} record{{ r.records|pluralize }} in {{ r.filings|length }} confirmed filing{{ r.filings|length|pluralize }},
+  {{ r.newly_rejected }} would newly be rejected and {{ r.newly_warned }} newly warned{% else %}No confirmed filing to test against{% endif %}{% endwith %}:
+  <a href="{{ impact_url }}">the impact test</a>.{% endif %}</p>
+</section>
+{% if propose_form %}
+<section aria-labelledby="propose-h" class="card">
+  <h2 id="propose-h">Propose it for comment first (optional)</h2>
+  <p>Proposing freezes the draft and shows it to anyone signed in, with its template and examples. Filers can check a file against it
+  with the pre-upload checker and comment on it, about the whole version, a table or a field, until the last day you give; you answer on
+  its page. Then return it to draft to act on the comments, or publish it as it is once comments close. Subscribers to proposed versions
+  are told. It must pass the checks above first.{% if v.proposals %} It was proposed {{ v.proposals }} time{{ v.proposals|pluralize }} before; its earlier comments stay with it.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:propose' v.specification.code v.slug %}" class="stack form-narrow" novalidate id="propose-form">{% csrf_token %}
+    {% for field in propose_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit"{% if problems %} aria-disabled="true"{% endif %}>Propose {{ v.name }} for comment</button></div>
+  </form>
+</section>
+{% elif v.status == "proposed" and v.open_for_comment %}
+<p id="publish-comments"><span class="status warn">Comments open</span> Comments are open through {{ v.comments_last_day|date_words }}: it can be
+published once they close. To publish sooner, <a href="{% url 'specifications:version' v.specification.code v.slug %}#proposal-h">end the comment period</a> first.</p>
+{% elif v.status == "proposed" %}
+<p id="publish-comments"><span class="status info">Comments closed</span> {{ comment_counts.comments }} comment{{ comment_counts.comments|pluralize }}{% if comment_counts.unanswered %}, {{ comment_counts.unanswered }} not answered{% endif %}: <a href="{% url 'specifications:edit_comments' v.specification.code v.slug %}">read them</a> before publishing it as proposed.</p>
+{% endif %}
+<section aria-labelledby="publish-h" class="card">
+  <h2 id="publish-h">Publish this version</h2>
+  <p>Publishing freezes the version for good, publishes its rules with it and publishes a release note. Filing sets set up from the day
+  it takes effect use it; filings already set up keep their version, for every later upload and correction. The usual notice is
+  {{ notice_days }} days: the earliest day without a reason is {{ earliest|date_words }}.</p>
+  <form method="post" class="stack form-narrow" novalidate id="publish-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary"{% if problems %} aria-disabled="true"{% endif %}>Publish {{ v.name }}</button></div>
+  </form>
+</section>
+{% if v.status == "draft" %}<details id="discard"><summary>Discard this draft</summary>
+  <form method="post" action="{% url 'specifications:discard' v.specification.code v.slug %}" class="row-form">{% csrf_token %}
+    <div class="field"><label for="discard-reason">Why</label><input type="text" id="discard-reason" name="reason" required maxlength="500"></div>
+    <button type="submit">Discard the draft and its rules</button>
+  </form>
+</details>{% endif %}
+{% endblock %}

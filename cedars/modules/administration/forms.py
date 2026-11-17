@@ -1,0 +1,369 @@
+from django import forms
+
+from cedars.core.pickers import MemberField, not_found
+from cedars.core.tick_lists import tick_list
+from cedars.services.accounts import permissions as perms
+from cedars.services.accounts import service
+from cedars.services.accounts.models import Organisation
+
+
+class PersonField(MemberField):
+    """Who to give access to: a member picked from the list, or the email address of anyone with an account (a new member)."""
+
+    default_help = "Pick a member from the list, or type the email address of someone with an account to add them."
+
+    def clean(self, value):
+        try:
+            return super().clean(value)
+        except forms.ValidationError:
+            from django.contrib.auth import get_user_model
+
+            text = (value or "").strip()
+            if "@" in text and get_user_model().objects.filter(email__iexact=text).exists():
+                return text
+            raise forms.ValidationError(
+                f"{not_found(text, self.choice_list(), 'member')} To add someone new, type the email address of their account; "
+                "anyone can create one from the sign-up page.",
+                code="not_found",
+            ) from None
+
+
+class GiveAccessForm(forms.Form):
+    """Give a member (or someone new) several permissions or role templates at once, with one reason: the organization's Members page.
+    Drawn with the prefix "give", so its ids never clash with another form on the page."""
+
+    person = PersonField(label="Who")
+    roles = forms.MultipleChoiceField(label="Roles", required=False)
+    permissions = forms.MultipleChoiceField(label="Permissions", required=False)
+    expires = forms.DateField(label="Expires (optional)", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Reason", required=False, max_length=500, help_text="Recorded with every permission given.")
+
+    def __init__(self, *args, organisation=None, codes=(), templates=(), **kwargs):
+        kwargs.setdefault("prefix", "give")
+        super().__init__(*args, **kwargs)
+        self.templates = list(templates)
+        self.fields["person"].set_organisation(organisation)
+        self.fields["roles"].choices = [(str(t.pk), t.name) for t in self.templates]
+        self.fields["permissions"].choices = [(c, perms.label(c)) for c in codes]
+
+    def clean(self):
+        d = super().clean()
+        if not self.errors and not d.get("roles") and not d.get("permissions"):
+            raise forms.ValidationError("Choose a role or at least one permission.")
+        d["templates"] = [t for t in self.templates if str(t.pk) in (d.get("roles") or [])]
+        return d
+
+    def role_ticks(self):
+        chosen = set(self["roles"].value() or []) if self.is_bound else set()
+        return tick_list(
+            self.add_prefix("roles"),
+            "Roles",
+            [(str(t.pk), t.name, str(t.pk) in chosen, "gives " + perms.labels(t.permissions)) for t in self.templates],
+            id=self.add_prefix("roles"),
+        )
+
+    def permission_ticks(self):
+        chosen = set(self["permissions"].value() or []) if self.is_bound else set()
+        return tick_list(
+            self.add_prefix("permissions"),
+            "Single permissions",
+            [(c, label, c in chosen) for c, label in self.fields["permissions"].choices],
+            id=self.add_prefix("permissions"),
+        )
+
+
+def _module_permission_choices():
+    return [(c, perms.label(c)) for c in perms.module_permissions()]
+
+
+class RoleTemplateForm(forms.Form):
+    """A CPUC system administrator's role template: a name, who it is for and the module permissions it grants."""
+
+    name = forms.CharField(label="Name", max_length=80, help_text="e.g. CPUC reviewer, Evaluator, Implementer, Consultant")
+    description = forms.CharField(
+        label="Who it is for (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}), max_length=1000
+    )
+    kinds = forms.MultipleChoiceField(
+        label="Offered for",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        choices=Organisation.Kind.choices,
+        help_text="The kinds of organization it is offered in. Tick none to offer it in every kind.",
+    )
+    permissions = forms.MultipleChoiceField(
+        label="Permissions it grants",
+        widget=forms.CheckboxSelectMultiple,
+        choices=_module_permission_choices,
+        help_text=("Module permissions only. An organization's administrator, PII access and the CPUC's own roles are granted one by one."),
+    )
+    reason = forms.CharField(label="Reason", max_length=500, required=False)
+
+
+class ReasonForm(forms.Form):
+    reason = forms.CharField(label="Reason", max_length=500)
+
+
+def requestable_permissions() -> list[str]:
+    """What a person may ask for one by one: read and submit for each module, what a new member normally needs (UAT F23). Confirming,
+    approving, administering and PII access are granted by the organization's administrators once the person is a member (the service
+    still accepts any permission, and a role template may include them)."""
+    return [c for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")]
+
+
+class ChooseOrganisationForm(forms.Form):
+    """Ask for access, first step: which organization (a GET form, so it works without scripts)."""
+
+    organisation = forms.ModelChoiceField(
+        label="Organization",
+        queryset=service.requestable_organisations(),
+        empty_label="Choose an organization",
+        to_field_name="code",
+        help_text="The program administrator or other organization you work for or with.",
+    )
+
+
+class RequestAccessForm(forms.Form):
+    """Ask for access, second step: the organization's roles in plain words first (its role templates), single permissions behind a
+    disclosure, and a message (UI review 3, U6)."""
+
+    organisation = forms.ModelChoiceField(queryset=service.requestable_organisations(), to_field_name="code", widget=forms.HiddenInput)
+    roles = forms.MultipleChoiceField(label="Your role", required=False, widget=forms.CheckboxSelectMultiple)
+    permissions = forms.MultipleChoiceField(
+        label="Single permissions",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        choices=[(c, perms.label(c)) for c in requestable_permissions()],
+    )
+    message = forms.CharField(
+        label="Message to whoever decides (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Say who you are and what you need to do, for example: I file our quarterly claims.",
+    )
+
+    def __init__(self, *args, templates=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.templates = {str(t.pk): t for t in templates}
+        self.fields["roles"].choices = [(pk, t.name) for pk, t in self.templates.items()]
+
+    def clean(self):
+        d = super().clean()
+        codes = set(d.get("permissions") or [])
+        for pk in d.get("roles") or []:
+            codes.update(self.templates[pk].permissions)
+        if not codes and not self.errors:
+            raise forms.ValidationError("Choose a role or at least one permission.")
+        d["codes"] = sorted(codes)
+        return d
+
+
+class OrganisationForm(forms.ModelForm):
+    class Meta:
+        model = Organisation
+        fields = ["code", "name", "kind", "pa_type", "federated", "federation_provider"]
+        help_texts = {"pa_type": "Required for a program administrator: IOU, REN or CCA. Leave blank for the CPUC or another organization."}
+
+    def clean(self):
+        d = super().clean()
+        if d.get("kind") == Organisation.Kind.PA and not d.get("pa_type"):
+            self.add_error("pa_type", "Choose the program administrator's type: IOU, REN or CCA.")
+        if d.get("kind") and d.get("kind") != Organisation.Kind.PA and d.get("pa_type"):
+            self.add_error("pa_type", "Only a program administrator has a PA type. Leave it blank.")
+        return d
+
+
+class OrganisationDetailsForm(forms.Form):
+    """A CPUC system administrator's change to an organization's name, PA type or whether it manages statewide allocations, with a
+    reason (audited)."""
+
+    name = forms.CharField(label="Name", max_length=200)
+    pa_type = forms.ChoiceField(label="PA type", choices=Organisation.PAType.choices, required=False)
+    manages_allocation = forms.BooleanField(
+        label="Manages statewide allocations",
+        required=False,
+        help_text="Its administrators can grant members the permission to load and confirm statewide allocation factors.",
+    )
+    manages_backlog = forms.BooleanField(
+        label="Manages the backlog of work items",
+        required=False,
+        help_text="For the developer's organization. Its administrators can grant members the permission to write up work items "
+        "and order the backlog. Declining a work item and making one public still take the CPUC's approval.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500)
+
+    def __init__(self, *args, org: Organisation, **kwargs):
+        super().__init__(*args, **kwargs)
+        if org.kind == Organisation.Kind.PA:
+            self.fields["pa_type"].choices = [("", "Choose a type"), *Organisation.PAType.choices]
+            self.fields["pa_type"].required = True
+        else:
+            del self.fields["pa_type"]
+            del self.fields["manages_allocation"]
+        if org.kind != Organisation.Kind.OTHER:
+            del self.fields["manages_backlog"]
+
+
+DATE = forms.DateInput(attrs={"type": "date"})
+
+
+class RenameForm(forms.Form):
+    """A CPUC system administrator gives an organization a new code from a date (audited, with a reason)."""
+
+    code = forms.CharField(label="New code", max_length=20, help_text="Letters, digits, hyphens or underscores, e.g. AVA")
+    name = forms.CharField(label="New name (optional)", max_length=200, required=False, help_text="Leave blank to keep the name")
+    effective = forms.DateField(
+        label="First day under the new code", widget=DATE, help_text="Records for earlier dates keep the old code as filed"
+    )
+    reason = forms.CharField(label="Reason for the rename", max_length=500)
+
+
+class FormerCodeForm(forms.Form):
+    """A code the organization used before its current one, and when."""
+
+    code = forms.CharField(label="Former code", max_length=20)
+    since = forms.DateField(label="First day it was used (optional)", widget=DATE, required=False, help_text="Leave blank: from the start")
+    until = forms.DateField(label="First day under the next code", widget=DATE)
+    reason = forms.CharField(label="Reason", max_length=500)
+
+
+class MergeForm(forms.Form):
+    """Another organization that is the same party, recorded under an old code, merged into this one."""
+
+    source = forms.ModelChoiceField(label="Organization recorded under the old code", queryset=Organisation.objects.none())
+    effective = forms.DateField(
+        label="First day under this organization's code (optional)",
+        widget=DATE,
+        required=False,
+        help_text="Leave blank: the day this code came into use, else today",
+    )
+    reason = forms.CharField(label="Reason for the merge", max_length=500)
+
+    def __init__(self, *args, org: Organisation, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["source"]
+        field.queryset = Organisation.objects.filter(kind=org.kind, successor__isnull=True).exclude(pk=org.pk).exclude(kind="cpuc")
+        field.label_from_instance = lambda o: f"{o.code} ({o.name})"
+
+
+class RecertificationForm(forms.Form):
+    due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
+
+
+class PolicyForm(forms.Form):
+    recertification_auto_suspend = forms.BooleanField(label="Suspend grants not certified by the due date", required=False)
+    recertification_interval_days = forms.IntegerField(label="Days between recertifications", min_value=30, max_value=1095)
+    reason = forms.CharField(label="Reason for the change", max_length=500)
+
+
+class PolicyChangeForm(forms.Form):
+    value = forms.TypedChoiceField(
+        label="PII only for federated organizations and sessions",
+        choices=[("true", "Required"), ("false", "Not required")],
+        coerce=lambda v: v == "true",
+    )
+    reason = forms.CharField(label="Reason", max_length=500)
+
+
+class AuditFilterForm(forms.Form):
+    """The audit log's filters, each list holding only what the log has: actions (each family, such as every grant action, then each
+    action), record types and organizations, with a date range and the actor."""
+
+    # lists to choose from; any value is still taken, so an earlier link's "action starts with" (?action=grant) keeps working
+    action = forms.CharField(label="Action", required=False, widget=forms.Select)
+    object_type = forms.CharField(label="Record type", required=False, widget=forms.Select)
+    organisation = forms.CharField(label="Organization", required=False, widget=forms.Select)
+    actor = forms.CharField(label="Actor email contains", required=False)
+    since = forms.DateField(label="From", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    until = forms.DateField(label="To", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, actions=(), types=(), organisations=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        families = sorted({a.split(".")[0] for a in actions if "." in a})
+        self.fields["action"].widget.choices = [
+            ("", "Any action"),
+            ("Every action of a kind", [(f"{f}.", f"{f}: every action") for f in families]),
+            ("One action", [(a, a) for a in actions]),
+        ]
+        self.fields["object_type"].widget.choices = [("", "Any record type"), *[(t, t) for t in types]]
+        self.fields["organisation"].widget.choices = [("", "Any organization"), *[(o.code, f"{o.code}: {o.name}") for o in organisations]]
+
+    def clean(self):
+        d = super().clean()
+        if d.get("since") and d.get("until") and d["since"] > d["until"]:
+            self.add_error("until", "To is before From.")
+        return d
+
+
+class AllocationUploadForm(forms.Form):
+    file = forms.FileField(
+        label="Factor file (CSV, the template's layout)",
+        help_text="PercentElectric is required on every row. Values may have at most 4 decimal places; the weighted factors are computed.",
+    )
+    label = forms.CharField(label="Name", max_length=120, help_text="e.g. 2028 TUAL, or PY2028 claims revision")
+    purpose = forms.ChoiceField(label="For", choices=[("filing", "A budget filing"), ("claims", "Claims")])
+    cycle = forms.IntegerField(label="Filing cycle's first year (optional)", required=False, min_value=2000, max_value=2100)
+    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
+class GoalSetUploadForm(forms.Form):
+    file = forms.FileField(label="Goal file (CSV, one row per IOU and period)")
+    rules = forms.FileField(label="Counting rule file (CSV, optional)", required=False)
+    decision = forms.CharField(label="Decision", max_length=40, help_text="e.g. D.25-08-034")
+    adopted = forms.DateField(label="Adopted on", help_text="YYYY-MM-DD", widget=forms.DateInput(attrs={"type": "date"}))
+    url = forms.URLField(label="Link to the decision (optional)", required=False, max_length=400, assume_scheme="https")
+    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
+class ApiTokenForm(forms.Form):
+    name = forms.CharField(label="Name", max_length=100, help_text="What will use it, e.g. our claims system")
+    organisation = forms.ChoiceField(label="Acting for")
+    scopes = forms.MultipleChoiceField(
+        label="Modules it may reach", widget=forms.CheckboxSelectMultiple, choices=list(perms.MODULES.items())
+    )
+    days = forms.TypedChoiceField(
+        label="Lasts", coerce=int, choices=[(30, "30 days"), (90, "90 days"), (180, "180 days"), (365, "1 year")], initial=90
+    )
+
+    def __init__(self, *args, organisations=(), max_days=365, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organization: my own calculations")]
+        self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]
+
+
+class NameForm(forms.Form):
+    """The name the pages show for a person; a CPUC system administrator correcting someone else's gives a reason."""
+
+    name = forms.CharField(
+        label="Full name", max_length=200, required=False, help_text="As colleagues know you. Blank shows your email address instead."
+    )
+    reason = forms.CharField(label="Reason for the correction", max_length=500, required=False)
+
+    def __init__(self, *args, correcting=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if correcting:
+            self.fields["name"].help_text = "Blank shows their email address instead."
+            self.fields["reason"].required = True
+        else:
+            del self.fields["reason"]
+
+
+class PeopleFilterForm(forms.Form):
+    q = forms.CharField(label="Name or email", required=False, max_length=200)
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Every account"), ("active", "Active"), ("deactivated", "Deactivated"), ("community", "In no organization")],
+    )
+
+
+class FederationForm(forms.Form):
+    """Whether an organization's members sign in through its own directory, and the provider they use."""
+
+    federated = forms.BooleanField(label="Its members sign in through the organization's own directory", required=False)
+    provider = forms.CharField(
+        label="Sign-in provider id",
+        max_length=100,
+        required=False,
+        help_text="The directory's provider id, as the platform's operators set it up. Needed when its members sign in through it.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500)

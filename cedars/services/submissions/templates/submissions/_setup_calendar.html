@@ -1,0 +1,107 @@
+{# The calendar part of a set-up page (submissions/setup.py): its filings (cancel or restore one), due dates, who files, and Remove this set-up while nobody has filed for it. #}
+<section class="card" aria-labelledby="set-spec-h" id="setup-specification">
+  <h2 id="set-spec-h">Filing specification</h2>
+  <p>{% if spec_pinned %}Its filings follow {% for v in spec_pinned %}<a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }}</a>{% if not forloop.last %} and {% endif %}{% endfor %},
+  for every upload, check and correction.{% else %}Its filings follow no filing specification version.{% endif %}
+  {% if spec_later %}A later version is in effect: <a href="{{ spec_move_url }}">move {{ setup_what }} to it</a>, after seeing how its confirmed
+  filings would fare.{% elif spec_pinned %}It can move to a later version once one is published and in effect.{% endif %}</p>
+</section>
+<section class="card" aria-labelledby="set-filings-h" id="setup-filings">
+  <h2 id="set-filings-h">Filings in this set</h2>
+  <p>Each filing {{ setup_what }} put on the <a href="{% url 'submissions:calendar' %}">filing calendar</a>. Cancel one the CPUC no
+  longer asks for and the rest of the set stays as it is: no filing can start for it and no reminders are sent, and it can be restored.
+  A filing an organization has started cannot be canceled, since what was filed is kept. Select Change to change one filing's dates
+  or notes on its calendar page.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="set-filings-h">
+  <table class="list">
+    <caption class="sr-only">The filings of {{ setup_what }}, their due dates and status</caption>
+    <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="num">Started by</th><th scope="col">Change</th></tr></thead>
+    <tbody>
+    {% for r in filing_rows %}
+    <tr>
+      <th scope="row">{{ r.label }}</th>
+      <td class="due"><time datetime="{{ r.d.due_at|date:'c' }}">{{ r.d.due_at|date_words }}</time></td>
+      <td>{% if r.canceled %}<span class="status warn">Canceled</span> <span class="small">{{ r.d.retired_at|date_words }}: {{ r.d.retired_reason }}</span>{% else %}<span class="status ok">On the calendar</span>{% endif %}</td>
+      <td class="num">{{ r.started }}</td>
+      <td><a href="{% url 'submissions:deadline' r.d.pk %}">Change<span class="sr-only"> {{ r.label }}</span></a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if cancel_form.deadlines or restore_form.deadlines %}
+  <details class="other-filters setup-fold" id="cancel-restore"{% if cancel_form.errors or restore_form.errors %} open{% endif %}>
+    <summary>{% if cancel_form.deadlines %}Cancel one filing{% if restore_form.deadlines %} or restore a canceled one{% endif %}{% else %}Restore a canceled filing{% endif %}</summary>
+  {% if cancel_form.deadlines %}
+  <h3 id="cancel-filing-h">Cancel one filing</h3>
+  <form method="post" class="stack form-narrow" novalidate aria-labelledby="cancel-filing-h" id="cancel-filing-form">{% csrf_token %}
+    <input type="hidden" name="action" value="cancel">
+    {% if cancel_form.non_field_errors %}<div class="alert" role="alert">{{ cancel_form.non_field_errors }}</div>{% endif %}
+    {{ cancel_form.filing.as_field_group }}
+    {{ cancel_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Cancel the filing</button></div>
+  </form>
+  {% endif %}
+  {% if restore_form.deadlines %}
+  <h3 id="restore-filing-h">Restore a canceled filing</h3>
+  <form method="post" class="stack form-narrow" novalidate aria-labelledby="restore-filing-h" id="restore-filing-form">{% csrf_token %}
+    <input type="hidden" name="action" value="restore">
+    {% if restore_form.non_field_errors %}<div class="alert" role="alert">{{ restore_form.non_field_errors }}</div>{% endif %}
+    {{ restore_form.filing.as_field_group }}
+    {{ restore_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Restore the filing</button></div>
+  </form>
+  {% endif %}
+  </details>
+  {% endif %}
+  {% if not cancel_form.deadlines %}<p class="small" id="nothing-to-cancel">No filing can be canceled: {% if filing_rows %}each one is canceled already or an organization has started it{% else %}the set has none{% endif %}.</p>{% endif %}
+</section>
+<section class="card" aria-labelledby="due-dates-h" id="setup-due-dates">
+  <h2 id="due-dates-h">Due dates</h2>
+  <p>Change any due date still to come. It moves on the <a href="{% url 'submissions:calendar' %}">filing calendar</a> as if changed
+  there: those who follow the calendar are told, and reminders are sent again for the new date. A date already passed moves on its own
+  page of the calendar.</p>
+  {% if due_form.past %}<ul class="small" id="past-due-dates">{% for d in due_form.past %}<li>{{ d.title }}{% if d.period %}, {{ d.period }}{% endif %}: was due <time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time> (<a href="{% url 'submissions:deadline' d.pk %}">its calendar page<span class="sr-only"> for {{ d.title }}{% if d.period %}, {{ d.period }}{% endif %}</span></a>)</li>{% endfor %}</ul>{% endif %}
+  {% if due_form.coming %}
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    <input type="hidden" name="action" value="due">
+    {% if due_form.non_field_errors %}<div class="alert" role="alert">{{ due_form.non_field_errors }}</div>{% endif %}
+    {% for field in due_form.date_fields %}{{ field.as_field_group }}{% endfor %}
+    {{ due_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Save the due dates</button></div>
+  </form>
+  {% else %}<p>Every due date has passed.</p>{% endif %}
+</section>
+{% if filers_form.deadlines %}
+<section class="card" aria-labelledby="who-files-h" id="setup-filers">
+  <h2 id="who-files-h">Who files</h2>
+  <p>Not every program administrator files every filing. Tick those expected to file {{ setup_what }}: only they can start a filing for
+  it, and only they are listed on the <a href="{% url 'core:filings' %}">Filings page's status</a>. A PA that has started filing
+  stays on it, since what it filed is kept.</p>
+  {% if filers_form.started %}<p class="small" id="filers-started">Started filing: {% for o in filers_form.started %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    <input type="hidden" name="action" value="filers">
+    {% if filers_form.non_field_errors %}<div class="alert" role="alert">{{ filers_form.non_field_errors }}</div>{% endif %}
+    {{ filers_form.pas.as_field_group }}
+    {{ filers_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Save who files</button></div>
+  </form>
+</section>
+{% endif %}
+<section class="card" aria-labelledby="remove-setup-h" id="remove-setup">
+  <h2 id="remove-setup-h">Remove this set-up</h2>
+  {% if removable %}
+  <p>Takes {{ setup_what }} off the filing calendar for good, its set-up and every one of its deadlines, for one set up by mistake.
+  Nobody has filed for it yet. The audit trail keeps what was removed and why. It can be set up again afterward.</p>
+  <details class="other-filters setup-fold"{% if remove_form.errors %} open{% endif %}>
+    <summary>Remove {{ setup_what }}</summary>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    <input type="hidden" name="action" value="remove">
+    {{ remove_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Remove {{ setup_what }}</button></div>
+  </form>
+  </details>
+  {% else %}
+  <p>An organization has started filing for {{ setup_what }}, so it cannot be removed: what was filed is kept. Its due dates can still change.</p>
+  {% endif %}
+</section>

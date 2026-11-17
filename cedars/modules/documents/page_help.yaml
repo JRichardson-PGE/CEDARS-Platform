@@ -1,0 +1,432 @@
+# Help for each page (cedars/core/page_help.py): the document library, EM&V studies, work orders, comments and subscriptions.
+
+documents/library:
+  title: The document library
+  guide:
+    - PA documents, CPUC staff guidance, DEER resources, program files and EM&V documents in one library. Published documents are open to
+      everyone; drafts are seen only by the people who manage them.
+    - The list comes first. Beside it on a wide screen (below it on a narrow one), Key dates lists what is coming up and what passed in the
+      last 30 days, and Open for comment now lists the documents taking comments. A search shows its results only.
+  how:
+    - Search by text and collection; More filters narrows by program, year, dates and the attributes documents are filed with.
+    - Under More filters, each list of values (sector, study type, cycle and the rest) is folded and says what is ticked. Open one to tick
+      values; a long list has a box that narrows it as you type.
+    - Follow a collection or value from My document subscriptions to hear when a matching document is published.
+    - Evaluation studies and work orders have their own pages, linked at the top.
+  see: documents
+  tour:
+    - target: main .head-row .button
+      title: File a document
+      text: For the people who manage a collection.
+      optional: true
+    - target: main form.filters
+      title: Search
+      text: Text, collection and type. More filters adds program, year, dates and attributes.
+    - target: main table.list
+      title: The documents
+      text: Newest publication first. Select a title to open the document and its versions.
+      optional: true
+    - target: "#dates-h"
+      title: Key dates
+      text: Dates coming up and those in the last 30 days, such as comment deadlines and workshops.
+      optional: true
+    - target: "#open-h"
+      title: Open for comment now
+      text: Documents taking comments or questions, and until when.
+      optional: true
+
+documents/document:
+  title: A document
+  guide:
+    - One document, its current version and files, its details, and every earlier version. Published versions are public and never change;
+      a revision is a new version.
+    - An EM&V deliverable (a workplan or study results) moves through its stages (drafts, comments, final, PA responses) as versions of one
+      document, with its revision history and, after the final, the PAs' responses to its recommendations.
+  how:
+    - Comments and responses (when the document takes them) is where questions are asked and answered in public.
+    - Its managers add a version, change the details, publish a version and see its downloads.
+  see: documents
+  tour:
+    - target: main .head-row .actions
+      title: Manage the document
+      text: Add a version, change the details or see the downloads. For the document's managers.
+      optional: true
+    - target: "#current-h"
+      title: The current version
+      text: Its stage, when it was published, and its files.
+    - target: "#details-h"
+      title: Details
+      text: Collection, type, programs, years and the other attributes it is filed with.
+    - target: "#versions-h"
+      title: Versions
+      text: Every version (for a deliverable, the revision history), with its files.
+    - target: "#responses-h"
+      title: PA responses
+      text: The PAs asked to respond to the recommendations, their due dates and where each response stands.
+      optional: true
+
+documents/comments:
+  title: Comments and responses
+  guide:
+    - Comments and questions on a document, version by version, with the responses from CPUC Energy Division, the PAs and the evaluator.
+      They are public, with their author's name and organization.
+    - While a version's comment period is open, anyone signed in can comment or ask a question, and withdraw their own. The document's
+      managers open and change comment periods, and respond.
+  how:
+    - The comment-and-response report (CSV) lists every comment with its response.
+  see: documents
+  tour:
+    - target: main .head-row a
+      title: The report
+      text: Every comment and response as a CSV.
+    - target: "#comment-form-h"
+      title: Comment or ask a question
+      text: Your subject, whether it is a comment or a question, the text and any file. Signed in only, while the comment period is open.
+      optional: true
+    - target: main section h2[id^=version-]
+      title: By version
+      text: Each version's comment period and its comments, each with its responses.
+      optional: true
+
+documents/new:
+  title: Filing a document
+  guide:
+    - File a document in a collection you manage, in four short steps on one page. The collection is named at the top of step 1, with links
+      to file in another of yours instead. It starts unpublished unless you publish it now; publish it from its page when it is ready.
+    - Uploading for a study fills in the study and lists the document on the study's page; adding one to a program fills in the program.
+    - >-
+      An implementation plan filed before the full plan is ready is ticked as a placeholder. The program's page and the document's page
+      then say the full plan is still to come; it arrives as a later version of the same document.
+  how:
+    - Step 1, what it is (its type, title and summary). Step 2, what it covers (the PAs, programs, years and, for EM&V, the study).
+    - Step 3, its values from the collection's lists. Each list is folded and says what is ticked; open one to tick values.
+    - Step 4, the files, and a comment period if the public may comment. Then File the document.
+    - Pick each program from the list as you type a PrgID or part of its name; untick one to drop it.
+  see: documents
+  tour:
+    - target: "#step-what"
+      title: What it is
+      text: The collection, the document's type, its title and summary.
+    - target: "#step-covers"
+      title: What it covers
+      text: The PAs it applies to, its programs and years, and for EM&V its study and work order.
+    - target: "#step-lists"
+      title: Its values from the lists
+      text: Each of the collection's lists, folded; open one to tick the values that apply.
+      optional: true
+    - target: "#step-files"
+      title: The files
+      text: The main file, any attachments, and a comment period. File the document saves it.
+
+documents/change:
+  title: Changing a document's details
+  guide:
+    - Change a document's title and attributes. The change is recorded with its reason and what each field was before. The files do not
+      change here; add a version to replace them.
+  how:
+    - Change what it is, what it covers or its values from the lists, give the reason, and Save the change. Add a version to replace the
+      files.
+  see: documents
+  tour:
+    - target: main form
+      title: The details
+      text: What it is, what it covers and its values from the lists, then the reason. Save the change.
+
+documents/version_new:
+  title: Adding a version
+  guide:
+    - The new files become the document's next version. Every earlier version stays listed and downloadable from the document's page. For an
+      EM&V deliverable, choose the stage, the same one for another draft or a revised final, or a later one.
+    - >-
+      For an implementation plan, tick This is a placeholder plan only when the full plan is still to come. The version that brings the
+      full plan is left unticked, and the program's page stops showing the plan as a placeholder once it is published.
+  how:
+    - Choose the files and, for an EM&V deliverable, the stage, then Add the version.
+  see: documents
+  tour:
+    - target: main form
+      title: The version
+      text: The stage (for a deliverable), the files and what changed. It starts unpublished.
+
+documents/downloads:
+  title: A document's downloads
+  guide:
+    - Every download of the document's files, and every view in the browser, newest first. Each is an event in the audit trail. Downloads by
+      people who were not signed in are counted as public.
+  see: documents
+  tour:
+    - target: main table.list
+      title: Downloads
+      text: When, which file and version, and by whom.
+      optional: true
+
+documents/response_new:
+  title: Responding to recommendations
+  guide:
+    - A PA's response to an EM&V study's recommendations, kept as a version of the deliverable at the stage PA response. Once published it
+      is public and never changes; a revised response is a further version with its reason.
+  how:
+    - Choose the response's files and File the response.
+  see: documents
+  tour:
+    - target: main ul
+      title: Who is asked
+      text: The PAs asked to respond and where each stands.
+    - target: main form
+      title: The response
+      text: The PA it is for and the file. File the response.
+
+documents/lists:
+  title: Document value lists
+  guide:
+    - The values a document can be filed with, each collection's document types, and the attributes the Public Document Area used for
+      EM&V documents. CPUC Energy Division keeps them. One row for each list, with where it is used and how many values it offers; open
+      a list to see its values.
+  how:
+    - Open a list to see its values. Its keepers add, correct, retire and reinstate values there.
+  see: documents
+  tour:
+    - target: main table.list
+      title: The lists
+      text: Each list, where it is used, whether a document carries one value or several, and how many values are offered and retired.
+
+documents/list:
+  title: A document value list
+  guide:
+    - One list's values, each offered or retired. A retired value stays on the documents filed with it and in search but is not offered
+      for new ones; a value is never deleted.
+  how:
+    - Add a value to the list; Retire one to stop offering it, or Reinstate it.
+    - Correct a value's label with a reason and Save; documents filed with it show the new label.
+  see: documents
+  tour:
+    - target: main table.list
+      title: The values
+      text: Each value and whether it is offered. Its keepers correct a label, retire or reinstate a value here.
+    - heading: Add a value
+      title: Add a value
+      text: A new value for the list, with a reason.
+      optional: true
+
+documents/legacy_links:
+  title: Old CEDARS links
+  guide:
+    - The document addresses of the old CEDARS site, each leading to the document (and file) it now opens here, so a link in a decision,
+      a report or an email still works. CPUC Energy Division's document administrators keep them.
+    - When an old link leads to the wrong document or file, open it and repoint it, with the reason; the audit trail keeps what it led to
+      before.
+  how:
+    - Search by the old address or the document's title, then open a link to repoint it.
+  see: documents
+  tour:
+    - target: main form.filters
+      title: Find a link
+      text: Words from the old address or from the document's title.
+    - target: "#links-count"
+      title: How many
+      text: How many old links match, and how many are shown.
+    - target: main table.legacy-links
+      title: The links
+      text: Each old address, the document and file it opens, and a link to repoint it.
+      optional: true
+
+documents/legacy_link:
+  title: Repoint an old link
+  guide:
+    - One address of the old CEDARS site and the document it opens here. Point it at another document, or at one of a document's files by
+      its name, and give the reason; the audit trail keeps the change.
+  how:
+    - Enter the document's number, a file name if the link should open one file, and the reason, then Repoint the link.
+  see: documents
+  tour:
+    - target: "#link-now"
+      title: Where it leads now
+      text: The old address, the document and file it opens today.
+    - target: "#repoint-h"
+      title: Repoint it
+      text: The document (and file) it should open instead, and why.
+
+documents/subscriptions:
+  title: Your document subscriptions
+  guide:
+    - Follow a collection, or any value documents are filed with, and you hear when a matching document is published (with its comment
+      period, if it has one) and when a published document opens for comment. Studies and work orders are followed from their own pages.
+    - Messages land on your notifications page, and by email as you choose.
+  how:
+    - Tick the collections to follow. Each list of values is folded and says what you follow in it. Open it to tick values (a long list
+      has a box that narrows it), then Save my subscriptions. Stop following ends a study or work order.
+  see: documents
+  tour:
+    - target: "#choose-h"
+      title: Collections and values
+      text: Tick what to follow, and how the messages come.
+    - target: "#followed-h"
+      title: Studies and work orders
+      text: The ones you follow, each with Stop following.
+
+documents/subscribers:
+  title: Document subscribers
+  guide:
+    - For CPUC staff. What is followed and by whom, the most followed first, and every subscription as a CSV.
+  see: documents
+  tour:
+    - target: main table.list
+      title: Subscriptions
+      text: Each collection, value, study or work order followed, and how many follow it.
+      optional: true
+
+documents/studies:
+  title: Evaluation studies
+  guide:
+    - The EM&V study register, every study with its ID, title, status, lead and budget, replacing the Project Status Report. Published
+      details are public; contacts and the PSR's own fields are not.
+    - The activity panel lists the next activities due and the studies updated recently. Search and filter by text, program, sector,
+      status, lead, type, study manager, funding cycle and program.
+  how:
+    - Study budgets compiles each EM&V plan's tables; the aging review lists what each study manager owes.
+  see: documents
+  tour:
+    - target: main .head-row .button
+      title: Add a study
+      text: For CPUC Energy Division.
+      optional: true
+    - heading: "Activity:"
+      title: Activity
+      text: Next activities due and recent updates. Open it to see them.
+    - target: main form.filters
+      title: Search and filter
+      text: Words, a study ID, work order or CALMAC ID, and the cycle, status, sector, lead, type, manager or program, then Apply.
+    - target: main table.list
+      title: The studies
+      text: Newest first. Select a study's title to open it.
+      optional: true
+
+documents/study:
+  title: An evaluation study
+  guide:
+    - One EM&V study, its facts (ID, status, lead, budget, cycles, sectors), what it sets out to do, the programs and program years it
+      evaluates, its documents (workplans, drafts, finals, responses) and its history of changes.
+    - Follow it to hear when its documents are published. Its managers update the study, name the programs it evaluates and upload its
+      documents.
+  how:
+    - Follow the study to hear when its status changes and its documents are published.
+    - Its managers Update the study, add or Remove the programs it evaluates, and Upload a document.
+  see: documents
+  tour:
+    - target: "#facts-h"
+      title: The study
+      text: Its facts, description, objective, research questions and methods. Contacts are shown only to staff.
+    - target: "#programs-h"
+      title: Programs evaluated
+      text: Each program and the program years covered; each program's page lists the study too.
+    - target: "#docs-h"
+      title: Documents
+      text: The study's workplans, results and responses.
+    - target: "#history-h"
+      title: History
+      text: Every change in plain words, newest first, with its reason.
+    - target: main .head-row .actions
+      title: Follow, update and upload
+      text: Follow the study, and for its managers update it or upload a document.
+      optional: true
+
+documents/study_form:
+  title: Adding or updating a study
+  guide:
+    - The study's facts and plans, in short parts. A new study's ID is made from its first funding cycle's first year, its first sector and
+      its number, as the Project Status Report makes it, and never changes. Each change is recorded with its reason; status and budget
+      changes show in the history. Everything except the contacts is public.
+  how:
+    - Fill in the study, its budget and work order, what it studies and what comes next. Give the reason for a change, and save.
+    - Sectors and funding cycles are folded lists that say what is ticked; open one to tick values.
+  see: documents
+  tour:
+    - target: main form
+      title: The study
+      text: The study, its budget, what it studies, what comes next, notes and contacts. Everything except the contacts is public.
+    - heading: Upload a document
+      title: A document too
+      text: Optionally upload a document for the study at the same time.
+      optional: true
+
+documents/summary:
+  title: Study budgets
+  guide:
+    - The study lists and budget tables each EM&V plan compiles, from the register, the number of studies and their budgets by type,
+      sector, lead, status and group, planned against completed. Canceled studies are left out. A study with several sectors counts in each
+      sector, so that table can add up to more than the total.
+  see: documents
+  tour:
+    - target: main form.filters
+      title: The cycle
+      text: Choose the funding cycle.
+    - target: dl.tiles, main .tile
+      title: Totals
+      text: Studies and budget over the cycle.
+      optional: true
+    - target: main h2[id^=t-]
+      title: The tables
+      text: One table per breakdown, by type, sector, lead, status and group.
+      optional: true
+
+documents/aging:
+  title: The aging review
+  guide:
+    - What each study manager owes, and for how long. Unpublished drafts of a study's documents, next activities past their due date,
+      questions left unanswered after their comment period closed, and active studies not updated for a while. PAs asked to respond to
+      recommendations are listed for responses past their due date. Drafts are never deleted; they stay here until they are published.
+  see: documents
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: Which kind of item to show, and after how many days a study counts as stale.
+    - target: "#owners-h"
+      title: By study manager
+      text: What each owes, the longest wait first.
+    - target: "#items-h"
+      title: Every item
+      text: Each item waiting, the longest wait first.
+
+documents/work_orders:
+  title: Work orders
+  guide:
+    - Energy Division's contract work orders and their tasks. EM&V documents and studies are filed under them. CPUC Energy Division keeps
+      this list.
+  how:
+    - Add the work order (Energy Division); its tasks are added on its page.
+  see: documents
+  tour:
+    - target: main table.list
+      title: The work orders
+      text: Each work order with its tasks. Select one to open it.
+    - heading: Add a work order
+      title: Add a work order
+      text: For CPUC Energy Division.
+      optional: true
+
+documents/work_order:
+  title: A work order
+  guide:
+    - One work order, its tasks, the studies and the documents filed under it. Follow it to hear when its documents are published.
+  how:
+    - Add the task to the work order.
+    - To cancel the work order, open Cancel the work order at the end of the page, give the reason, and Mark the work order canceled.
+      A canceled one is reinstated the same way.
+  see: documents
+  tour:
+    - target: main .head-row .actions
+      title: Follow
+      text: Hear when the work order's documents are published.
+    - target: "#tasks-h"
+      title: Tasks
+      text: The work order's tasks.
+    - target: "#studies-h"
+      title: Studies
+      text: The studies filed under it.
+    - target: "#docs-h"
+      title: Documents
+      text: The documents filed under it.
+    - target: "#wo-status"
+      title: Cancel or reinstate
+      text: For CPUC Energy Division, folded away at the end of the page; the reason is kept with the work order.
+      optional: true

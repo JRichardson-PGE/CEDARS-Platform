@@ -1,0 +1,192 @@
+# Help for each page (cedars/core/page_help.py): the test lead's pages and the tester's.
+
+testing/manage:
+  title: Testing
+  guide:
+    - For CPUC system administrators acting as test lead, on the sites where testing is switched on (the sandbox and test sites). A
+      round of testing uses one loaded version of the test scripts. You open the round, assign each script to testers' own accounts, and
+      follow how far each has got.
+    - The scripts are loaded by the site's operator and are never changed once loaded. Edited scripts are a new version, and a round
+      keeps the version it was opened with, so a result always says which wording of a test it answers.
+  how:
+    - Open a round of testing with a name, the scripts' version and its dates.
+    - Open a round to assign its scripts and read the testers' progress.
+  see: administering
+  tour:
+    - target: "#rounds"
+      title: Rounds of testing
+      text: Each round, the scripts it uses, its dates and how many people are testing.
+      optional: true
+    - target: "#new-h"
+      title: Open a round
+      text: Name it, choose the scripts' version and say when it runs.
+      optional: true
+    - target: "#versions"
+      title: Loaded scripts
+      text: Each version of the scripts on this site, with its scripts and tests.
+      optional: true
+    - target: "#testing-off"
+      title: Not switched on
+      text: This site does not run testing.
+      optional: true
+
+testing/campaign:
+  title: A round of testing
+  guide:
+    - One round. Each script of its version, the testers it is assigned to, and for each tester how many tests have a result and how
+      many passed, failed, were blocked or do not apply.
+    - A script is assigned to a person's own account. They are told, and it stays in their My queue until every test has a result or
+      the round closes.
+  how:
+    - Assign a script with the tester's email address. They need a CEDARS account first.
+    - Withdraw an assignment with a reason. The results recorded so far are kept.
+    - Close the round to keep every result as it stands. Reopen it with a reason.
+    - Open the results to read what testers found, or download them as an Excel file.
+  see: administering
+  tour:
+    - target: main dl.facts
+      title: The round
+      text: Whether it is open, its dates and the scripts' version.
+    - target: "#assignments"
+      title: Scripts and testers
+      text: Who has each script and how far they have got.
+    - target: "#round-results"
+      title: Results
+      text: Every result of the round on a page, and as an Excel file.
+    - target: "#assign-h"
+      title: Assign a script
+      text: To a tester's own account, by email address.
+      optional: true
+    - target: "#close-h"
+      title: Close the round
+      text: Results are kept as they stand.
+      optional: true
+    - target: "#reopen-h"
+      title: Reopen it
+      text: With a reason, to take results again.
+      optional: true
+
+testing/results:
+  title: Results of a round of testing
+  guide:
+    - What the testers of one round found. First the counts for each script, over every tester it is assigned to. Then the results
+      themselves, the failed and blocked ones first, with what the tester said happened and any note against a step.
+    - Results of withdrawn assignments are left out of this page. The Excel file has a row for every test of every tester, those
+      without a result and withdrawn assignments included.
+    - What a tester has typed and not yet saved is not a result and is not shown here.
+    - Each failed or blocked result is also a finding in the requests inbox on Feedback, sent from the tester. Finding shows where
+      it stands. There it is answered, and joined to a work item when it takes a fix.
+  how:
+    - Choose a result and a script, then Apply.
+    - Download the results as an Excel file. The download is recorded in the audit trail.
+  see: administering
+  tour:
+    - target: "#results-whole"
+      title: The round so far
+      text: How many tests have a result, and how many of each.
+    - target: "#results-download"
+      title: Excel file
+      text: Every test of every tester, with the result and what happened.
+    - target: "#by-script"
+      title: By script
+      text: Testers, tests to do and results for each script.
+    - target: "#results-filter"
+      title: Which results
+      text: Failed and blocked first. Choose another result or one script.
+    - target: "#results"
+      title: The results
+      text: The test, who recorded it, the result and what they said.
+      optional: true
+
+testing/mine:
+  title: My testing
+  guide:
+    - The test scripts a test lead assigned to you, the open rounds first, with how many tests you have done in each.
+    - Scripts with tests still to do are also in My queue.
+  how:
+    - Open a script to step through its tests.
+  see: getting-started
+  tour:
+    - target: "#my-testing"
+      title: Your scripts
+      text: Each script, its round of testing, when it is due and how far you have got.
+
+testing/run:
+  title: A test script
+  guide:
+    - One script assigned to you. It lists what must be in place, the test accounts the script uses, and every test with your result
+      so far. Each result is saved when you give it, so you can stop and come back. A test marked "Typed, not saved" has something
+      you typed and did not save.
+    - The tests have you use the site as a test account, or signed out. Open this page once as yourself and this browser keeps the run
+      open; your results stay under your own name whichever account the site is signed in to. Keep the run in one tab and use the site
+      in another.
+    - Your run link opens the same run in another browser or a private window. Anyone holding it can record results in your name, so
+      keep it to yourself, and replace it if it gets out.
+  how:
+    - Start or Continue goes to the next test without a result.
+    - Open any test from the list to read or change its result while the round is open.
+    - Replace the link to stop the old one everywhere.
+  see: getting-started
+  tour:
+    - target: "#run-facts"
+      title: The run
+      text: The round of testing, whose results these are and how far you have got.
+    - target: "#run-continue"
+      title: Start or continue
+      text: Goes to the next test without a result.
+    - target: "#before-h"
+      title: Before you start
+      text: Who the script is for, the test accounts and what must be in place.
+    - target: "#link-h"
+      title: Your run link
+      text: Opens this run in another browser. Shown only when you are signed in as yourself.
+      optional: true
+    - target: "#tests-h"
+      title: The tests
+      text: Every test with the account to use and your result so far.
+
+testing/test:
+  title: A test
+  guide:
+    - One test. It says which account to use on the site, what must be true first, the steps and the result to expect.
+    - Do the steps on the site in another tab; the links in the steps open one. Then record what you found. A note against a step
+      helps the team find a problem again.
+    - A Failed or Blocked result is also sent to the CPUC's CEDARS team as a finding, with what you wrote. You follow it, and
+      any reply or question from the team, on My requests. Saving the test again as Passed closes the finding.
+    - Failed means the site did not do what the expected result says. Blocked means you could not finish the steps, for example
+      because an earlier step or a test file was missing. Does not apply means the test cannot be run in your situation.
+    - What you type is kept as you go, so closing the tab or signing in to the site as a test account loses nothing. It is not a
+      result until you save it. When you come back the page shows what you typed and says so.
+  how:
+    - Choose a result, say what happened (needed for Failed or Blocked), then Save and go to the next test.
+    - Save keeps you on this test.
+    - Discard what I typed goes back to your saved result.
+  see: getting-started
+  tour:
+    - target: "#test-facts"
+      title: The test
+      text: The account to use and what must be true before you start.
+    - target: "#steps-h"
+      title: Steps
+      text: Do them on the site in another tab. Add a note beside any step.
+    - target: "#expected"
+      title: Expected result
+      text: What the site should do.
+    - target: "#result"
+      title: Your result
+      text: Choose one and say what happened. It is saved when you press Save.
+    - target: "#test-nav"
+      title: Other tests
+      text: The previous and next test, and the whole script.
+
+testing/not_yours:
+  title: A test run that is not open here
+  guide:
+    - A test run opens for the tester it is assigned to, signed in as themselves, or in a browser that holds the run's link.
+  how:
+    - Sign in as yourself and open the script from My queue or My testing.
+  see: getting-started
+  tour:
+    - target: "#ways"
+      title: Opening your run
+      text: Sign in as yourself, or use your run link.

@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Set up a claim year{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
+<div class="page-title"><h1>Set up a claim year</h1>{% page_help "claims/year_new" %}</div>
+<p>A claim year has five confirmations, each with its own due date: the four quarters, then the annual claims (due the following
+spring). Statewide programs' lead PAs file first, each due before the PAs' own.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.year.as_field_group }}
+  {{ form.acc_version.as_field_group }}
+  {{ form.allocation_version.as_field_group }}
+  {{ form.cost_test_set.as_field_group }}
+  {% if form.specification_version %}{{ form.specification_version.as_field_group }}{% endif %}
+  <fieldset class="stack" aria-describedby="due-from">
+    <legend>Due dates</legend>
+    <p class="small" id="due-from">{% if suggested_from %}Filled in from the {{ suggested_from }} claim year's due dates, moved to
+    {{ form.year.initial }}. Change any that differ, and all of them for another year.{% else %}
+    No earlier claim year has due dates to start from: give all five.{% endif %}</p>
+    {% for field in form.due_fields %}{{ field.as_field_group }}{% endfor %}
+  </fieldset>
+  <fieldset class="stack">
+    <legend>Statewide due dates</legend>
+    {% for field in form.sw_due_fields %}{{ field.as_field_group }}{% endfor %}
+  </fieldset>
+  {{ form.filers.as_field_group }}
+  {{ form.notes.as_field_group }}
+  <button type="submit" class="primary">Set up the claim year</button>
+</form>
+{% endblock %}

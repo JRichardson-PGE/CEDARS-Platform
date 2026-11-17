@@ -1,0 +1,14 @@
+{% comment %}A filing page's upload section (UI review 3, U1): open while uploading is the next step (nothing uploaded, or records
+rejected), folded away once the version passes its checks. Context: upload_open, upload_title, upload_body (the module's template of
+the section's text and form, which makes its button primary when upload_open).{% endcomment %}
+{% if upload_open %}
+<section aria-labelledby="upload-h" id="upload">
+<h2 id="upload-h">{{ upload_title }}</h2>
+{% include upload_body %}
+</section>
+{% else %}
+<details class="section" id="upload">
+  <summary><h2 id="upload-h">{{ upload_title }}</h2><span class="count">It replaces this version's upload, which is then checked and priced again.</span></summary>
+  <div class="section-body">{% include upload_body %}</div>
+</details>
+{% endif %}

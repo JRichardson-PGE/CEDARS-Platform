@@ -1,0 +1,9 @@
+{% if items %}
+<section class="card" aria-labelledby="known-for-h" id="known-for-page">
+  <h2 id="known-for-h">Known problem{{ items|pluralize }} on that page</h2>
+  <ul>
+    {% for it in items %}<li><a href="{% url 'known:item' it.pk %}">{{ it.title }}</a>{% if it.workaround %}<br><span class="small prewrap">Meanwhile: {{ it.workaround }}</span>{% endif %}</li>{% endfor %}
+  </ul>
+  <p class="small">If one of these is what you came to report, open it and say it affects you too.</p>
+</section>
+{% endif %}

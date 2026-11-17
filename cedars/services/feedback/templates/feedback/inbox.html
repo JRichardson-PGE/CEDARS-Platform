@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% load feedback_tags %}
+{% block title %}Feedback{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Feedback</h1>{% page_help "feedback/inbox" %}</div>
+<p>Questions, problems, accessibility barriers, ideas and comments sent from the Feedback link on every page. The CPUC's system administrators and support desk are told of each one; a security concern goes to the system administrators alone. Answer it, ask the sender a question, or close it with a note; closed ones are deleted when the feedback retention period ends.</p>
+<form method="get" class="filters" aria-label="Filter the feedback">
+  <div><label for="status">Show</label>
+  <select id="status" name="status">
+    {% for key, words in statuses %}<option value="{{ key }}"{% if status == key %} selected{% endif %}>{{ words }}</option>{% endfor %}
+  </select></div>
+  <div><label for="kind">Kind</label>
+  <select id="kind" name="kind">
+    <option value="">Every kind</option>
+    {% for key, words in kinds %}<option value="{{ key }}"{% if kind == key %} selected{% endif %}>{{ words }}</option>{% endfor %}
+  </select></div>
+  <button type="submit">Apply</button>
+</form>
+{% pager page query=feedback_query label="Pages of feedback" previous="Newer" next="Older" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Feedback messages">
+<table class="list">
+  <caption class="sr-only">Requests{% if status == "todo" %} waiting on the CPUC: the urgent ones, then the longest-waiting first{% else %}, newest first{% endif %}</caption>
+  <thead><tr><th scope="col">Sent</th><th scope="col">Kind</th><th scope="col">From</th><th scope="col">Page</th><th scope="col">Message</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for fb in page %}
+  <tr>
+    <td class="nowrap"><a href="{% url 'feedback:detail' fb.pk %}">{{ fb.created_at|datetime_words }}<span class="sr-only">: open this message</span></a></td>
+    <td>{{ fb.get_kind_display }}{% if fb.is_urgent %} <strong class="status warn">Urgent</strong>{% endif %}</td>
+    <td>{% if fb.user %}{{ fb.user|person }}{% if fb.organisation %} <span class="small muted">for {{ fb.organisation.code }}</span>{% endif %}{% else %}<span class="muted">Signed out</span>{% endif %}</td>
+    <td class="small"><code>{{ fb.page }}</code></td>
+    <td>{{ fb.message|truncatechars:160 }}</td>
+    <td><span class="status {{ fb.status|request_class }}">{{ fb.status_words }}</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="6">{% if status == "todo" %}Nothing is waiting on the CPUC.{% else %}Nothing here.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page query=feedback_query label="Pages of feedback" previous="Newer" next="Older" where="below" %}
+{% endblock %}

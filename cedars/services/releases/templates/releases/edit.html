@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% block title %}Draft: {{ note.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'releases:index' %}">Release notes</a></li><li><a href="{% url 'releases:manage' %}">Write release notes</a></li></ol></nav>
+<div class="page-title"><h1>Draft: {{ note.title }}</h1>{% page_help "releases/edit" %}</div>
+<p>Nobody but CPUC system administrators sees a draft. Takes effect {{ note.effective_on|date_words }}{% if days >= 0 %}, in {{ days }} day{{ days|pluralize }}{% endif %}.</p>
+
+<h2>Changes</h2>
+{% include "releases/_changes.html" with removable=True %}
+<section class="card" aria-labelledby="add-h">
+  <h3 id="add-h">Add a change</h3>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}<input type="hidden" name="action" value="add">
+    {% if change_form.non_field_errors %}<div class="alert" role="alert">{{ change_form.non_field_errors }}</div>{% endif %}
+    {% for field in change_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Add the change</button></div>
+  </form>
+</section>
+
+<section class="card" aria-labelledby="publish-h">
+  <h2 id="publish-h">Publish</h2>
+  {% if problem and not short_notice %}<p class="alert" role="alert">{{ problem }}</p>{% endif %}
+  <form method="post" class="stack form-narrow">{% csrf_token %}<input type="hidden" name="action" value="publish">
+    {% if short_notice %}<p>It takes effect {% if days > 0 %}in {{ days }} day{{ days|pluralize }}{% else %}today or earlier{% endif %}: less than the usual {{ notice_days }} days' notice.{% if days > 0 %} Say why it cannot wait; the note shows it.{% else %} Choose a later date first.{% endif %}</p>
+    {% if days > 0 %}<p><label for="short-why">Why at short notice</label><textarea id="short-why" name="short_notice_reason" rows="2">{{ note.short_notice_reason }}</textarea></p>{% endif %}{% endif %}
+    <p>Publishing tells everyone subscribed to release notes, and every page announces it until it takes effect. It cannot be edited afterwards.</p>
+    <div class="actions"><button type="submit" class="primary">Publish</button></div>
+  </form>
+</section>
+
+<details>
+  <summary>Change the title, release, summary or date</summary>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}<input type="hidden" name="action" value="save">
+    {% if note_form.non_field_errors %}<div class="alert" role="alert">{{ note_form.non_field_errors }}</div>{% endif %}
+    {% for field in note_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Save</button></div>
+  </form>
+</details>
+<form method="post" class="actions">{% csrf_token %}<input type="hidden" name="action" value="discard"><button type="submit">Discard this draft</button></form>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% load allauth %}
+{# Each field names its errors and help text with aria-describedby and marks itself invalid, so a screen reader reads them with the field. #}
+{% with err_id=attrs.id|add:"-errors" help_id=attrs.id|add:"-help" %}
+<div class="field">
+    {% if attrs.type != "checkbox" and attrs.type != "radio" %}
+        <label for="{{ attrs.id }}">{% slot label %}{% endslot %}</label>
+    {% endif %}
+    {% if attrs.errors %}<div id="{{ err_id }}" class="field-errors">{{ attrs.errors }}</div>{% endif %}
+    {% if attrs.type == "textarea" %}
+        <textarea {% if attrs.required %}required{% endif %}
+                  {% if attrs.rows %}rows="{{ attrs.rows }}"{% endif %}
+                  {% if attrs.disabled %}disabled{% endif %}
+                  {% if attrs.readonly %}readonly{% endif %}
+                  {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+                  {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+                  {% if attrs.errors %}aria-invalid="true"{% endif %}
+                  {% if attrs.errors or slots.help_text %}aria-describedby="{% if attrs.errors %}{{ err_id }} {% endif %}{% if slots.help_text %}{{ help_id }}{% endif %}"{% endif %}
+                  {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %}>{% slot value %}{% endslot %}</textarea>
+    {% else %}
+        <span class="{% if attrs.type == 'checkbox' or attrs.type == 'radio' %}check{% endif %}">
+        <input {% if attrs.required %}required{% endif %}
+               {% if attrs.disabled %}disabled{% endif %}
+               {% if attrs.readonly %}readonly{% endif %}
+               {% if attrs.checked %}checked{% endif %}
+               {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
+               {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
+               {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %}
+               {% if attrs.autocomplete %}autocomplete="{{ attrs.autocomplete }}"{% endif %}
+               {% if attrs.value is not None %}value="{{ attrs.value }}"{% endif %}
+               {% if attrs.errors %}aria-invalid="true"{% endif %}
+               {% if attrs.errors or slots.help_text %}aria-describedby="{% if attrs.errors %}{{ err_id }} {% endif %}{% if slots.help_text %}{{ help_id }}{% endif %}"{% endif %}
+               type="{{ attrs.type }}">
+        {% if attrs.type == "checkbox" or attrs.type == "radio" %}
+            <label for="{{ attrs.id }}">{% slot label %}{% endslot %}</label>
+        {% endif %}
+        </span>
+    {% endif %}
+    {% if slots.help_text %}<span id="{{ help_id }}" class="small muted">{% slot help_text %}{% endslot %}</span>{% endif %}
+</div>
+{% endwith %}

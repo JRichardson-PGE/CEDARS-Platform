@@ -1,0 +1,1 @@
+<span class="status {% if m.status == 'implemented' %}ok{% elif m.status == 'superseded' or m.status == 'withdrawn' %}warn{% else %}info{% endif %}">{{ m.get_status_display }}</span>

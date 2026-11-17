@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% block title %}Impact profile settings{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="settings" %}
+<div class="page-title"><h1>Impact profile settings</h1>{% page_help "impact_profiles/settings" %}</div>
+<p>Two policy choices the library is built on. Only the CPUC's administrators change them, with a reason; every change is kept below
+and in the audit log.</p>
+<dl class="facts" aria-label="Settings in force">
+  <dt>IOU territories</dt><dd>{{ now.territories|join:", " }}</dd>
+  <dt>Load shapes from measure versions starting on</dt><dd>{{ now.load_shape_first_start|date_words }}</dd>
+  <dt>Set</dt><dd>{% if now.record %}{{ now.record.set_at|datetime_words }} by {{ now.record.set_by|person|default:"the system" }}{% else %}Not changed on this page yet: the server's defaults{% endif %}</dd>
+</dl>
+
+<h2>Change the settings</h2>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save</button></div>
+</form>
+<p class="small muted">A territory taken off the list stays on the profiles already filed under it; profiles filed with no territory
+are written for the new list at the next library write.</p>
+
+<h2>Earlier settings</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Earlier settings">
+<table class="list">
+  <caption class="sr-only">Every change to these settings, newest first</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">By</th><th scope="col">IOU territories</th><th scope="col">Load shapes from</th><th scope="col">Reason</th></tr></thead>
+  <tbody>
+  {% for h in history %}
+  <tr><th scope="row" class="nowrap">{{ h.set_at|datetime_words }}</th><td>{{ h.set_by|person|default:"the system" }}</td><td>{{ h.territories|join:", " }}</td><td class="nowrap">{{ h.load_shape_first_start|date_words }}</td><td>{{ h.reason }}</td></tr>
+  {% empty %}<tr><td colspan="5">No changes yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

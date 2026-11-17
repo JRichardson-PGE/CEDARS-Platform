@@ -1,0 +1,155 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}{{ run.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:runs' %}">Runs</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
+  {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
+  {% if run.status == "succeeded" or can_delete or can_rerun or can_edit_inputs %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a> <a class="button" href="{% url 'calculations:walkthrough' run.pk %}">Walk through a measure</a>{% endif %}
+    {% if can_rerun %}<a class="button" id="rerun" href="{% url 'calculations:new' %}?from={{ run.pk }}">Rerun with different settings</a>{% endif %}
+    {% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="inline-form" id="edit-inputs">{% csrf_token %}<button type="submit">Edit inputs and rerun</button></form>{% endif %}
+    {% if can_delete %}<a class="button danger" id="delete-run" href="{% url 'calculations:delete' run.pk %}">Delete this run</a>{% endif %}</div>{% endif %}
+</div>
+{% if run.note %}<p id="run-note"><strong>Note:</strong> {{ run.note|linebreaksbr }}</p>{% endif %}
+{% if can_rename %}
+<details id="rename-run"><summary>{% if run.note %}Rename or change the note{% else %}Rename or add a note{% endif %}</summary>
+<form method="post" action="{% url 'calculations:rename' run.pk %}" class="stack form-narrow">{% csrf_token %}
+  <p><label for="run-name">Name</label><input id="run-name" name="name" type="text" value="{{ run.name }}" maxlength="200" required></p>
+  <p><label for="run-note-text">Note (optional)</label><textarea id="run-note-text" name="note" rows="3" maxlength="2000" aria-describedby="run-note-help">{{ run.note }}</textarea></p>
+  <p class="small muted" id="run-note-help">Only the name and note change; the run's inputs, settings and results stay as they were.</p>
+  <div class="actions"><button type="submit">Save</button></div>
+</form>
+</details>
+{% endif %}
+
+<section class="card" aria-labelledby="status-h">
+  <h2 id="status-h">Status: <span id="run-status-label">{{ status.status_label }}</span></h2>
+  <p id="run-status" data-url="{% url 'calculations:run_status' run.pk %}"{% if status.ended %} data-ended="1"{% endif %}>{{ status.text }}</p>
+  {% if status.percent is not None and not status.ended %}<progress id="run-progress" max="100" value="{{ status.percent }}" aria-labelledby="status-h">{{ status.percent }}%</progress>{% endif %}
+  {% if run.error and run.status != "succeeded" %}<p class="alert" role="alert">{{ error_text }}</p>
+  {% if sysadmin or run.owner_id == user.pk %}<details><summary>What the engine said, in full</summary><pre>{{ run.error }}</pre></details>{% endif %}{% endif %}
+  {% if run.status == "succeeded" and run.error %}<p class="alert" role="alert">{{ run.error }}</p>{% endif %}
+  {% if deletion %}<p class="small" id="run-deletion">{{ deletion }}.{% if sysadmin %} <a href="{% url 'retention:index' %}">Retention periods</a>{% endif %}</p>{% endif %}
+</section>
+
+{% if totals %}
+<section aria-labelledby="totals-h">
+<h2 id="totals-h">Portfolio totals</h2>
+<dl class="tiles">{% for t in totals %}<div class="tile"><dt>{{ t.label }}</dt><dd>{{ t.value }}</dd></div>{% endfor %}</dl>
+<details class="small tile-help" id="tile-help"><summary>What these numbers are</summary>
+<dl>{% for t in totals %}{% if t.help %}<dt>{{ t.label }}</dt><dd>{{ t.help }}</dd>{% endif %}{% endfor %}</dl></details>
+<p class="small">Whole dollars and two-decimal ratios over every measure of the run, from the engine's receipt. <a href="{% url 'calculations:results' run.pk %}">Results</a> has them by PA, program, sector and year with each column's definition.</p>
+{% if other_totals %}<details class="small"><summary>Every total in the receipt</summary>
+<div class="hscroll" tabindex="0" role="region" aria-label="Every total in the receipt"><table class="list"><caption class="sr-only">Every total in the receipt</caption>
+<thead><tr><th scope="col">Column</th><th scope="col" class="num">Total</th></tr></thead>
+<tbody>{% for k, v in other_totals %}<tr><th scope="row"><code>{{ k }}</code></th><td class="num">{{ v }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+</section>
+{% endif %}
+
+{% if files %}
+<section aria-labelledby="files-h">
+<h2 id="files-h">Files</h2>
+{% if run.ended %}<p><a class="button" href="{% url 'calculations:run_zip' run.pk %}">Download every file (.zip)</a></p>{% endif %}
+{% for g in file_groups %}
+<h3 id="files-{{ g.key }}-h">{{ g.label }}</h3>
+<p class="small muted">{{ g.intro }}</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="files-{{ g.key }}-h">
+<table class="list run-files">
+  <caption class="sr-only">{{ g.label }}: each file, what it is, its size and its SHA-256</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">What it is</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for f in g.files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td>{{ f.what|default:"—" }}</td><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small">{% if f.sha256 %}<code>{{ f.sha256|truncatechars:20 }}</code>{% else %}<span class="muted">none recorded</span>{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endfor %}
+</section>
+{% endif %}
+
+{% if cet_comparison %}
+<section aria-labelledby="cet-h">
+<h2 id="cet-h">Compared with CET</h2>
+<p>Totals over the measures matched by CET_ID with the CET run's outputs supplied with this run. A ratio of 1 means the same total.
+Where ReCET departs from CET on purpose (its documented corrections), the totals differ.{% if cet_comparison.measures %} Each measure's
+differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison.measures %}">{{ cet_comparison.measures }}</a>.{% endif %}</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Comparison with CET">
+<table class="list">
+  <caption class="sr-only">ReCET and CET totals by metric</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">ReCET</th><th scope="col">CET</th><th scope="col">ReCET / CET</th></tr></thead>
+  <tbody>{% for r in cet_comparison.rows %}<tr><th scope="row">{{ r.metric }}</th><td class="num">{{ r.recet }}</td><td class="num">{{ r.cet }}</td><td class="num">{{ r.ratio|default:"Not defined (CET total 0)" }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
+{% if check %}
+<section aria-labelledby="check-h">
+<h2 id="check-h">Input check</h2>
+{% if check.acc_part %}<p class="small">The inputs were checked once for each ACC of the comparison; this is the check on the {{ check.acc_part }} ACC.</p>{% endif %}
+<p id="check-verdict">{% if check.n.error %}<strong>{{ check.n.error }} problem{{ check.n.error|pluralize }} stopped the run.</strong>{% elif check.n.warning %}<strong>{{ check.n.warning }} warning{{ check.n.warning|pluralize }}</strong>; nothing stopped the run.{% else %}<strong>No problems found.</strong>{% endif %}{% if check.n.info %} {{ check.n.info }} note{{ check.n.info|pluralize }}.{% endif %}</p>
+{% if check.unpriced %}
+<p><strong>Not priced:</strong></p>
+<ul>{% for i in check.unpriced %}<li>{{ i.count|floatformat:"0g" }} measure{{ i.count|pluralize }}{% if i.impact_text %} ({{ i.impact_text }}){% endif %}: {{ i.message }}</li>{% endfor %}</ul>
+{% endif %}
+{% if check.acc %}
+<p><strong>ACC check ({{ check.acc.label }}):</strong> {{ check.acc.flagged|floatformat:"0g" }} of {{ check.acc.measures|floatformat:"0g" }} measures are priced on an ACC that does not normally apply to their program year
+({% for r in check.acc.flagged_rows %}{{ r.acc }} ACC for {{ r.program_year }}: {{ r.measures|floatformat:"0g" }}{% if not forloop.last %}; {% endif %}{% endfor %}). They are still priced.</p>
+{% endif %}
+<details id="check-details"{% if check.n.error or check.unpriced or run.settings.preflight_only %} open{% endif %}>
+  <summary>Every finding and the check's statistics ({{ check.issues|length }} finding{{ check.issues|length|pluralize }})</summary>
+  {% if check.stats %}<dl class="facts">{% for k, v in check.stats %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>{% endif %}
+  {% if check.issues %}
+  <ul class="issues">
+  {% for i in check.issues %}<li><strong class="issue-{{ i.severity }}">{{ i.severity_words }}:</strong> {{ i.message }}{% if i.count %} ({{ i.count|floatformat:"0g" }}{% if i.impact_text %}; {{ i.impact_text }}{% endif %}){% endif %} <code class="small">{{ i.code }}</code>{% if i.examples %}<br><span class="small">For example: {{ i.examples|join:", " }}</span>{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</details>
+<p class="small">{% if check.findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk check.findings_file %}">{{ check.findings_file }}</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
+</section>
+{% endif %}
+
+<section aria-labelledby="settings-h">
+<h2 id="settings-h">Settings</h2>
+<dl class="facts">
+  <dt>For</dt><dd>{{ run.organisation|default:"Only you" }}</dd>
+  <dt>Started by</dt><dd>{{ run.owner|person }}, {{ run.created_at|datetime_words }}</dd>
+  <dt>Engine</dt><dd>{% if run.calculation == "recet" or not run.calculation %}ReCET {{ run.engine_release }}{% else %}{{ calculation }} on ReCET {{ run.engine_release }}{% endif %}{% if engine.image %} <span class="small muted">({{ engine.image }})</span>{% endif %}</dd>
+  <dt>ACC</dt><dd>{{ run.acc_version }} ACC</dd>
+  <dt>Measures</dt><dd>{{ run.measure_count|default_if_none:"" }}</dd>
+  <dt>Programs</dt><dd>{{ programs }}</dd>
+  <dt>Statewide allocation</dt><dd>{% if run.allocation_version %}{{ run.allocation_version.label }}{% else %}Not allocated{% endif %}</dd>
+  {% for label, value in settings %}<dt>{{ label }}</dt><dd>{% if value is True %}On{% elif value is False %}Off{% else %}{{ value }}{% endif %}</dd>{% endfor %}
+  <dt>Output files</dt><dd>{{ run.output_format }}</dd>
+  {% if run.calculation == "recet" %}<dt>Cost tests</dt><dd>{% if run.cost_tests %}{{ run.cost_tests.id }} {{ run.cost_tests.version }}{% if run.cost_tests.status == "draft" %} (draft){% elif run.cost_tests.status == "custom" %} (custom file{% if run.cost_tests.file %}: {{ run.cost_tests.file }}{% endif %}{% if run.cost_tests.build %}, from the set builder{% endif %}){% endif %}{% if run.cost_tests.sha256 %} <span class="small muted">SHA-256 {{ run.cost_tests.sha256|truncatechars:14 }}</span>{% endif %}{% elif settings_cost_test_set %}{{ settings_cost_test_set }}{% else %}The engine's default set (no cost-test set registered){% endif %}</dd>{% endif %}
+  <dt>Reference data</dt><dd>{% for p in reference_packs %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
+  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}{% if f.sha256 %}, SHA-256 {{ f.sha256|truncatechars:20 }}{% endif %})</span><br>{% endfor %}
+    {% if inputs|length > 1 %}<a href="{% url 'calculations:run_inputs_zip' run.pk %}">Download every input (.zip)</a>{% endif %}</dd>
+</dl>
+{% if input_notes %}<ul class="small">{% for n in input_notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if can_rerun or can_edit_inputs %}<p class="small muted" id="rerun-help">{% if can_rerun %}Rerun with different settings, at the top of the page, opens New run with this run's settings and stored inputs, to change and start as a new run.{% endif %}{% if can_edit_inputs %} Edit inputs and rerun opens its Measure and ProgramCost tables on Edit inputs, as a new draft.{% endif %}</p>{% endif %}
+</section>
+
+{% if log or not run.ended and run.status != "queued" %}
+<section aria-labelledby="log-h">
+<h2 id="log-h">Log</h2>
+<details id="log-details"{% if not run.ended or run.status == "failed" %} open{% endif %}>
+  <summary>What the engine printed{% if log_cut %} (the last part; the whole log is a download){% endif %}</summary>
+  <pre id="run-log" class="log" tabindex="0" role="region" aria-label="Run log" data-url="{% url 'calculations:run_log' run.pk %}"{% if not run.ended %} data-live="1"{% endif %}>{{ log|default:"Nothing yet." }}</pre>
+</details>
+{% if log %}<p class="small"><a href="{% url 'calculations:run_log' run.pk %}?download=1">Download the log</a></p>{% endif %}
+</section>
+{% endif %}
+
+{% if engine or packs %}
+<section aria-labelledby="receipt-h">
+<h2 id="receipt-h">What produced these results</h2>
+<p class="small">From the engine's receipt (receipt.json in the files): the exact release, reference data and allocation table used.</p>
+<dl class="facts">
+  {% if engine.release %}<dt>Engine release</dt><dd>ReCET {{ engine.release }}{% if engine.commit %} ({{ engine.commit|truncatechars:12 }}){% endif %}</dd>{% endif %}
+  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd>{% if f.sha256 %}<code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}{% elif f.version %}Version {{ f.version }} <span class="small muted">(no checksum recorded)</span>{% else %}<span class="small muted">No checksum or version recorded</span>{% endif %}</dd>{% endfor %}
+  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }}{% if run.receipt.allocation.sha256 %} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% endif %}{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
+</dl>
+{% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'calculations/run.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "core/base.html" %}
+{% block title %}Import a specification version{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li></ol></nav>
+<div class="page-title"><h1>Import a specification version</h1>{% page_help "specifications/import_version" %}</div>
+<p id="import-about">Bring a version built and tested in another CEDARS environment into this one ({{ environment }}) without a developer:
+load the package exported from the version's page there. The import always makes a draft. Nothing a filing is checked against changes
+until an administrator here publishes it, after the same checks as any draft, including the examples and the impact test on this
+environment's own filings. An existing value list or data dictionary definition is never changed by an import.</p>
+<section aria-labelledby="import-load-h" class="card">
+  <h2 id="import-load-h">Load the package</h2>
+  {% before_upload rules_note="the package is checked against this environment before anything is made" guide="rules-and-lists#moving-versions" guide_label="the rules and value lists guide" %}
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate id="import-form">{% csrf_token %}
+    {{ form.file.as_field_group }}
+    <div class="actions"><button type="submit">Show what it would make</button></div>
+  </form>
+</section>
+{% if preview %}{% with m=preview.package.manifest %}
+<section aria-labelledby="import-preview-h" id="import-preview">
+  <h2 id="import-preview-h">What {{ held_name|default:"the package" }} would make</h2>
+  <p>A draft of {% if preview.specification %}{{ preview.specification.name }}{% else %}{{ preview.package.document.specification.name }}{% endif %}
+  called <strong>{{ preview.name }}</strong>, exported from the {{ m.environment }} environment by {{ m.exported_by }} ({{ m.status }} there),
+  with {{ preview.package.document.tables|length }} table{{ preview.package.document.tables|length|pluralize }},
+  {% if preview.package.rules %}{{ preview.package.rules.rules|length }} rule{{ preview.package.rules.rules|length|pluralize }}{% else %}no rules{% endif %}
+  and {{ preview.package.document.examples|length }} example set{{ preview.package.document.examples|length|pluralize }}.
+  Package SHA-256 <code>{{ preview.package.sha256 }}</code>.</p>
+  {% if preview.blocking %}
+  <div class="alert" role="alert" id="import-blocking"><p><span class="status bad">Cannot import</span> Settle these here first, then load the package again; nothing has been made.</p>
+    <ul class="compact">{% for b in preview.blocking %}<li>{{ b }}</li>{% endfor %}</ul></div>
+  {% else %}
+  <p><span class="status ok">Ready</span> Nothing has been made yet.</p>
+  {% endif %}
+  {% if preview.notes or preview.lists_made %}
+  <h3 id="import-notes-h">What this environment has differently</h3>
+  <ul class="compact" id="import-notes">
+    {% for n in preview.lists_made %}<li>The value list {{ n }} is not here: it is made in the draft from the package's codes, and published with it.</li>{% endfor %}
+    {% for n in preview.notes %}<li>{{ n }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if not preview.blocking %}
+  <h3 id="import-differences-h">What it changes from {% if preview.current %}{{ preview.current.name }}, the version published here{% else %}what is published here{% endif %}</h3>
+  {% if preview.differences %}<ul class="compact" id="import-differences">{% for d in preview.differences %}<li>{{ d }}</li>{% endfor %}</ul>
+  {% else %}<p>Nothing: it is the version published here.</p>{% endif %}
+  <h3 id="import-settle-h">Before it can be published here</h3>
+  {% if preview.to_settle %}<ul class="compact" id="import-settle">{% for p in preview.to_settle %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% else %}<p>Nothing beyond the date and the release note, as for any draft.</p>{% endif %}
+  <form method="post" action="{% url 'specifications:confirm_import' %}" class="stack form-narrow" novalidate id="import-confirm">{% csrf_token %}
+    {{ import_form.sha256 }}{{ import_form.reason.as_field_group }}
+    <div class="actions"><button type="submit" class="primary">Import {{ preview.name }} as a draft</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endwith %}{% endif %}
+{% endblock %}

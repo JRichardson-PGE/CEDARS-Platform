@@ -1,0 +1,69 @@
+{% extends "core/base.html" %}
+{% load ui %}
+{% block title %}Budgets{% endblock %}
+{% block content %}
+<div class="head-row">
+  <div class="page-title"><h1>Budgets</h1>{% page_help "budgets/index" %}</div>
+  <div class="actions">
+    <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
+    <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
+    <a class="button" href="{% url 'budgets:changes' %}">Change log</a>
+    <a class="button" href="{% url 'budgets:template' %}">Budget filing template (Excel)</a>
+    {% if sysadmin %}<a class="button primary" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
+  </div>
+</div>
+<p>Budget filings follow the four-year cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice letters. Each
+is uploaded, checked, priced and confirmed.</p>
+{% for c in cycles %}
+{# The newest cycle is open; earlier cycles are collapsed behind their heading with a count, so the page is one screen for most visits. #}
+{% if forloop.first %}<section class="cycle" aria-labelledby="cycle-{{ c.cycle.pk }}">
+<h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle|cycle_label }} cycle</h2>
+{% else %}<details class="section">
+<summary><h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle|cycle_label }} cycle</h2>
+  <span class="count">{{ c.filings|length }} filing{{ c.filings|length|pluralize }}{% if c.standing %}, {{ c.standing|length }} standing budget{{ c.standing|length|pluralize }}{% endif %}</span></summary>
+<div class="section-body">
+{% endif %}
+{% if operating %}<p class="operating-link"><a href="{% url 'budgets:operating' c.cycle.slug %}">{% if org %}{{ org.code }}'s operating budget{% else %}Operating budgets{% endif %} for the {{ c.cycle|cycle_label }} cycle</a>: the approved budget with every fund shift applied.</p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle|cycle_label }} cycle">
+<table class="list">
+  <caption class="sr-only">Filings of the {{ c.cycle|cycle_label }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">ACC</th><th scope="col">Source</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}{% if approver %}<th scope="col">Waiting for a decision</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for f in c.filings %}
+  <tr>
+    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.title }}</a>{% else %}{{ f.deadline.title }}{% endif %}{% if f.deadline.retired_at %} <span class="status warn">Canceled</span>{% endif %}{% if sysadmin %}<br><a class="small" href="{% url 'budgets:setup' f.deadline.pk %}">Edit its set-up<span class="sr-only">: {{ f.deadline.title }}</span></a>{% endif %}</th>
+    <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date_words }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
+    <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
+    <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>
+    {% if org %}<td>{% if f.deadline.retired_at and not f.latest %}<span class="small muted">Nothing to file: canceled</span>{% elif f.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% elif f.latest %}<span class="status {{ f.latest.status|status_tone }}">{{ f.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ f.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
+    {% if approver %}<td>{% if f.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ f.waiting }} correction request{{ f.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if c.standing %}
+<h3 id="standing-{{ c.cycle.pk }}">Budgets that stand</h3>
+<div class="hscroll" tabindex="0" role="region" aria-label="Standing budgets of the {{ c.cycle|cycle_label }} cycle">
+<table class="list">
+  <caption class="sr-only">Standing budgets of the {{ c.cycle|cycle_label }} cycle, by program administrator</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Filing</th><th scope="col" class="num">Version</th><th scope="col">Confirmed</th></tr></thead>
+  <tbody>
+  {% for v in c.standing %}
+  <tr>
+    <th scope="row"><span class="id">{{ v.submission.organisation.code }}</span></th>
+    <td><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.deadline.title }}</a></td>
+    <td class="num">{{ v.number }}</td>
+    <td class="nowrap">{{ v.confirmed_at|date_words }}{% if v.imported %}, imported from legacy CEDARS{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% if forloop.first %}</section>{% else %}</div></details>{% endif %}
+{% empty %}
+{% if sysadmin %}{% url 'budgets:filing_new' as new_url %}{% endif %}
+{% include "ui/empty.html" with title="No budget filing is set up yet" text="Filings appear here once the CPUC sets up a cycle's deadlines." action_url=new_url action="Set up the first filing" action_primary=True %}
+{% endfor %}
+{% endblock %}

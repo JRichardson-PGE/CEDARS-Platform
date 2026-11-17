@@ -1,0 +1,12 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>{% if name %}Change {{ name }}{% else %}Add an aggregate{% endif %}: {{ build }}</h1>{% page_help "refdata/builder/aggregate" %}</div>{% endblock %}
+{% block step %}
+<p><a href="{% url 'refdata:build_step' build.pk 'aggregates' %}">Back to the aggregates</a></p>
+<p>Each stream is listed with the pricings it is read in; one not read in the aggregate's pricing is a problem.</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.name.as_field_group }}{{ form.pricing.as_field_group }}{{ form.plus.as_field_group }}{{ form.minus.as_field_group }}
+  {{ form.gross.as_field_group }}{{ form.unit.as_field_group }}{{ form.definition.as_field_group }}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary">Save the aggregate</button></div>{% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Add a custom impact profile{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="library" %}
+<div class="page-title"><h1>Add a custom impact profile</h1>{% page_help "impact_profiles/custom_new" %}</div>
+<p>A custom profile belongs to {{ request.organisation.code }} and is visible to everyone signed in. The file holds one 8,760 per climate
+zone (1 to 16, or System for a statewide profile), each adding up to 1. <a href="{% url 'impact_profiles:custom_template' %}">Download the template (CSV)</a>.</p>
+{% if findings %}
+<p class="alert" role="alert" tabindex="-1">The file broke {{ findings|length }} rule{{ findings|length|pluralize }}. Nothing was saved.</p>
+{% include "impact_profiles/_findings.html" %}
+{% endif %}
+{% url 'impact_profiles:custom_template' as tmpl %}{% before_upload template=tmpl template_label="the custom profile template" rules_note="the profile is checked when it is added" %}
+<form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Check and add</button></div>
+</form>
+{% endblock %}

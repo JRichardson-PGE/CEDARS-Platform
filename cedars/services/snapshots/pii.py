@@ -1,0 +1,271 @@
+"""The publication scan for personal information: every text column of a snapshot is searched for values that look like
+an email address, a phone number, a street address, a Social Security number or an account number before the snapshot joins a public
+release. A hit holds the publication (service.py); this module only finds and describes.
+
+The patterns are code (they are how the scan reads text, like a parser); which ones run and which columns are left out are the CPUC's
+settings (`ScanSettings`, the Publication scan page), changed with a reason and audited.
+
+The scan reads the Parquet file a row group at a time, matches each column's DISTINCT values (pyarrow's RE2 matcher), and counts the
+rows only for the values that matched, so a million-row file costs a few seconds. What it keeps never holds the values themselves:
+the main database must not hold personal information (it belongs in the vault), so a finding names the column, the pattern, how many
+records, up to `RECORDS` record IDs (CEInputID, else the row number) and up to `EXAMPLES` examples masked to their first character
+and their punctuation ("j***@e******.c**").
+
+Numeric columns (fields the data dictionary types as numbers, and the legacy amounts kept as filed text, such as Legacy_Budget) are
+stored as text in some snapshots, and a budget such as "234567.8901" has the shape of a phone number. In those columns a value that is a
+plain number (`NUMBER`: a sign, digits with or without thousands commas, a decimal part, an exponent) is read as the number it is and
+not searched; any other value in them (text where a number belongs) is still searched. Text columns are searched in full.
+
+A pattern can carry a second, stricter check (`confirm`, Python's `re`, which has the lookaheads RE2 lacks): RE2 picks the candidate
+values and only those the check also matches are hits. The street address pattern uses it, because measure descriptions are full of
+numbers followed by a few words and a word that is also a street suffix ("131 to 190 Watt Street Light", "75 HP Variable Speed Drive",
+"17W 3 Way A19 LED"): an address needs a street name after the house number, not a unit or a connector (watt, HP, ton, to, up ...),
+every word of the name has a letter in it, and "Street Light" is never an address. Run over every legacy CEDARS claim year and real
+CET inputs (2026-11-12), the old pattern held 12 PA-years on descriptions like these and found no addresses.
+
+A phone number needs its area code set off, by parentheses or a separator ("415-555-0123", "(415) 555-0123", "415.555.0123"): codes
+such as "430123-0001" (a measure code) and amounts such as "234567.8901" have six digits run together and are not phone numbers."""
+
+import re
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass, field
+from pathlib import Path
+
+RECORDS = 5
+EXAMPLES = 3
+ID_COLUMN = "CEInputID"
+
+# Before and after a number: not a letter, digit, underscore, dot or dash, so IDs such as "PGE-2028-000123456" and decimals such as
+# "0.123456789" are not numbers on their own.
+_B = r"(?:^|[^0-9A-Za-z_.-])"
+_E = r"(?:[^0-9A-Za-z_.-]|$)"
+_SUFFIX = (
+    "street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct|place|pl|parkway|pkwy|highway|hwy|circle|cir|terrace|ter"
+)
+# What follows a number in a measure description and never starts a street name: units, sizes and connectors ("40 HP", "28 Watt",
+# "5 up to 15", "3 Ton", "26W CFL"). Single letters are not here: "4500 W Olive Ave" is an address.
+_NOT_A_STREET = (
+    "watts?|kw|kwh|hp|horsepower|tons?|ft|feet|foot|inch(?:es)?|in|volts?|amps?|gal(?:lons?)?|lbs?|btuh?|mbh|cfm|gpm|psi|sq|lumens?|lm|"
+    "to|up|and|or|x|way|stage|speed|ct|pk|pack|count|pcs?|yrs?|years?|hrs?|hours?|mm|cm|deg(?:rees)?|seer|eer|led|cfl"
+)
+_WORD = r"(?:[a-z0-9'.-]*[a-z][a-z0-9'.-]*)"  # a word of a street name: at least one letter ("5th", "O'Farrell"; not "3")
+
+
+@dataclass(frozen=True)
+class Pattern:
+    code: str
+    label: str  # "look like ...": what a finding says the values look like
+    regex: str  # RE2 (pyarrow) and Python re both read it
+    ignore_case: bool = False
+    confirm: str = ""  # a stricter Python `re` check of RE2's candidates (lookaheads); blank = RE2's match is the hit
+
+
+PATTERNS = (
+    Pattern("email", "email addresses", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}"),
+    Pattern("phone", "phone numbers", _B + r"(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\) ?|[2-9][0-9]{2}[ .-])[2-9][0-9]{2}[ .-][0-9]{4}" + _E),
+    Pattern(
+        "street_address",
+        "street addresses",
+        r"(?:^|[^0-9a-z])(?:[0-9]{1,6}[a-z]?(?: [a-z0-9'.-]+){1,4} (?:" + _SUFFIX + r")\.?(?:[^a-z0-9]|$)|p\.? ?o\.? box [0-9]+)",
+        ignore_case=True,
+        confirm=(
+            r"(?:^|[^0-9a-z])(?:[0-9]{1,6}[a-z]?(?: (?!(?:" + _NOT_A_STREET + r")(?![a-z0-9'.-]))" + _WORD + r")(?: " + _WORD + r"){0,3} "
+            r"(?:" + _SUFFIX + r")\.?(?![a-z0-9])(?!\s+light)|p\.? ?o\.? box [0-9]+)"
+        ),
+    ),
+    Pattern("ssn", "Social Security numbers", _B + r"[0-9]{3}-[0-9]{2}-[0-9]{4}" + _E),
+    Pattern("account_number", "account numbers (9 or more digits)", _B + r"(?:[0-9]{9,19}|[0-9]{4}[ -][0-9]{4}[ -][0-9]{4,7})" + _E),
+)
+BY_CODE = {p.code: p for p in PATTERNS}
+# A plain number, the whole value: what a numeric column's values are, so they are not read as phone, SSN or account numbers.
+NUMBER = r"^\s*[+-]?\$?(?:(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\s*$"
+# Keys the platform assigns or registers, and the PAs' own claim record key; never personal information (Jake, 2026-11-12: a PA's
+# claim ID may embed its tracking numbers, which read as account numbers).
+DEFAULT_EXEMPT = ("CEInputID", "PrgID", "ClaimID")
+
+
+@dataclass
+class Finding:
+    column: str
+    pattern: str
+    records: int = 0
+    examples: list[str] = field(default_factory=list)
+    record_ids: list[str] = field(default_factory=list)
+
+    @property
+    def label(self) -> str:
+        p = BY_CODE.get(self.pattern)
+        return p.label if p else self.pattern
+
+    def as_dict(self) -> dict:
+        return {
+            "column": self.column,
+            "pattern": self.pattern,
+            "records": self.records,
+            "examples": self.examples,
+            "record_ids": self.record_ids,
+        }
+
+
+@dataclass
+class Result:
+    findings: list[Finding]
+    rows: int
+    columns: list[str]  # the text columns searched
+    skipped: list[str]  # text columns left out by the settings
+    patterns: list[str]
+    error: str = ""
+    numeric: list[str] = field(default_factory=list)  # searched columns read as numbers: their plain-number values are not searched
+
+    @property
+    def clear(self) -> bool:
+        return not self.findings and not self.error
+
+
+def mask(text: str) -> str:
+    """Every digit but the value's first character and every letter but each word's first as *; punctuation and spaces kept, so a
+    finding shows the shape of what matched ("j***@e******.c**", "4**-***-****") without the value."""
+    out, first = [], True
+    for i, ch in enumerate(text):
+        if ch.isascii() and ch.isalnum():
+            word_start = i == 0 or not (text[i - 1].isascii() and text[i - 1].isalnum())
+            out.append(ch if first or (ch.isalpha() and word_start) else "*")
+            first = False
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _flags(pattern: Pattern) -> int:
+    return re.IGNORECASE if pattern.ignore_case else 0
+
+
+def matches(pattern: Pattern, value: str) -> bool:
+    """Whether one value is a hit, as the scan decides it (RE2's pattern, then the stricter check when the pattern has one)."""
+    return re.search(pattern.regex, value, _flags(pattern)) is not None and (
+        not pattern.confirm or re.search(pattern.confirm, value, _flags(pattern)) is not None
+    )
+
+
+def _hits(distinct, pattern: Pattern):
+    """The distinct values that are hits: RE2 over all of them, then the stricter check over its (few) candidates."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    hits = distinct.filter(pc.match_substring_regex(distinct, pattern.regex, ignore_case=pattern.ignore_case))
+    if pattern.confirm and len(hits):
+        check = re.compile(pattern.confirm, _flags(pattern))
+        hits = hits.filter(pa.array([check.search(v) is not None for v in hits.to_pylist()], pa.bool_()))
+    return hits
+
+
+def _example(pattern: Pattern, value: str) -> str:
+    m = re.search(pattern.confirm or pattern.regex, value, _flags(pattern))
+    found = (m.group(0) if m else value).strip(" ,;:")
+    return mask(found[:80])
+
+
+def _text_columns(schema) -> list[str]:
+    import pyarrow as pa
+
+    out = []
+    for f in schema:
+        t = f.type.value_type if pa.types.is_dictionary(f.type) else f.type
+        if pa.types.is_string(t) or pa.types.is_large_string(t):
+            out.append(f.name)
+    return out
+
+
+def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[str] | None = None, numeric: Iterable[str] = ()) -> Result:
+    """Search the file's text columns. `patterns`: the codes that run (default all); `exempt`: column names left out; `numeric`: column
+    names whose plain-number values are not searched (both compared without case). Raises on an unreadable file; the caller holds the
+    publication then."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    chosen = [BY_CODE[c] for c in (patterns if patterns is not None else list(BY_CODE)) if c in BY_CODE]
+    left_out = {c.strip().lower() for c in (exempt if exempt is not None else DEFAULT_EXEMPT) if c.strip()}
+    pf = pq.ParquetFile(path)
+    text = _text_columns(pf.schema_arrow)
+    columns = [c for c in text if c.lower() not in left_out]
+    skipped = [c for c in text if c.lower() in left_out]
+    numbers = {c.strip().lower() for c in numeric if c and c.strip()}
+    as_numbers = [c for c in columns if c.lower() in numbers]
+    has_id = ID_COLUMN in pf.schema_arrow.names
+    findings: dict[tuple[str, str], Finding] = {}
+    offset = 0
+    if columns and chosen:
+        read = list(dict.fromkeys(columns + ([ID_COLUMN] if has_id else [])))
+        for rg in range(pf.num_row_groups):
+            t = pf.read_row_group(rg, columns=read)
+            ids = t.column(ID_COLUMN) if has_id else None
+            for col in columns:
+                arr = t.column(col).combine_chunks()
+                if pa.types.is_dictionary(arr.type):
+                    arr = arr.cast(pa.large_string())
+                distinct = pc.unique(arr).drop_null()
+                if col in as_numbers and len(distinct):
+                    distinct = distinct.filter(pc.invert(pc.match_substring_regex(distinct, NUMBER)))
+                if len(distinct) == 0:
+                    continue
+                for p in chosen:
+                    hits = _hits(distinct, p)
+                    if len(hits) == 0:
+                        continue
+                    rows = pc.is_in(arr, value_set=hits)
+                    f = findings.setdefault((col, p.code), Finding(col, p.code))
+                    f.records += pc.sum(rows).as_py() or 0
+                    for v in hits.to_pylist():
+                        if len(f.examples) >= EXAMPLES:
+                            break
+                        ex = _example(p, v)
+                        if ex not in f.examples:
+                            f.examples.append(ex)
+                    if len(f.record_ids) < RECORDS:
+                        idx = pc.indices_nonzero(rows).to_pylist()[: RECORDS - len(f.record_ids)]
+                        f.record_ids += [str(ids[i].as_py()) if ids is not None else f"row {offset + i + 1}" for i in idx]
+            offset += t.num_rows
+    order = {p.code: i for i, p in enumerate(PATTERNS)}
+    out = sorted(findings.values(), key=lambda f: (columns.index(f.column), order[f.pattern]))
+    return Result(out, pf.metadata.num_rows, columns, skipped, [p.code for p in chosen], numeric=as_numbers)
+
+
+def records(path: Path | str, findings: list[dict], *, numeric: Iterable[str] = ()) -> Iterator[dict]:
+    """Every record behind a scan's findings, for the filing's organization to look into: the record ID (CEInputID, else the row
+    number), the program, the column and what its value looks like. Never the value itself. Only the (column, pattern) pairs of
+    `findings` are matched, so the list is the one the hold page counts; `numeric` as the scan had it."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    pairs = [(f["column"], BY_CODE[f["pattern"]]) for f in findings if f.get("pattern") in BY_CODE]
+    pf = pq.ParquetFile(path)
+    names = set(pf.schema_arrow.names)
+    pairs = [(c, p) for c, p in pairs if c in names]
+    if not pairs:
+        return
+    numbers = {c.strip().lower() for c in numeric if c and c.strip()}
+    keys = [k for k in (ID_COLUMN, "PrgID") if k in names]
+    read = list(dict.fromkeys([c for c, _ in pairs] + keys))
+    offset = 0
+    for rg in range(pf.num_row_groups):
+        t = pf.read_row_group(rg, columns=read)
+        for col, p in pairs:
+            arr = t.column(col).combine_chunks()
+            if pa.types.is_dictionary(arr.type):
+                arr = arr.cast(pa.large_string())
+            distinct = pc.unique(arr).drop_null()
+            if col.lower() in numbers and len(distinct):
+                distinct = distinct.filter(pc.invert(pc.match_substring_regex(distinct, NUMBER)))
+            hits = _hits(distinct, p) if len(distinct) else distinct
+            if len(hits) == 0:
+                continue
+            for i in pc.indices_nonzero(pc.is_in(arr, value_set=hits)).to_pylist():
+                yield {
+                    "record": str(t.column(ID_COLUMN)[i].as_py()) if ID_COLUMN in keys else f"row {offset + i + 1}",
+                    "program": str(t.column("PrgID")[i].as_py() or "") if "PrgID" in keys else "",
+                    "column": col,
+                    "looks_like": p.label,
+                }
+        offset += t.num_rows

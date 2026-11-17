@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Known problems{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Known problems</h1>{% page_help "work/known" %}</div>
+<p>Problems with CEDARS that the CPUC knows about and has not yet fixed, the most severe first. Each says what you can do meanwhile and where the fix stands. If one affects you, open it and say so. If yours is not here, use the Feedback link at the foot of the page it is on.</p>
+<p class="actions"><a href="{% url 'known:upcoming' %}" id="upcoming-link">Upcoming changes</a> <a href="{% url 'releases:index' %}">Release notes</a></p>
+{% if items %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Known problems">
+<table class="list" id="known-problems">
+  <caption class="sr-only">Known problems, the most severe first</caption>
+  <thead><tr><th scope="col">Problem</th><th scope="col">How severe</th><th scope="col">Meanwhile</th><th scope="col">Where it stands</th></tr></thead>
+  <tbody>
+  {% for it in items %}
+  <tr>
+    <th scope="row"><a href="{% url 'known:item' it.pk %}">{{ it.title }}</a></th>
+    <td>{% if it.severity %}{{ it.get_severity_display }}{% else %}<span class="muted">Not rated</span>{% endif %}</td>
+    <td class="prewrap">{% if it.workaround %}{{ it.workaround }}{% else %}<span class="muted">No workaround</span>{% endif %}</td>
+    <td>{% include "work/_progress.html" with progress=it.progress %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p id="none-known">No problems are listed at present.</p>
+{% endif %}
+{% endblock %}

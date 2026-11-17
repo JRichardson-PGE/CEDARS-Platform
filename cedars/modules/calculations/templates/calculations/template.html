@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}{% if template %}Change {{ template.name }}{% else %}New output template{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:templates' %}">Output templates</a></li></ol></nav>
+<div class="page-title"><h1>{% if template %}Change “{{ template.name }}”{% elif source %}Copy of “{{ source.name }}”{% else %}New output template{% endif %}</h1>{% page_help "calculations/template" %}</div>
+{% if not catalog %}
+<p class="alert" role="alert">No field catalog is published yet, so a template's columns cannot be checked. A CPUC system administrator publishes one on the data dictionary.</p>
+{% else %}
+<p>Pick the columns in the order the file should have them: add fields from the list on the left, then put the template's columns in
+order on the right. You can also write or paste them, one per line. Every field's definition is in the
+<a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+<form method="post" class="stack" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-narrow stack">
+    {{ form.name.as_field_group }}
+  </div>
+  {% include "core/_field_picker.html" with fp=field_picker %}
+  <div class="form-narrow stack">
+    {{ form.columns.as_field_group }}
+    <p class="small" id="columns-count">{{ count }} column{{ count|pluralize }} in the template{% if unknown %}; not measure-level columns: {{ unknown|join:", " }}{% endif %}.</p>
+    {% if form.shared %}{{ form.shared.as_field_group }}{% endif %}
+    {{ form.make_default.as_field_group }}
+  </div>
+  <fieldset data-without-picker><legend>Add columns</legend>
+    <p class="small">Grouped as the field catalog groups them, inputs first. Columns already in the template are marked.</p>
+    {% for group, fields in catalog.groups %}
+    <details class="column-group">
+      <summary>{{ group }} <span class="small muted">({{ fields|length }})</span></summary>
+      <div class="checks">
+      {% for f in fields %}
+        <label><input type="checkbox" name="add" value="{{ f.name }}"{% if f.name in ticked %} checked{% endif %}> {{ f.name }}{% if f.name in in_template %} <span class="small muted">(in the template)</span>{% endif %}</label>
+      {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+  </fieldset>
+  <div class="actions">
+    <button type="submit" class="primary">Save the template</button>
+    {% if template %}<button type="submit" name="action" value="delete" formnovalidate>Delete the template</button>{% endif %}
+    <a href="{% url 'calculations:templates' %}">Cancel</a>
+  </div>
+</form>
+{{ picker_fields|json_script:"field-catalog" }}
+{% endif %}
+{% endblock %}
+

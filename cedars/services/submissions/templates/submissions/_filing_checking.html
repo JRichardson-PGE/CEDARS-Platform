@@ -1,0 +1,12 @@
+{% load static %}
+{% comment %}While a version's rules are run by the worker of its engine release: the check's state, which core/watch.js keeps up to date and
+announces, reloading the page when the check ends (only when nothing has the focus). Context: v, checking ({"ended", "text"}), can_submit, out
+(check_url).{% endcomment %}
+<p id="checking-status" data-watch-url="{% url 'submissions:checking_status' v.pk %}"><span data-watch-text>{{ checking.text }}</span>
+  <a href="" data-watch-reload>Reload this page</a></p>
+<p class="small muted">The file's own checks are done; the rules of its specification version are run by the engine release that prices it. This page updates itself when they finish.</p>
+{% if checking.ended and can_submit %}
+<p>The check ended without its findings reaching this version.{% if not out.check_url %} <a href="#upload-h">Upload the file again</a> to check it.{% endif %}</p>
+{% if out.check_url %}<form method="post" action="{{ out.check_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Check again</button></form>{% endif %}
+{% endif %}
+<script src="{% static 'core/watch.js' %}" defer></script>

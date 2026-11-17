@@ -1,0 +1,1070 @@
+import csv
+import mimetypes
+from collections import defaultdict
+from decimal import Decimal
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from cedars.core import storage
+from cedars.services.accounts import service as access
+from cedars.services.accounts.models import Organisation
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.legacy import service as legacy
+from cedars.services.refdata.models import PackVersion
+from cedars.services.registry.models import Program
+from cedars.services.releases import limits
+from cedars.services.specifications import service as specifications
+from cedars.services.submissions import corrections, filing_parts
+from cedars.services.submissions import service as submissions
+from cedars.services.submissions import setup as setup_calendar
+from cedars.services.submissions import status as filing_status
+from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
+from cedars.services.vault import service as vault
+from cedars.services.vault.service import PIIError
+
+from . import forms, restatements, service, spec
+from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
+from .upload import UploadError
+from .upload import combine as combine_upload
+
+DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
+
+
+def accs() -> list[str]:
+    """The ACC years claims can be priced on: those with a registered electric ACC pack, else the engine's four."""
+    years = (
+        PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year__isnull=False)
+        .exclude(status=PackVersion.Status.WITHDRAWN)
+        .values_list("acc_year", flat=True)
+    )
+    return sorted({str(y) for y in years}) or DEFAULT_ACCS
+
+
+def _deadline(pk) -> Deadline:
+    d = get_object_or_404(
+        Deadline.objects.select_related("period"), pk=pk, module=service.MODULE, kind__in=service.ALL_KINDS, period__isnull=False
+    )
+    if not ClaimYear.objects.filter(year=d.period.year).exists():
+        raise Http404
+    return d
+
+
+def _organisation(request, deadline: Deadline) -> Organisation | None:
+    """The organization whose claims the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
+    code = request.GET.get("org") or request.POST.get("org")
+    if code:
+        org = access.by_code_or_404(code)
+        if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
+            raise Http404
+        return org
+    return request.filing_organisation  # a PA acting for itself; the CPUC and other organizations choose a PA with ?org=
+
+
+def _money(x) -> str:
+    if x is None:
+        return ""
+    d = Decimal(x)
+    return f"-${-d:,.0f}" if d < 0 else f"${d:,.0f}"
+
+
+def _fmt(kind: str, x) -> str:
+    if x is None:
+        return ""
+    if kind == "money":
+        return _money(x)
+    if kind == "ratio":
+        return f"{float(x):.2f}"
+    return f"{float(x):,.0f}"
+
+
+# --- home and set-up
+
+
+@login_required
+def index(request):
+    """Claim years, newest first: each confirmation's due date and the acting PA's status (none for the CPUC: it files no claims)."""
+    org = request.filing_organisation
+    waiting = submissions.pending_corrections(request.user, service.MODULE)  # None unless an approver
+    years = []
+    cys = list(ClaimYear.objects.select_related("allocation_version"))
+    imported = legacy.imported_deadlines(Deadline.objects.filter(module=service.MODULE, period__year__in=[cy.year for cy in cys]))
+    leads = org is not None and Program.objects.filter(statewide=True, lead=org).exists()
+
+    def rows_for(deadlines, show_org=True):
+        rows = []
+        for d in deadlines:
+            latest, can_open = None, True
+            if org is not None:
+                sub = Submission.objects.filter(deadline=d, organisation=org).first()
+                latest = submissions.latest(sub) if sub else None
+                # The period page refuses a confirmation the user may not read (UAT 2, U03): name it without a link then.
+                can_open = sub is None or service.can_read_submission(request.user, sub)
+            rows.append(
+                {
+                    "waiting": (waiting or {}).get(d.pk, 0),
+                    "deadline": d,
+                    "latest": latest,
+                    "files": show_org or latest is not None,
+                    "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
+                    "can_open": can_open,
+                }
+            )
+        return rows
+
+    for cy in cys:
+        rows = rows_for(service.periods(cy.year))
+        sw = rows_for(service.periods(cy.year, statewide=True), show_org=leads)
+        filing_status.mark_next(rows + sw, org)  # the one to file now, and each row's action (UI review 3, U5)
+        years.append(
+            {
+                "cy": cy,
+                "periods": rows,
+                "rows": sorted(rows + sw, key=lambda r: (r["deadline"].due_at, r["deadline"].pk)),
+                "sw_missing": service.missing_sw_deadlines(cy),
+                "legacy": any(r["deadline"].pk in imported for r in rows),
+            }
+        )
+    return render(
+        request,
+        "claims/index.html",
+        {"years": years, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
+    )
+
+
+def template(request):
+    """The claims template workbook: public, like the data dictionary. It is the specification version's own template (?filing=: the
+    version that claims filing follows; else the current one)."""
+    url = specifications.template_url(service.MODULE, request.GET.get("filing"))
+    if not url:
+        raise Http404("No claims specification is published.")
+    return redirect(url)
+
+
+@login_required
+def year_new(request):
+    if not access.is_system_admin(request.user):
+        raise Http404
+    form = forms.YearForm(request.POST or None, accs=accs())
+    # the five due dates follow the last claim year's pattern, for the administrator to change (the statewide ones follow from them)
+    suggested_from, due = service.suggested_due(form.fields["year"].initial)
+    if request.method != "POST":
+        acc = service.default_acc(form.fields["year"].initial)
+        if acc in accs():
+            form.fields["acc_version"].initial = acc
+        for kind, day in due.items():
+            form.fields[forms.due_field(kind)].initial = day
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            cy = service.add_year(
+                request.user,
+                year=d["year"],
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                cost_test_set=d["cost_test_set"],
+                due={kind: service.due_at(d[forms.due_field(kind)]) for kind, _ in service.PERIODS},
+                sw_due=_sw_due(d),
+                notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
+                specification_version=d.get("specification_version"),
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"{cy.year} claims are set up.")
+            return redirect("claims:index")
+    return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS, "suggested_from": suggested_from})
+
+
+def _sw_due(cleaned: dict) -> dict:
+    """The statewide due dates a form gave (blank ones left to the defaults)."""
+    return {k: service.due_at(cleaned[forms.due_field(k)]) for k, _ in service.SW_PERIODS if cleaned.get(forms.due_field(k))}
+
+
+@login_required
+def setup(request, year):
+    cy = get_object_or_404(ClaimYear, year=year)
+    if not access.is_system_admin(request.user):
+        raise Http404
+    calendar, done = setup_calendar.calendar_forms(
+        request,
+        service.year_deadlines(cy),
+        removable=service.removable(cy),
+        remove=lambda reason: service.remove_setup(request.user, cy, reason),
+        removed_url=reverse("claims:index"),
+        what=f"{cy.year} claims",
+        filer_deadlines=service.periods(cy.year),  # the PAs' own claims; the statewide ones are the lead PAs'
+    )
+    if done:
+        return done
+    sw_form = None
+    if service.missing_sw_deadlines(cy):
+        sw_post = request.method == "POST" and "add_statewide" in request.POST
+        sw_form = forms.StatewideDatesForm(request.POST if sw_post else None, prefix="sw")
+        if sw_post:
+            if sw_form.is_valid():
+                try:
+                    service.add_sw_deadlines(request.user, cy, _sw_due(sw_form.cleaned_data))
+                except AccessDenied as e:
+                    messages.error(request, str(e))
+                else:
+                    messages.success(request, f"{cy.year} statewide claims are on the filing calendar.")
+                    return redirect("claims:setup", cy.year)
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request) and "add_statewide" not in request.POST
+    form = forms.SetupForm(
+        request.POST if own else None,
+        accs=accs(),
+        initial={
+            "acc_version": cy.acc_version,
+            "allocation_version": cy.allocation_version,
+            "cost_test_set": cy.cost_test_set,
+            "notes": cy.notes,
+        },
+    )
+    if own and form.is_valid():
+        d = form.cleaned_data
+        try:
+            service.change_setup(
+                request.user,
+                cy,
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                reason=d["reason"],
+                cost_test_set=d["cost_test_set"],
+                notes=d["notes"],
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Saved. Versions already priced keep what they were priced with.")
+            return redirect("claims:index")
+    ctx = {"cy": cy, "form": form, "default_acc": service.default_acc(cy.year), "sw_form": sw_form}
+    return render(request, "claims/setup.html", ctx | calendar)
+
+
+# --- statewide claims credited to a PA
+
+
+def _share_org(request) -> Organisation | None:
+    """Whose statewide share the page shows: ?org=CODE (published claims are public to signed-in users), else the PA acted for."""
+    code = request.GET.get("org", "")
+    if code:
+        return access.by_code_or_404(code)
+    return request.filing_organisation
+
+
+def _share_rows(org, year: int) -> list[dict]:
+    rows = []
+    for r in service.statewide_share(org, year):
+        val = r["values"]
+        rows.append(
+            {
+                **r,
+                "cells": [(label, _fmt(kind, val.get(col))) for col, label, kind in SHARE_COLUMNS],
+            }
+        )
+    return rows
+
+
+SHARE_COLUMNS = [
+    ("FirstYearNetKWh", "First-year net kWh", "number"),
+    ("FirstYearNetKW", "First-year net kW", "number"),
+    ("FirstYearNetThm", "First-year net therms", "number"),
+    ("TotalSystemBenefit", "TSB", "money"),
+    ("TotalExpenditures", "Expenditures", "money"),
+]
+
+
+@login_required
+def statewide(request, year):
+    """The statewide claims credited to a PA in a claim year: each lead PA's confirmed statewide claims, the results its run credited
+    to the PA, by program, and where each statewide confirmation stands."""
+    cy = get_object_or_404(ClaimYear, year=year)
+    org = _share_org(request)
+    pas = Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code")
+    rows = _share_rows(org, year) if org else []
+    totals = [(label, _fmt(kind, sum((r["values"].get(col) or 0) for r in rows))) for col, label, kind in SHARE_COLUMNS]
+    status = [{**st, "pa_deadline": service.counterpart(st["deadline"])} for st in service.statewide_status(year)]
+    return render(
+        request,
+        "claims/statewide.html",
+        {"cy": cy, "org": org, "pas": [p for p in pas if p.files], "rows": rows, "totals": totals, "status": status,
+         "columns": SHARE_COLUMNS},
+    )  # fmt: skip
+
+
+@login_required
+def statewide_csv(request, year):
+    get_object_or_404(ClaimYear, year=year)
+    org = _share_org(request)
+    if org is None:
+        raise Http404
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="statewide_share_{org.code}_{year}.csv"'
+    w = csv.writer(response)
+    w.writerow(["PA", "ClaimYear", "PrgID", "ProgramName", "LeadPA", "Confirmation", "Measures", *[c for c, _, _ in SHARE_COLUMNS]])
+    for r in service.statewide_share(org, year):
+        w.writerow(
+            [org.code, year, r["prg_id"], r["name"], r["lead"].code, r["label"], r["measures"],
+             *[r["values"].get(c, "") for c, _, _ in SHARE_COLUMNS]]
+        )  # fmt: skip
+    return response
+
+
+# --- a PA's claims for one confirmation
+
+
+@login_required
+def period(request, pk):
+    """One confirmation for one organization: its versions, what its upload changes in the year to date, and the next step (upload,
+    fix, price, confirm, un-confirm, ask to reopen); the earlier confirmations' compiled inputs."""
+    deadline = _deadline(pk)
+    org = _organisation(request, deadline)
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first() if org else None
+    if sub is not None and not service.can_read_submission(request.user, sub):
+        raise Http404
+    v = submissions.latest(sub) if sub else None
+    can = {a: org is not None and access.has_permission(request.user, org, f"claims.{a}") for a in ("submit", "confirm")}
+    acting = org is not None and org == request.organisation
+    if v is not None:
+        service.ensure_checked(v)
+        v.refresh_from_db()
+    cy = service.claim_year(deadline)
+    earlier_open = service.earlier_unconfirmed(org, deadline) if org else None
+    earlier = []
+    if org is not None:
+        for d in service.same_run(deadline):
+            if service.number(d) >= service.number(deadline):
+                break
+            earlier.append({"deadline": d, "standing": service.standing(org, d)})
+    ctx = {
+        "pa_choices": []
+        if org
+        else submissions.filer_statuses(
+            deadline, lambda s: service.can_read_submission(request.user, s), every=access.is_cpuc_staff(request.user)
+        ),
+        "deadline": deadline,
+        "label": service.label(deadline),
+        "cy": cy,
+        "org": org,
+        "acting": acting,
+        "sub": sub,
+        "v": v,
+        "s": (v.findings or {}) if v else {},
+        "versions": _with_letters(list(sub.versions.select_related("confirmed_by").order_by("-number"))) if sub else [],
+        "past_due": submissions.past_due(deadline),
+        "opens_later": deadline.opens_at and timezone.now() < deadline.opens_at,
+        "can_submit": can["submit"] and acting,
+        "can_confirm": can["confirm"] and acting,
+        "upload_form": forms.UploadForm(auto_id="upload_%s"),
+        "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
+        "sysadmin": access.is_system_admin(request.user),
+        "earlier": earlier,
+        "last_quarter": service.last_quarter(deadline),
+        "later_locked": service.later_locked(org, deadline) if org else None,
+        "earlier_open": service.label(earlier_open) if earlier_open else "",
+        "tables": spec.for_filing(deadline).TABLES,
+        "legacy": legacy.imported(v) if v is not None and v.imported else None,
+        "statewide": service.is_statewide(deadline),
+        "counterpart": service.counterpart(deadline),
+        "sw_status": None if service.is_statewide(deadline) else next(iter(service.statewide_status(cy.year, deadline)), None),
+        "led": list(Program.objects.filter(statewide=True, lead=org).order_by("prg_id")) if org else [],
+    }
+    if v is not None:
+        ctx["pricing_run"] = submissions.pricing_run(v, reset_on=("submission.files_attached", "submission.validated"))
+        ctx["priced"] = service.priced(v)
+        ctx["stale"] = service.stale(v)
+        ctx["file"] = service.own_file(v)
+        ctx["counts"] = [
+            (t, ctx["s"].get("tables", {}).get(t, 0), ctx["s"].get("replaced", {}).get(t, 0), ctx["s"].get("compiled", {}).get(t, 0))
+            for t in spec.for_filing(deadline).TABLES
+            if t in ctx["s"].get("compiled", {})
+        ]
+        if ctx["priced"]:
+            ctx["tiles"] = _tiles(service.table(v))
+        ctx.update(_pii(request, org, v, acting))
+        ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
+    ctx.update(
+        filing_parts.context(
+            v,
+            has_file=bool(ctx.get("file")) or bool(v and v.imported),
+            priced=ctx.get("priced", False),
+            pricing=ctx.get("pricing_run"),
+            stale=ctx.get("stale", False),
+            nothing_to_price=v is not None and v.status == SubmissionVersion.Status.VALIDATED and not ctx["s"].get("job_key"),
+            can_correct=ctx.get("can_correct", False),
+        )
+    )
+    ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the claims"
+    if v is not None:
+        ctx["out"] = {
+            "check_url": reverse("claims:check", args=[pk]),
+            "price_url": reverse("claims:price", args=[pk]),
+            "price_label": "Price the year to date",
+            "price_help": "Runs the calculation and statewide allocation on every measure of the year so far; confirming needs it.",
+            "confirm_url": reverse("claims:confirm", args=[pk]),
+            "confirm_help": "Signs off on exactly these results; the year-to-date inputs, run settings and results become public.",
+            "unconfirm_url": reverse("claims:unconfirm", args=[pk]),
+            "reopen_url": reverse("claims:reopen", args=[pk]),
+            "results_url": reverse("claims:version", args=[v.pk]),
+            "results_heading": "Year-to-date results",
+            "results_link": "By program",
+            "results_about": ": what was filed and what it priced to, and the files it publishes.",
+            "what": "these claims",
+            "kept": "confirmed",
+        }
+    return render(request, "claims/period.html", ctx)
+
+
+def _pii(request, org, v: SubmissionVersion, acting: bool) -> dict:
+    """The period page's personal-information section: who may do what, and the version's upload as it stands (status, counts and
+    findings, which name keys and fields but never values)."""
+    assurance = getattr(request, "assurance", None)
+    out = {
+        "vault": vault.enabled(),
+        "pii_upload": acting and vault.can_upload(request.user, org, assurance) and not v.locked,
+        "pii_read": vault.can_read(request.user, org, assurance),
+        "pii_form": forms.PIIForm(auto_id="pii_%s"),
+    }
+    out["pii_shown"] = out["pii_upload"] or out["pii_read"]
+    if out["vault"] and out["pii_shown"]:
+        up = service.pii(v)
+        out["pii"] = up
+        out["pii_inherited"] = up is not None and up.version_id != v.pk
+    return out
+
+
+def _with_letters(versions: list[SubmissionVersion]) -> list[SubmissionVersion]:
+    """The versions, each with .letter: its change letter, if it is a published correction."""
+    letters = {c.version_id: c for c in ChangeLetter.objects.filter(version__in=versions)}
+    for ver in versions:
+        ver.letter = letters.get(ver.pk)
+    return versions
+
+
+def _tiles(t) -> list[tuple[str, str]]:
+    return [
+        ("Expenditures", _money(t.total.expenditures)),
+        ("Total system benefit", _fmt("money", t.total.value("TotalSystemBenefit"))),
+        ("TRC", _fmt("ratio", t.total.value("TRC"))),
+        ("PAC", _fmt("ratio", t.total.value("PAC"))),
+        ("Claims", f"{t.total.claims:,}"),
+    ]
+
+
+def _latest(deadline, org) -> SubmissionVersion:
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first()
+    v = submissions.latest(sub) if sub else None
+    if v is None:
+        raise AccessDenied("Upload the claims first.")
+    return v
+
+
+def _action(request, pk, fn, done: str):
+    deadline = _deadline(pk)
+    org = request.organisation
+    if org is None:
+        raise Http404
+    try:
+        fn(deadline, org)
+    except (AccessDenied, UploadError) as e:
+        messages.error(request, str(e))
+    else:
+        if done:
+            messages.success(request, done)
+    return redirect("claims:period", pk)
+
+
+def _checked_message(request, v: SubmissionVersion) -> None:
+    s = v.findings or {}
+    if filing_parts.checking_words(v):
+        messages.info(request, filing_parts.checking_words(v))
+    elif v.status == SubmissionVersion.Status.VALIDATED:
+        msg = f"Checked {s.get('records', 0):,} records: none rejected"
+        msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
+        messages.info(request, msg + " Price the year to date next.")
+    else:
+        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT)
+
+
+@login_required
+@require_POST
+def upload(request, pk):
+    form = forms.UploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the claims .zip or .xlsx file, or its files.")
+        return redirect("claims:period", pk)
+    files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
+
+    def do(d, o):
+        c = combine_upload(files, spec.for_filing(d))
+        _checked_message(request, service.upload_claims(request.user, d, o, c.data, c.filename, sources=c.sources))
+
+    return _action(request, pk, do, "")
+
+
+@login_required
+@require_POST
+def check(request, pk):
+    return _action(request, pk, lambda d, o: _checked_message(request, service.check(request.user, _latest(d, o))), "")
+
+
+@login_required
+@require_POST
+def price(request, pk):
+    return _action(
+        request,
+        pk,
+        lambda d, o: service.price(request.user, _latest(d, o)),
+        f"Pricing has started. This page shows the results when the run finishes; if it takes longer than "
+        f"{limits.current('run_notice_seconds')}, you also get a notice.",
+    )
+
+
+@login_required
+@require_POST
+def confirm(request, pk):
+    return _action(
+        request,
+        pk,
+        lambda d, o: service.confirm(request.user, _latest(d, o)),
+        "Confirmed and published. Its inputs and results are public.",
+    )
+
+
+@login_required
+@require_POST
+def unconfirm(request, pk):
+    reason = request.POST.get("reason", "")
+    return _action(
+        request,
+        pk,
+        lambda d, o: service.unconfirm(request.user, _latest(d, o), reason),
+        "Un-confirmed: the version is back to validated and no longer published.",
+    )
+
+
+@login_required
+@require_POST
+def reopen(request, pk):
+    reason = request.POST.get("reason", "")
+
+    def do(deadline, org):
+        sub = Submission.objects.filter(deadline=deadline, organisation=org).first()
+        if sub is None:
+            raise AccessDenied("Nothing to reopen.")
+        out = service.request_reopen(request.user, sub, reason)
+        if isinstance(out, SubmissionVersion):
+            messages.info(request, f"Version {out.number} is open as a draft.")
+        else:
+            messages.info(request, "Your request is with a CPUC approver.")
+
+    return _action(request, pk, do, "")
+
+
+@login_required
+@require_POST
+def pii_upload(request, pk):
+    form = forms.PIIForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the PII .zip or .xlsx file.")
+        return redirect("claims:period", pk)
+    f = form.cleaned_data["file"]
+
+    def do(deadline, org):
+        try:
+            up = service.upload_pii(request.user, _latest(deadline, org), f.read(), f.name, getattr(request, "assurance", None))
+        except PIIError as e:
+            raise AccessDenied(str(e)) from None
+        if up.status == up.Status.ACCEPTED:
+            messages.success(request, "The PII file passed its checks and is kept in the vault.")
+        else:
+            messages.warning(request, f"The PII file was not kept: {len(up.findings):,} findings. Fix them and upload it again.")
+
+    return _action(request, pk, do, "")
+
+
+@login_required
+@require_POST
+def pii_download(request, pk):
+    """The version's accepted PII as a .zip, for a reader with the PII grant; every download is audited with its reason."""
+    deadline = _deadline(pk)
+    org = _organisation(request, deadline)
+    if org is None:
+        raise Http404
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first()
+    v = submissions.latest(sub) if sub else None
+    up = service.pii(v) if v else None
+    if up is None or up.status != up.Status.ACCEPTED:
+        raise Http404
+    try:
+        reason = request.POST.get("reason", "").strip()
+        lay = spec.for_filing(deadline).version_layout
+        data = vault.export(request.user, org, up, getattr(request, "assurance", None), reason, lay)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect(f"{reverse('claims:period', args=[pk])}?org={org.code}")
+    response = HttpResponse(data, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{org.code}_{deadline.period.year}_PII_v{v.number}.zip"'
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+# --- a version's results
+
+
+def _version(request, pk) -> SubmissionVersion:
+    v = get_object_or_404(
+        SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation"),
+        pk=pk,
+        submission__deadline__module=service.MODULE,
+        submission__deadline__kind__in=service.ALL_KINDS,
+    )
+    if not service.can_read(request.user, v):
+        raise Http404
+    return v
+
+
+@login_required
+def version(request, pk):
+    """A version's year to date by program: what was filed and what it priced to, and what it publishes."""
+    v = _version(request, pk)
+    pa = request.GET.get("pa", "")
+    t = service.table(v, pa=pa)
+    compare = t.priced and not pa  # a PA's share of a statewide program is not compared with the whole program's filed totals
+
+    def cells(r) -> list[tuple[str, bool]]:
+        differ = service.savings_differ(r) if compare else set()
+        return [(_fmt(kind, r.value(key)), key in differ) for key, _, kind, _ in service.METRICS]
+
+    rows = [{"r": r, "cells": cells(r)} for r in t.rows]
+    total = cells(t.total)
+    differing = sum(1 for row in rows if any(mark for _, mark in row["cells"]))
+    return render(
+        request,
+        "claims/version.html",
+        {
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "can_open_filing": service.can_read_submission(request.user, v.submission),
+            "t": t,
+            "pa": pa,
+            "head": [m[1] for m in service.METRICS],
+            "rows": rows,
+            "total": total,
+            "tiles": _tiles(t) if t.priced else [],
+            "definitions": [(m[1], m[3]) for m in service.METRICS],
+            "withdrawals": service.withdrawals(v),
+            "letter": ChangeLetter.objects.filter(version=v).first(),
+            "files": [(lbl, i) for i, (lbl, _, _) in enumerate(service.published_files(v))],
+            "public": v.status == SubmissionVersion.Status.PUBLISHED,
+            "calc": v.calculation or {},
+            "walk_href": submissions.run_walkthrough(v),
+            "s": v.findings or {},
+            "csv_query": f"?pa={pa}" if pa else "",
+            "legacy": legacy.imported(v) if v.imported else None,
+            "restatements": list(restatements.visible(request.user, v)),
+            "restatable": not restatements.restatable(v),
+            "true_ups": _true_ups(v, t),
+            "differing": differing,
+            "tolerance": f"{service.SAVINGS_TOLERANCE:.0%}",
+            **filing_parts.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
+        },
+    )
+
+
+def _true_ups(v, t) -> dict | None:
+    """The version's true-ups priced against their parents' profiles: each one's pinned parent profile and, once priced, the
+    incremental benefits by program."""
+    entries = (v.findings or {}).get("true_ups") or []
+    if not entries:
+        return None
+    programs = [
+        {"r": r, "cells": [_fmt("money", sums.get(k)) for k, _ in service.INCREMENTAL_SHOWN]} for r, sums in service.true_up_programs(t)
+    ]
+    return {
+        "entries": entries,
+        "count": (v.findings or {}).get("true_ups_count", len(entries)),
+        "head": [h for _, h in service.INCREMENTAL_SHOWN],
+        "programs": programs,
+        "priced": t.priced,
+    }
+
+
+@login_required
+def version_csv(request, pk):
+    """The table as shown, from the same filter, with the cost categories and the filed totals."""
+    from .models import FILED_TOTALS
+
+    v = _version(request, pk)
+    t = service.table(v, pa=request.GET.get("pa", ""))
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    name = f"{v.submission.organisation.code}_{service.label(v.submission.deadline)}_v{v.number}".replace(" ", "_")
+    response["Content-Disposition"] = f'attachment; filename="claims_{name}.csv"'
+    w = csv.writer(response, lineterminator="\n")
+    priced = [(key, kind) for key, _, kind, _ in service.METRICS if kind in ("money", "ratio", "number") and key != "expenditures"]
+    w.writerow(
+        ["PrgID", "ProgramName", "PA", "Claims"]
+        + [k for k, _ in PROGRAM_COST_FIELDS]
+        + ["RebatesandIncents", "Expenditures", "OnBillFinancing"]
+        + FILED_TOTALS
+        + [key if kind != "ratio" else f"{key}Ratio" for key, kind in priced]
+    )
+    for r in t.rows + [t.total]:
+        w.writerow(
+            [r.prg_id, r.name, r.pa, r.claims]
+            + [r.by_field.get(k, 0) for k, _ in PROGRAM_COST_FIELDS]
+            + [r.rebates, r.expenditures, r.on_bill_financing]
+            + [r.filed.get(k, 0) for k in FILED_TOTALS]
+            + ["" if r.value(key) is None else r.value(key) for key, _ in priced]
+        )
+    return response
+
+
+@login_required
+def findings_csv(request, pk):
+    v = _version(request, pk)
+    if not service.can_read_submission(request.user, v.submission):
+        raise Http404
+    response = HttpResponse(service.findings_csv(v), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="claims_findings_v{v.number}.csv"'
+    return response
+
+
+@login_required
+def published_file(request, pk, which):
+    v = _version(request, pk)
+    files = service.published_files(v)
+    if not which.isdigit() or int(which) >= len(files):
+        raise Http404
+    _, area, key = files[int(which)]
+    store = storage.store(area)
+    if not store.exists(key):
+        raise Http404
+    filename = f"v{v.number}_{key.rsplit('/', 1)[-1]}"
+    url = store.download_url(key, filename)
+    if url:
+        return HttpResponseRedirect(url)
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
+
+
+# --- corrections: the change log
+
+
+def changes(request):
+    """Every published correction's change letter, newest first, by PA and claim year. Public: the record of corrections."""
+    letters = service.change_letters()
+    org = access.by_code(request.GET.get("org", ""), follow=False)
+    year = request.GET.get("year", "")
+    if org is not None:
+        letters = letters.filter(version__submission__organisation=org)
+    if year.isdigit():
+        letters = letters.filter(version__submission__deadline__period__year=int(year))
+    every = service.change_letters()
+    return render(
+        request,
+        "claims/changes.html",
+        {
+            "letters": letters[:500],
+            "orgs": sorted({c.version.submission.organisation.code for c in every}),
+            "years": sorted({c.version.submission.deadline.period.year for c in every}, reverse=True),
+            "org": org.code if org else "",
+            "year": year,
+        },
+    )
+
+
+def _figure(kind: str, x) -> str:
+    if x is None:
+        return ""
+    return f"{x:,}" if kind == "count" else _fmt(kind, x)
+
+
+def _difference(kind: str, before, after) -> str:
+    if before is None or after is None:
+        return ""
+    d = after - before
+    if not d:
+        return "No change"
+    sign = "+" if d > 0 else "-"
+    return sign + _figure(kind, abs(d)).lstrip("-")
+
+
+def change_letter(request, pk):
+    """One correction's change letter: when it was published, why, and what it changed against the version it replaces. Public."""
+    letter = get_object_or_404(service.change_letters(), pk=pk)
+    c = letter.changes or {}
+    v = letter.version
+    figures = service.LETTER_FIGURES
+
+    def row(name, before, after):
+        before, after = before or {}, after or {}
+        return {
+            "name": name,
+            "cells": [
+                (_figure(kind, before.get(key)), _figure(kind, after.get(key)), _difference(kind, before.get(key), after.get(key)))
+                for key, _, kind in figures
+            ],
+        }
+
+    programs = []
+    for p in c.get("programs", []):
+        r = row(p["prg_id"], p["before"], p["after"])
+        r.update({"title": p.get("name", ""), "new": p["before"] is None, "gone": p["after"] is None})
+        programs.append(r)
+    totals = c.get("totals", {})
+    claims = c.get("claims", {})
+    groups = [
+        ("added", "Claims added", "New ClaimIDs filed by the correction."),
+        ("changed", "Claims changed", "Claims with any record (Claim, Measure, contacts or infrastructure cost) that differs."),
+        ("removed", "Claims removed", "Claims the version replaced had added, which the correction does not file."),
+        ("reinstated", "Withdrawals undone", "Claims the version replaced withdrew, which the correction no longer withdraws."),
+    ]
+    return render(
+        request,
+        "claims/change_letter.html",
+        {
+            "letter": letter,
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "c": c,
+            "claims": claims,
+            "groups": [(key, title, help, claims.get(key, {})) for key, title, help in groups],
+            "withdrawn": claims.get("withdrawn", {}),
+            "head": [name for _, name, _ in figures],
+            "programs": programs,
+            "total": row("Total", totals.get("before"), totals.get("after")),
+            "priced": c.get("priced", {}),
+            "colspan": 3 * len(figures) + 1,
+        },
+    )
+
+
+# --- links between claims
+
+LINK_KINDS = [
+    ("claim", "ClaimID: its NMEC chain"),
+    ("project", "ProjectID: every claim of the project"),
+    ("participant", "ParticipantID: a SEM participant's claims"),
+]
+
+
+def links(request):
+    """Look up how confirmed claims link up: a NMEC claim's chain from the original claim through every true-up, a project's claims
+    (the project key), or a SEM participant's claims across phases and years. Public, as confirmed claims are."""
+    kind = request.GET.get("kind", "claim")
+    kind = kind if kind in dict(LINK_KINDS) else "claim"
+    q = request.GET.get("q", "").strip()
+    rows, chain, found = [], False, None
+    if q:
+        if kind == "claim":
+            links_ = service.chain(q)
+            chain = True
+            rows = [{"r": link.record, "depth": link.depth, "change": link.change} for link in links_]
+        elif kind == "project":
+            rows = [{"r": r} for r in service.project_claims(q)]
+        else:
+            rows = [{"r": r} for r in service.participant_claims(q)]
+        found = bool(rows)
+    incremental = {}
+    if chain:
+        by_version = defaultdict(list)
+        for row in rows:
+            if row["r"].true_up:
+                by_version[row["r"].version].append(row["r"].claim_id)
+        for ver, ids in by_version.items():
+            incremental.update(service.incremental_by_claim(ver, ids))
+    for row in rows:
+        r = row["r"]
+        if chain and r.true_up:
+            row["parent_profile"] = service.true_up_entry(r)
+            tsb = incremental.get(r.claim_id.strip().lower(), {}).get("TotalSystemBenefitIncremental")
+            row["incremental_tsb"] = _signed_money(tsb)
+        row["net_kwh"] = _fmt("number", r.filed.get("TotalFirstYearNetkWh"))
+        row["net_therm"] = _fmt("number", r.filed.get("TotalFirstYearNetTherm"))
+        if row.get("change"):
+            row["change_kwh"] = _signed(row["change"].get("TotalFirstYearNetkWh"))
+            row["change_therm"] = _signed(row["change"].get("TotalFirstYearNetTherm"))
+    return render(
+        request,
+        "claims/links.html",
+        {"kinds": LINK_KINDS, "kind": kind, "q": q, "rows": rows, "chain": chain, "found": found, "kind_label": dict(LINK_KINDS)[kind]},
+    )
+
+
+def _signed_money(x) -> str:
+    if x is None or x != x:  # NaN: no parent profile priced
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + _money(abs(x))
+
+
+def _signed(x) -> str:
+    if x is None:
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + f"{abs(x):,.0f}"
+
+
+@login_required
+def links_csv(request, pk):
+    v = _version(request, pk)
+    response = HttpResponse(service.links_csv(v), content_type="text/csv; charset=utf-8")
+    name = f"{v.submission.organisation.code}_{service.label(v.submission.deadline)}_v{v.number}".replace(" ", "_")
+    response["Content-Disposition"] = f'attachment; filename="claim_links_{name}.csv"'
+    return response
+
+
+# --- restated results
+
+
+def _restatement(request, pk):
+    from .models import Restatement
+
+    rs = get_object_or_404(
+        Restatement.objects.select_related("version__submission__deadline__period", "version__submission__organisation", "organisation"),
+        pk=pk,
+    )
+    if not restatements.can_read(request.user, rs):
+        raise Http404
+    return rs
+
+
+@login_required
+def restate(request, pk):
+    """Restate a confirmed version: choose who the runs are for, the release and the ACC (and an ACC per claim)."""
+
+    v = _version(request, pk)
+    why = restatements.restatable(v)
+    options = submissions.restate_options()
+    orgs = restatements.organisations_for(request.user)
+    filed_acc = str((v.calculation or {}).get("acc", ""))
+    form = forms.RestateForm(request.POST or None, request.FILES or None, organisations=orgs, options=options, filed_acc=filed_acc)
+    if request.method == "POST" and not why and form.is_valid():
+        d = form.cleaned_data
+        org = next((o for o in orgs if o.code == d["organisation"]), None)
+        f = d.get("overrides")
+        try:
+            rs = restatements.start(
+                request.user,
+                v,
+                organisation=org,
+                release=d["release"],
+                acc_version=d["acc_version"],
+                name=d["name"],
+                reason=d["reason"],
+                overrides=f.read() if f else None,
+            )
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, "Restatement started. Its runs are queued; this page fills in as they finish.")
+            return redirect("claims:restatement", rs.pk)
+    return render(
+        request,
+        "claims/restate.html",
+        {
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "form": form,
+            "why": why or ("" if options else "No engine release offers ReCET's own calculation yet."),
+            "calc": v.calculation or {},
+        },
+    )
+
+
+@login_required
+def restatement(request, pk):
+    """One restatement: what changed between the filing and today's calculation, the filed and restated figures with the change split
+    into the program and engine effect and the ACC effect, by program; and beside another year's confirmed claims."""
+
+    rs = _restatement(request, pk)
+    described, state = restatements.refresh(rs)
+    pa = request.GET.get("pa", "")
+    kinds = {k: kind for k, _, kind in restatements.FIGURES}
+    metric = request.GET.get("metric", "TotalSystemBenefit")
+    if metric not in kinds:
+        metric = "TotalSystemBenefit"
+    ctx = {
+        "rs": rs,
+        "v": rs.version,
+        "label": service.label(rs.version.submission.deadline),
+        "state": state,
+        "pa": pa,
+        "metric": metric,
+        "metrics": [(k, lbl) for k, lbl, _ in restatements.FIGURES],
+        "runs": [],
+        "inputs": restatements.describe_filed_vs_restated(rs, described),
+    }
+    for role, title in (("restated", "Restated run"), ("bridge", "Current engine on the filed ACC")):
+        if rs.runs.get(role):
+            ctx["runs"].append({"role": role, "title": title, "d": described.get(role)})
+    if state == "done":
+        c = restatements.comparison(rs, pa=pa)
+        cols = ("filed", "bridge", "restated", "engine", "acc", "total")
+
+        def cells(p, key):
+            vals = p.values(key)
+            kind = kinds[key]
+            return [_fmt(kind, vals[c]) if c in ("filed", "bridge", "restated") else _signed_fmt(kind, vals[c]) for c in cols]
+
+        ctx["c"] = c
+        ctx["summary"] = [{"label": lbl, "cells": cells(c.total, k)} for k, lbl, _ in restatements.FIGURES]
+        ctx["by_program"] = [{"p": p, "cells": cells(p, metric)} for p in c.programs]
+        ctx["by_program_total"] = cells(c.total, metric)
+        ctx["metric_label"] = dict(ctx["metrics"])[metric]
+        others = restatements.other_years(rs)
+        ctx["others"] = others
+        year = request.GET.get("year", "")
+        other = next((ov for y, ov in others if str(y) == year), None)
+        if other is not None:
+            ctx["year"] = int(year)
+            ctx["other"] = other
+            ctx["other_acc"] = str((other.calculation or {}).get("acc", ""))
+            ctx["other_release"] = (other.calculation or {}).get("release", "")
+            ctx["same_acc"] = set(rs.acc_records) == {ctx["other_acc"]}
+            ctx["years_rows"] = [
+                {**r, "cells": [_fmt(kinds[metric], r["restated"]), _fmt(kinds[metric], r["other"]),
+                                _signed_fmt(kinds[metric], r["change"])]}
+                for r in restatements.year_comparison(rs, other, metric, pa=pa)
+            ]  # fmt: skip
+    return render(request, "claims/restatement.html", ctx)
+
+
+def _signed_fmt(kind: str, x) -> str:
+    if x is None:
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + _fmt(kind, abs(x)).lstrip("-")
+
+
+@login_required
+def restatement_csv(request, pk):
+
+    rs = _restatement(request, pk)
+    _, state = restatements.refresh(rs)
+    if state != "done":
+        raise Http404
+    response = HttpResponse(restatements.comparison_csv(rs, pa=request.GET.get("pa", "")), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="restatement_{rs.pk}.csv"'
+    return response
+
+
+@login_required
+def restatement_list(request):
+    """The restatements a person can see, newest first."""
+
+    rows = list(restatements.visible(request.user).select_related("owner")[:200])
+    return render(request, "claims/restatements.html", {"rows": [(rs, service.label(rs.version.submission.deadline)) for rs in rows]})

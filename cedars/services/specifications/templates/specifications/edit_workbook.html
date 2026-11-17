@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}Workbook: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_workbook" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-workbook">Change many fields and rules at once in Excel: download the draft as a workbook, change its Settings, Tables, Fields
+and Rules sheets, and load it back. Every difference is shown before anything changes, and each one is made as it would be on its own
+page: checked the same way, and kept in the draft's history with your reason.</p>
+<section aria-labelledby="workbook-download-h" class="card">
+  <h2 id="workbook-download-h">Download the draft</h2>
+  <p><a href="{% url 'specifications:workbook_file' v.specification.code v.slug %}" id="workbook-download">The draft as a workbook</a>
+  (.xlsx). Its About sheet says what each sheet takes. In Fields, put a new name in Rename to to rename a field, add a row to add one
+  and delete a row to remove one; the rows' order is the template's. In Rules, a row with no Rule ID is a new rule and a deleted row
+  removes one. Load back the workbook of this draft only, and download it again after changing the draft on its other pages.</p>
+</section>
+<section aria-labelledby="workbook-load-h" class="card">
+  <h2 id="workbook-load-h">Load the changed workbook</h2>
+  {% url 'specifications:workbook_file' v.specification.code v.slug as tmpl %}{% before_upload template=tmpl template_label="the draft's own workbook" rules_note="every change is checked as on its own page, and shown before it is made" guide="rules-and-lists#editing-specifications" guide_label="the rules and value lists guide" %}
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate id="workbook-form">{% csrf_token %}
+    {{ form.file.as_field_group }}
+    <div class="actions"><button type="submit">Show the differences</button></div>
+  </form>
+</section>
+{% if changes is not None %}
+<section aria-labelledby="workbook-preview-h" id="workbook-preview">
+  <h2 id="workbook-preview-h">What {{ held_name|default:"the workbook" }} changes</h2>
+  {% if not changes %}
+  <p id="workbook-same">Nothing: the workbook is the draft as it stands.</p>
+  {% else %}
+  {% if problems %}
+  <div class="alert" role="alert" id="workbook-problems"><p><span class="status bad">Cannot load</span> {{ problems|length }} change{{ problems|pluralize }} would be refused. Correct the workbook and load it again; nothing has changed.</p>
+    <ul class="compact">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>
+  {% else %}
+  <p><span class="status ok">Ready</span> Each change below passes the checks it gets on its own page. Nothing has changed yet.</p>
+  {% endif %}
+  <ol class="compact" id="workbook-changes">{% for c in changes %}<li>{{ c.words }} <span class="small">({{ c.where }})</span></li>{% endfor %}</ol>
+  {% if load_form %}
+  <form method="post" action="{% url 'specifications:load_workbook' v.specification.code v.slug %}" class="stack form-narrow" novalidate id="workbook-confirm">{% csrf_token %}
+    {{ load_form.sha256 }}{{ load_form.reason.as_field_group }}
+    <div class="actions"><button type="submit" class="primary"{% if problems %} aria-disabled="true"{% endif %}>Make {{ changes|length }} change{{ changes|pluralize }} to the draft</button></div>
+  </form>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

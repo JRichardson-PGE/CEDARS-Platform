@@ -1,0 +1,26 @@
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="{{ label }}">
+<table class="list">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr><th scope="col">Delegate</th><th scope="col">For</th><th scope="col">Approvals</th><th scope="col">Days</th><th scope="col">Status</th><th scope="col">Named by</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for row in rows %}{% with d=row.d %}
+  <tr>
+    <th scope="row">{{ d.delegate|person }}</th>
+    <td>{{ d.approver|person }}</td>
+    <td>{{ d.get_module_label }}</td>
+    <td class="nowrap">{{ d.starts|date_words }} to {{ d.ends|date_words }}</td>
+    <td>{% if row.state == "in force" %}<span class="status ok">In force</span>{% elif row.state == "upcoming" %}<span class="status info">Coming</span>{% elif row.state == "ended" %}<span class="status">Ended early</span> <span class="small muted">{{ d.ended_at|date_words }}{% if d.end_reason %}: {{ d.end_reason }}{% endif %}</span>{% else %}<span class="status">Over</span>{% endif %}</td>
+    <td>{% if d.created_by and d.created_by_id != d.approver_id %}{{ d.created_by|person }}{% if d.reason %} <span class="small muted">{{ d.reason }}</span>{% endif %}{% else %}The approver{% if d.reason %} <span class="small muted">{{ d.reason }}</span>{% endif %}{% endif %}</td>
+    <td>{% if row.can_end %}
+      <details class="inline"><summary>End early<span class="sr-only"> {{ d.delegate|person_name }} deciding for {{ d.approver|person_name }}</span></summary>
+        <form method="post" action="{% url 'submissions:end_delegation' d.pk %}">{% csrf_token %}
+          <label for="end-{{ d.pk }}-{{ label }}">Reason{% if d.approver_id == user.pk %} (optional){% endif %}</label>
+          <input type="text" id="end-{{ d.pk }}-{{ label }}" name="reason"{% if d.approver_id != user.pk %} required{% endif %}>
+          <button type="submit">End it now</button>
+        </form>
+      </details>{% endif %}</td>
+  </tr>{% endwith %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>

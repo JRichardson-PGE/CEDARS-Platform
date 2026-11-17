@@ -1,0 +1,38 @@
+{
+  "engine": {
+    "version": "0.1.95",
+    "commit": "2d364d89f0f7bdb23a9f406eca9819be25e6dd1b"
+  },
+  "documents": {
+    "INPUT_FORMATS.md": "81ec801ec40984e156c85508e159860cdf55f796fbbc08589d5bb27b00806b25",
+    "INPUT_FIELDS.md": "5f37e1e161fab013461f616ebacc2bcf887085dfe1f261bf7bdd6a3af7a3aa0a",
+    "OUTPUT_FIELDS.md": "9827a0c4370637eff827bcde3c28b1e26f2baf4801f93a4f33573ea8b2fdf712",
+    "CALCULATIONS.md": "c512e04a54b1735e9c8c3f4e7f1ff8b34382703ed834283a5bda8b97de5bc4ab",
+    "COST_TESTS.md": "1c158f750a83af73144a783911ed4a6c9a32a60fa44840830352eabc04886816",
+    "USER_GUIDE.md": "cc342fa520852797154ba6c385e5a775bffa5c29533f73690e7fd444f311680f",
+    "ARCHITECTURE.md": "e9b70be918b83f4cfff605c9735334f8e53de60a58cf01b6dd084499732d6d9b"
+  },
+  "diagrams": {
+    "ARCHITECTURE-1.svg": {
+      "source_sha256": "c7c2f3788f632c38e88589b9bb41cf0bb7526e68f4d90a33a9cbe03df9e241ea"
+    },
+    "ARCHITECTURE-2.svg": {
+      "source_sha256": "4a16fa036483b269c1866009834daa57a66cd90dede38f10a59812389a2b894f"
+    },
+    "ARCHITECTURE-3.svg": {
+      "source_sha256": "9a47925696e94817311460266e8042706d9d14238ede0e0fbd3099574ebf5c3a"
+    },
+    "ARCHITECTURE-4.svg": {
+      "source_sha256": "275702ac284af11a7bb37750a18c4e10d2244cfa01ce48ef7f7e987bd0209060"
+    },
+    "ARCHITECTURE-5.svg": {
+      "source_sha256": "07db247ee3c2e09ed374af6806e300c2a90093b6e1dc06095e73471896ecefb1"
+    },
+    "ARCHITECTURE-6.svg": {
+      "source_sha256": "993b2e70130916833d5492096d4bd5f1bcb1a80ce1d1b4bfb075852cc1eff134"
+    },
+    "ARCHITECTURE-7.svg": {
+      "source_sha256": "453128ac9bc14a1081f89a578e85adbee4091a3b3d67c471f7d686c33ba33324"
+    }
+  }
+}

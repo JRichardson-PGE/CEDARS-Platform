@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Amounts: {{ s.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
+<div class="page-title"><h1>Amounts: {{ s.title }}</h1>{% page_help "budgets/shift_lines" %}</div>
+<p>One line per program and year: a negative amount moves money out, a positive one moves it in. {{ s.organisation.code }}'s lines
+must net to zero, a statewide line counting by {{ s.organisation.code }}'s allocation factor; the (?) help explains statewide lines.</p>
+<form method="post" class="stack">{% csrf_token %}
+  {% include "budgets/_shift_lines_table.html" %}
+  <div class="actions"><button type="submit" class="primary">Save</button> <button type="submit" name="more" value="1">Save and add more lines</button></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'budgets/shift_lines.js' %}" defer></script>{% endblock %}

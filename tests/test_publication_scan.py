@@ -1,0 +1,579 @@
+"""The scan for personal information before publication: a snapshot whose text columns hold what look like emails, phone
+numbers, street addresses, Social Security numbers or account numbers is held out of the public release, its owner and the CPUC system
+administrators are told, and a system administrator releases it with a reason; every step is audited. No value found is kept."""
+
+import io
+import json
+from datetime import timedelta
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
+from django.urls import reverse
+from django.utils import timezone
+
+from cedars.core import storage
+from cedars.services.accounts import service as access
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.audit.models import AuditEvent
+from cedars.services.notifications.models import Notification
+from cedars.services.registry.models import FilingCycle
+from cedars.services.snapshots import pii
+from cedars.services.snapshots import service as snapshots
+from cedars.services.snapshots.models import PIIScan, ScanSettings, Snapshot
+from cedars.services.submissions import service as submissions
+from cedars.services.submissions.models import SubmissionVersion
+
+from .conftest import page_only, sign_in
+from .test_snapshots import claims_deadline, confirm, filer, quarter  # noqa: F401 - fixtures and helpers
+
+pytestmark = pytest.mark.django_db
+
+EMAIL, PHONE, ADDRESS, SSN, ACCOUNT = "jane@example.com", "415-555-0123", "742 Evergreen Ter", "123-45-6789", "9988776655"
+RAW = (EMAIL, PHONE, ADDRESS, SSN, ACCOUNT, "jane", "Evergreen", "0123", "6789", "8776655")
+CLEAN = [
+    "LED retrofit",
+    "Res Furnace 80 AFUE",
+    "PGE-2028-000123456",
+    "0.123456789012",
+    "2028Q1",
+    "4 ft T8 lamp",
+    "2 Way valve",
+    "SWLG009-02",
+]
+
+
+def table(descriptions: list[str], *, extra: dict | None = None) -> bytes:
+    n = len(descriptions)
+    t = pa.table(
+        {
+            "CEInputID": [f"M{i}" for i in range(n)],
+            "PrgID": ["PGE_Res_HVAC"] * n,
+            "MeasDescription": descriptions,
+            "TotalSystemBenefit": [float(i + 1) for i in range(n)],
+            **(extra or {}),
+        }
+    )
+    buf = io.BytesIO()
+    pq.write_table(t, buf, row_group_size=4)
+    return buf.getvalue()
+
+
+def priced(filer, deadline, pge, descriptions, *, run="run-1", submission_version=None, extra=None):  # noqa: F811
+    v = submission_version or submissions.start(filer, deadline, pge)
+    submissions.record_validation(filer, v, None, {"records": len(descriptions), "rejected": 0, "warnings": 0})
+    key = f"runs/{run}/out/_results/measure_level_run.parquet"
+    storage.store("results").put_bytes(key, table(descriptions, extra=extra))
+    submissions.record_calculation(None, v, run=run, input_hash="h", details={"results": {"measure_level": key, "group_sums": None}})
+    return SubmissionVersion.objects.get(pk=v.pk)
+
+
+def in_release(dataset="claims") -> set[int]:
+    r = snapshots.current_release(dataset)
+    return {s.version_id for s in r.snapshots.all()} if r else set()
+
+
+def no_raw(text: str) -> bool:
+    return not any(x in text for x in RAW)
+
+
+# --- the scanner
+
+
+def test_the_scanner_finds_each_kind_and_keeps_no_value(tmp_path):
+    path = tmp_path / "r.parquet"
+    descriptions = [
+        *CLEAN,
+        f"Contact {EMAIL}",
+        f"Call {PHONE}",
+        f"Site at {ADDRESS}, SF",
+        f"SSN {SSN}",
+        f"acct {ACCOUNT}",
+        "(415) 555 0199",
+    ]
+    path.write_bytes(table(descriptions))
+    r = pii.scan(path)
+    found = {(f.column, f.pattern): f for f in r.findings}
+    assert set(found) == {("MeasDescription", p) for p in ("email", "phone", "street_address", "ssn", "account_number")}
+    assert found[("MeasDescription", "phone")].records == 2 and found[("MeasDescription", "phone")].record_ids == ["M9", "M13"]
+    assert found[("MeasDescription", "email")].examples == ["j***@e******.c**"]
+    assert found[("MeasDescription", "phone")].examples[0] == "4**-***-****"
+    assert r.rows == len(descriptions) and r.columns == ["MeasDescription"] and r.skipped == ["CEInputID", "PrgID"]
+    assert no_raw(json.dumps([f.as_dict() for f in r.findings]))
+
+
+def test_ordinary_measure_text_is_clear(tmp_path):
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table(CLEAN))
+    assert pii.scan(path).clear
+
+
+# Measure descriptions the first street address pattern held (every legacy CEDARS claim year, 2026-11-12) and others shaped like them.
+NOT_ADDRESSES = [
+    "131 to 190 Watt Street Light LED replacing 250 Watt High Pressure Sodium",
+    "Up to 28 Watt Street Light LED replacing 50 Watt High Pressure Sodium",
+    "91 to 130 Watt Street Light LED",
+    "Greater than 5 HP to 75 HP Variable Speed Drive on Process Fan Control",
+    "11 HP - 40 HP Variable Speed Drive on Garage Exhaust Fan Control",
+    "<10 HP Variable Speed Drive on Garage Exhaust Fan Control",
+    "Air Compressor VSD (5 up to 15 HP Variable Speed Drive on Air Compressor Control)",
+    "17W 3 Way A19 LED Bulbs",
+    "26W CFL PL lamp",
+    "100 W Street Light LED",
+    "2 Stage Furnace Drive",
+    "3 Ton Split AC Heat Pump Way",
+    "60 Gallon Water Heater Ct",
+]
+ADDRESSES = [
+    "742 Evergreen Ter",
+    "123 Main St",
+    "Site: 4500 W Olive Ave., Burbank",
+    "1600 Pennsylvania Avenue NW",
+    "12 3rd Street",
+    "22B Baker Street",
+    "350 Mission St, San Francisco",
+    "8 Elm Dr Apt 2",
+    "456 N Wolfe Rd",
+    "1234 El Camino Real Way",
+    "PO Box 123",
+    "P.O. Box 9",
+]
+
+
+def test_street_addresses_are_found_and_measure_descriptions_are_not(tmp_path):
+    p = pii.BY_CODE["street_address"]
+    assert [d for d in NOT_ADDRESSES if pii.matches(p, d)] == []
+    assert [a for a in ADDRESSES if not pii.matches(p, a)] == []
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table([*NOT_ADDRESSES, *ADDRESSES]))
+    r = pii.scan(path, patterns=["street_address"])
+    [f] = r.findings
+    assert (f.column, f.records) == ("MeasDescription", len(ADDRESSES))
+    assert f.record_ids == [f"M{len(NOT_ADDRESSES) + i}" for i in range(5)]
+    assert {x["record"] for x in pii.records(path, [f.as_dict()])} == {f"M{len(NOT_ADDRESSES) + i}" for i in range(len(ADDRESSES))}
+
+
+def test_phone_numbers_need_their_area_code_set_off(tmp_path):
+    p = pii.BY_CODE["phone"]
+    phones = ["415-555-0123", "(415) 555-0123", "(415)555-0123", "415.555.0123", "415 555 0123", "+1 415-555-0123", "1-415-555-0123"]
+    not_phones = ["430123-0001", "415555-0123", "234567.8901", "SDGE-430123-0001"]
+    assert [x for x in phones if not pii.matches(p, x)] == []
+    assert [x for x in not_phones if pii.matches(p, x)] == []
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table(["LED"] * 2, extra={"MeasCode": ["430123-0001", "430123-0002"]}))
+    assert pii.scan(path).clear
+
+
+def test_claim_ids_are_left_out_by_default(tmp_path):
+    path = tmp_path / "r.parquet"
+    claim_ids = ["BAY-2019 X - 1234567890 - 12W A-Line", "BAY-2019 X - 2345678901 - Advanced Power Strip"]
+    path.write_bytes(table(["LED retrofit"] * 2, extra={"ClaimID": claim_ids}))
+    r = pii.scan(path)
+    assert r.clear and r.skipped == ["CEInputID", "PrgID", "ClaimID"]
+    assert [f.column for f in pii.scan(path, exempt=["CEInputID", "PrgID"]).findings] == ["ClaimID"]
+
+
+def test_settings_choose_patterns_and_columns(tmp_path):
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table([f"acct {ACCOUNT}", f"Contact {EMAIL}"], extra={"MeasureCode": [ACCOUNT, "X"]}))
+    r = pii.scan(path, patterns=["email"])
+    assert [(f.column, f.pattern) for f in r.findings] == [("MeasDescription", "email")]
+    r = pii.scan(path, exempt=["measdescription", "CEInputID", "PrgID"])
+    assert [(f.column, f.pattern) for f in r.findings] == [("MeasureCode", "account_number")]
+    assert r.skipped == ["CEInputID", "PrgID", "MeasDescription"]
+
+
+def test_dictionary_columns_and_ids_from_later_row_groups(tmp_path):
+    path = tmp_path / "r.parquet"
+    descriptions = CLEAN + [f"Contact {EMAIL}"]
+    t = pa.table({"CEInputID": [f"M{i}" for i in range(len(descriptions))], "MeasDescription": pa.array(descriptions).dictionary_encode()})
+    pq.write_table(t, path, row_group_size=3)
+    [f] = pii.scan(path).findings
+    assert f.record_ids == [f"M{len(CLEAN)}"] and f.records == 1
+
+
+# --- numbers (legacy budgets are filed text; a whole-dollar amount such as "9876543210" has an account number's shape)
+
+# Legacy CEDARS amounts as the downloads have them: dollars to four places, whole dollars, negatives, thousands commas, exponents
+BUDGETS = ["234567.8901", "415555.0123", "987654321", "-234567.8901", "1,234,567.25", "2.345678e5", "", "0", "0.0000", ".5"]
+
+
+def test_legacy_budget_amounts_are_numbers_not_phone_or_account_numbers(tmp_path):
+    path = tmp_path / "r.parquet"
+    n = len(BUDGETS)
+    path.write_bytes(table(CLEAN[:1] * n, extra={"Legacy_Budget": BUDGETS, "UnitMeaCost1stBaseline": ["315555.1234"] * n}))
+    before = pii.scan(path)  # no column read as numbers: the old behaviour, which held legacy filings
+    assert ("Legacy_Budget", "account_number") in {(f.column, f.pattern) for f in before.findings}
+    r = pii.scan(path, numeric=["legacy_budget", "UnitMeaCost1stBaseline"])
+    assert r.clear and r.numeric == ["Legacy_Budget", "UnitMeaCost1stBaseline"]
+    assert "Legacy_Budget" in r.columns  # still searched: only its plain numbers are left out
+
+
+def test_text_in_a_numeric_column_and_numbers_in_a_text_column_are_still_searched(tmp_path):
+    path = tmp_path / "r.parquet"
+    budgets = ["234567.8901", f"Call {PHONE}", f"acct {ACCOUNT}", "1,250,000"]
+    path.write_bytes(table([f"acct {ACCOUNT}", "234.567.8901", "LED", "x"], extra={"Legacy_Budget": budgets}))
+    r = pii.scan(path, numeric=["Legacy_Budget"])
+    found = {(f.column, f.pattern): f for f in r.findings}
+    assert set(found) == {
+        ("MeasDescription", "phone"),
+        ("MeasDescription", "account_number"),
+        ("Legacy_Budget", "phone"),
+        ("Legacy_Budget", "account_number"),
+    }
+    assert found[("Legacy_Budget", "phone")].record_ids == ["M1"] and found[("Legacy_Budget", "account_number")].record_ids == ["M2"]
+
+
+def test_numeric_columns_come_from_the_dictionary_and_the_legacy_amounts():
+    from cedars.services.dictionary import service as dictionary
+
+    assert "legacy_budget" in snapshots.numeric_columns() and "numunits" not in snapshots.numeric_columns()
+    dictionary.load_catalog(
+        None,
+        {
+            "fields": [
+                {"name": "NumUnits", "kind": "input", "data_type": "number", "aliases": [{"name": "Number of Units", "system": "CET"}]},
+                {"name": "MeasDescription", "kind": "input", "data_type": "text"},
+                {"name": "ClaimYearQuarter", "kind": "input", "data_type": "year_quarter"},
+            ]
+        },
+    )
+    got = snapshots.numeric_columns()
+    assert {"numunits", "number of units", "legacy_budget", "legacy_programcosts"} <= got
+    assert "measdescription" not in got and "claimyearquarter" not in got
+
+
+def test_a_legacy_style_budget_is_published_and_recorded_as_numeric(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    extra = {"Legacy_Budget": ["234567.8901", "415555.0123", "987654321", "1,234,567.25"] * 2}
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, extra=extra), django_capture_on_commit_callbacks)
+    scan = Snapshot.objects.get(version=v).pii_scan
+    assert scan.outcome == "clear" and scan.numeric == ["Legacy_Budget"] and in_release() == {v.pk}
+
+
+def test_a_hold_from_before_the_fix_clears_on_a_new_scan(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # the scan as it was
+    extra = {"Legacy_Budget": ["9876543210"] * len(CLEAN)}
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, extra=extra), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    assert snap.pii_scan.held and in_release() == set()
+    monkeypatch.undo()
+    scan = snapshots.rescan(cpuc_admin, snap)
+    assert scan.outcome == "clear" and scan.numeric == ["Legacy_Budget"] and in_release() == {v.pk}
+
+
+# --- the hold
+
+
+def test_a_hit_holds_the_publication_and_tells_the_owner(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, [*CLEAN, f"Contact {EMAIL}"]), django_capture_on_commit_callbacks)
+    assert v.status == "published"  # the filing is confirmed and published; only its public data wait
+    snap = Snapshot.objects.get(version=v)
+    scan = snap.pii_scan
+    assert scan.held and scan.records == 1 and scan.alerted == 2
+    assert snapshots.current_release("claims") is None
+    held = AuditEvent.objects.get(action="snapshot.held")
+    assert held.after["findings"] == [{"column": "MeasDescription", "pattern": "email", "records": 1}]
+    assert AuditEvent.objects.get(action="snapshot.created").after["pii_scan"] == "held"
+    told = Notification.objects.filter(title__startswith="Publication held")
+    assert {n.user for n in told} == {filer, cpuc_admin}
+    assert all(no_raw(n.body) and n.link == f"/publication/holds/{snap.pk}/" for n in told)
+    assert no_raw(json.dumps(scan.findings))
+
+
+def test_a_clean_publication_is_released_as_before(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN), django_capture_on_commit_callbacks)
+    assert Snapshot.objects.get(version=v).pii_scan.outcome == "clear" and in_release() == {v.pk}
+    assert not Notification.objects.filter(title__startswith="Publication held").exists()
+
+
+def test_a_held_quarter_leaves_the_previous_quarter_standing(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    q1 = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, run="r1"), django_capture_on_commit_callbacks)
+    q2 = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 2), pge, [f"Call {PHONE}"], run="r2"), django_capture_on_commit_callbacks)
+    assert in_release() == {q1.pk} and snapshots.current_release("claims").number == 1
+    snapshots.release_hold(cpuc_admin, Snapshot.objects.get(version=q2), "a test of the release")
+    assert in_release() == {q2.pk}
+
+
+def test_a_held_correction_leaves_the_filed_version_standing(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    cycle = FilingCycle.objects.create(first_year=2028, last_year=2031)
+    tual = submissions.add_deadline(cpuc_admin, module="budgets", kind="TUAL", cycle=cycle, due_at=timezone.now() - timedelta(days=1))
+    submissions.set_policy(cpuc_admin, "budgets", late_confirmation=True, reopen_after_due="open")
+    a = confirm(filer, priced(filer, tual, pge, CLEAN, run="t1"), django_capture_on_commit_callbacks)
+    a2 = submissions.request_reopen(filer, a.submission, "corrected incentives")
+    a2 = confirm(
+        filer, priced(filer, tual, pge, [f"Site at {ADDRESS}"], run="t2", submission_version=a2), django_capture_on_commit_callbacks
+    )
+    assert in_release("forecast") == {a.pk}
+    assert snapshots.superseded(Snapshot.objects.get(version=a)) and not snapshots.superseded(Snapshot.objects.get(version=a2))
+
+
+def test_only_a_system_administrator_releases_and_only_with_a_reason(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, [f"SSN {SSN}"]), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    with pytest.raises(AccessDenied):
+        snapshots.release_hold(filer, snap, "mine")
+    with pytest.raises(AccessDenied):
+        snapshots.release_hold(cpuc_admin, snap, "  ")
+    scan = snapshots.release_hold(cpuc_admin, snap, "the numbers are test fixtures")
+    assert scan.outcome == "released" and scan.released_by == cpuc_admin and in_release() == {v.pk}
+    event = AuditEvent.objects.get(action="snapshot.hold_released")
+    assert event.reason == "the numbers are test fixtures" and event.actor == cpuc_admin
+    assert Notification.objects.filter(user=filer, title__startswith="Publication released").exists()
+    with pytest.raises(AccessDenied):
+        snapshots.release_hold(cpuc_admin, snap, "again")
+
+
+def test_a_settings_change_and_a_new_scan_clear_a_false_hit(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    descriptions = CLEAN
+    extra = {"MeasureCode": [ACCOUNT] * len(CLEAN)}
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, descriptions, extra=extra), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    assert snap.pii_scan.held and in_release() == set()
+    with pytest.raises(AccessDenied):
+        snapshots.set_scan_settings(filer, patterns=list(pii.BY_CODE), exempt_columns=["MeasureCode"], reason="codes")
+    with pytest.raises(AccessDenied):
+        snapshots.set_scan_settings(cpuc_admin, patterns=["nope"], exempt_columns=[], reason="codes")
+    snapshots.set_scan_settings(
+        cpuc_admin, patterns=list(pii.BY_CODE), exempt_columns=["CEInputID", "PrgID", "MeasureCode"], reason="codes"
+    )
+    changed = AuditEvent.objects.get(action="snapshot.scan_settings_changed")
+    assert changed.before["exempt_columns"] == ["CEInputID", "PrgID", "ClaimID"] and changed.after["exempt_columns"][-1] == "MeasureCode"
+    scan = snapshots.rescan(cpuc_admin, snap)
+    assert scan.outcome == "clear" and scan.skipped == ["CEInputID", "PrgID", "MeasureCode"] and in_release() == {v.pk}
+    assert AuditEvent.objects.get(action="snapshot.rescanned").after["outcome"] == "clear"
+    with pytest.raises(AccessDenied):
+        snapshots.rescan(cpuc_admin, snap)
+
+
+def test_a_file_that_cannot_be_scanned_is_held(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    def broken(*a, **k):
+        raise OSError("bad file")
+
+    monkeypatch.setattr(pii, "scan", broken)
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN), django_capture_on_commit_callbacks)
+    scan = Snapshot.objects.get(version=v).pii_scan
+    assert scan.held and "bad file" in scan.error and in_release() == set()
+
+
+def test_a_snapshot_made_before_the_scan_stands(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, [f"Contact {EMAIL}"]), django_capture_on_commit_callbacks)
+    PIIScan.objects.all().delete()
+    snapshots.rebuild("claims", "older snapshot")
+    assert in_release() == {v.pk}
+
+
+def test_unconfirming_a_held_filing_removes_its_scan(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, [f"Contact {EMAIL}"]), django_capture_on_commit_callbacks)
+    with django_capture_on_commit_callbacks(execute=True):
+        submissions.unconfirm(filer, SubmissionVersion.objects.get(pk=v.pk), "remove the email")
+    assert not PIIScan.objects.exists() and not Snapshot.objects.exists()
+
+
+# --- the pages
+
+
+@pytest.fixture
+def held_snap(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, [*CLEAN, f"Call {PHONE}"]), django_capture_on_commit_callbacks)
+    return Snapshot.objects.get(version=v)
+
+
+def test_the_owner_sees_the_hold_and_cannot_release_it(client, filer, held_snap):  # noqa: F811
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("snapshots:holds")).content.decode())
+    assert "PGE" in page and "Waiting" in page and no_raw(page)
+    page = page_only(client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode())
+    assert "MeasDescription" in page and "4**-***-****" in page and "M8" in page and no_raw(page)
+    assert "Release to the public data" not in page
+    r = client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "release", "reason": "mine"})
+    assert r.status_code == 302 and PIIScan.objects.get(snapshot=held_snap).held
+    assert client.get(reverse("snapshots:scan_settings")).status_code == 403
+
+
+def test_another_organization_cannot_see_the_hold(client, make_user, cpuc_admin, held_snap):
+    sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
+    other = make_user("analyst@sce.example.org")
+    access.ensure_membership(cpuc_admin, other, sce)
+    sign_in(client, other)
+    assert client.get(reverse("snapshots:hold", args=[held_snap.pk])).status_code == 404
+    assert "Nothing is held." in client.get(reverse("snapshots:holds")).content.decode()
+
+
+def test_a_system_administrator_releases_from_the_page(client, cpuc_admin, held_snap):
+    sign_in(client, cpuc_admin)
+    page = client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode()
+    assert "Release to the public data" in page
+    r = client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "release", "reason": "a sample phone number"})
+    assert r.status_code == 302 and PIIScan.objects.get(snapshot=held_snap).outcome == "released"
+    page = client.get(reverse("snapshots:holds")).content.decode()
+    assert "Released" in page and "a sample phone number" in page
+
+
+def test_the_settings_page_saves_with_a_reason(client, cpuc_admin):
+    sign_in(client, cpuc_admin)
+    assert client.get(reverse("snapshots:scan_settings")).status_code == 200
+    r = client.post(
+        reverse("snapshots:scan_settings"),
+        {"patterns": ["email", "phone"], "exempt_columns": "CEInputID\nPrgID, MeasureCode", "reason": "test"},
+    )
+    assert r.status_code == 302
+    cfg = snapshots.scan_settings()
+    assert (
+        cfg.patterns == ["email", "phone"] and cfg.exempt_columns == ["CEInputID", "PrgID", "MeasureCode"] and cfg.changed_by == cpuc_admin
+    )
+
+
+# --- the records found, for the filing's organization to look into (never the values)
+
+
+def test_the_owner_downloads_every_record_found_without_the_values(client, filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    descriptions = [*CLEAN, f"Call {PHONE}", f"Contact {EMAIL}", "(415) 555 0199", *[f"Call {PHONE}"] * 6]
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, descriptions), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("snapshots:hold", args=[snap.pk])).content.decode())
+    assert "Download the records found" in page
+    r = client.get(reverse("snapshots:hold_records", args=[snap.pk]))
+    assert r.status_code == 200 and r["Content-Type"].startswith("text/csv") and "attachment" in r["Content-Disposition"]
+    text = r.content.decode()
+    lines = text.strip().splitlines()
+    assert lines[0] == "Filing,Organization,Record (CEInputID),PrgID,Column,Looks like"
+    phone = [ln for ln in lines[1:] if ln.endswith("phone numbers")]
+    assert len(phone) == 8 and len(lines) == 10  # every record, not only the first five the page shows
+    assert all(",PGE," in ln and ",PGE_Res_HVAC,MeasDescription," in ln for ln in lines[1:])
+    assert {ln.split(",")[2] for ln in phone} == {f"M{i}" for i in [8, 10, *range(11, 17)]}
+    assert no_raw(text)
+    event = AuditEvent.objects.get(action="snapshot.hold_records_downloaded")
+    assert event.actor == filer and event.after == {"rows": 9}
+
+
+def test_another_organization_cannot_download_the_records(client, make_user, cpuc_admin, held_snap):
+    sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
+    other = make_user("analyst@sce.example.org")
+    access.ensure_membership(cpuc_admin, other, sce)
+    sign_in(client, other)
+    assert client.get(reverse("snapshots:hold_records", args=[held_snap.pk])).status_code == 404
+    with pytest.raises(AccessDenied):
+        snapshots.hold_records_csv(other, held_snap)
+    sign_in(client, cpuc_admin)
+    assert client.get(reverse("snapshots:hold_records", args=[held_snap.pk])).status_code == 200
+
+
+def test_the_command_rescans_every_hold(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    from django.core.management import call_command
+
+    monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # holds made before the fix
+    budget = {"Legacy_Budget": ["9876543210"] * len(CLEAN)}
+    a = confirm(
+        filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, run="r1", extra=budget), django_capture_on_commit_callbacks
+    )
+    b = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 2), pge, [f"Call {PHONE}"], run="r2"), django_capture_on_commit_callbacks)
+    monkeypatch.undo()
+    out = io.StringIO()
+    call_command("rescan_publication_holds", by=cpuc_admin.email, dry_run=True, stdout=out)
+    assert "2 held" in out.getvalue() and PIIScan.objects.filter(outcome="held").count() == 2
+    out = io.StringIO()
+    call_command("rescan_publication_holds", by=cpuc_admin.email, stdout=out)
+    assert "2 rescanned, 1 cleared, 1 still held" in out.getvalue()
+    assert Snapshot.objects.get(version=a).pii_scan.outcome == "clear" and Snapshot.objects.get(version=b).pii_scan.held
+    assert AuditEvent.objects.filter(action="snapshot.rescanned", actor=cpuc_admin).count() == 2
+
+
+# Navigation review D7 (M10): the hold on the filing's own page and in My queue.
+
+
+def test_the_version_page_shows_its_hold_to_the_filing_organization(client, make_user, filer, cpuc_admin, held_snap):  # noqa: F811
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("claims:version", args=[held_snap.version.pk])).content.decode())
+    assert 'id="hold-notice-h">Publication held</h2>' in page and f'href="/publication/holds/{held_snap.pk}/"' in page
+    assert "phone" in page.lower() and no_raw(page)
+    client.logout()
+    page = page_only(client.get(reverse("claims:version", args=[held_snap.version.pk])).content.decode())
+    assert "Publication held" not in page  # a reader outside the filing organization sees no hold
+
+
+def test_a_held_publication_waits_in_my_queue(client, filer, cpuc_admin, held_snap):  # noqa: F811
+    for who in (filer, cpuc_admin):
+        sign_in(client, who)
+        page = page_only(client.get(reverse("core:queue")).content.decode())
+        assert "Held publications to look into" in page and f'href="/publication/holds/{held_snap.pk}/"' in page, who
+    snapshots.release_hold(cpuc_admin, held_snap, "the 'phone number' is a measure code")
+    sign_in(client, filer)
+    assert f'href="/publication/holds/{held_snap.pk}/"' not in page_only(client.get(reverse("core:queue")).content.decode())
+
+
+# Navigation review D9 (Jake, 2026-11-04): the PA that filed certifies its own hold.
+
+
+def test_the_filing_organization_s_confirmer_certifies_and_releases(client, filer, cpuc_admin, held_snap):  # noqa: F811
+    assert snapshots.may_certify(filer, held_snap) and not snapshots.may_certify(cpuc_admin, held_snap)
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(filer, held_snap, "  ")  # a reason is needed
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode())
+    assert "Certify it is not personal information" in page and "Release to the public data" not in page
+    r = client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "certify", "reason": "M8 is a measure code"})
+    assert r.status_code == 302
+    scan = PIIScan.objects.get(snapshot=held_snap)
+    assert scan.outcome == "certified" and not scan.held and scan.released_by == filer and scan.release_reason == "M8 is a measure code"
+    assert held_snap.version_id in in_release()
+    event = AuditEvent.objects.get(action="snapshot.hold_certified")
+    assert event.organisation == held_snap.organisation and event.reason == "M8 is a measure code"
+    [told] = Notification.objects.filter(title__startswith="Publication released by PGE")
+    assert told.user == cpuc_admin and "M8 is a measure code" in told.body
+    page = page_only(client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode())
+    assert "Certified" in page and "Certify it is not personal information" not in page
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(filer, held_snap, "again")  # no longer held
+
+
+def test_only_the_filing_organization_s_confirmers_certify(client, make_user, cpuc_admin, pge, pge_admin, held_snap):
+    reader = make_user("reader@pge.example.org")
+    access.grant(pge_admin, reader, pge, "claims.read")
+    assert not snapshots.may_certify(reader, held_snap)
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(reader, held_snap, "not PII")
+    sign_in(client, reader)
+    client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "certify", "reason": "not PII"})
+    assert PIIScan.objects.get(snapshot=held_snap).held
+    snapshots.release_hold(cpuc_admin, held_snap, "the CPUC keeps its own release")
+    assert PIIScan.objects.get(snapshot=held_snap).outcome == "released"
+
+
+def test_saved_settings_gain_claim_id_once_and_audited(db):
+    import importlib
+
+    from django.apps import apps
+
+    migration = importlib.import_module("cedars.services.snapshots.migrations.0005_scan_exempts_claimid")
+    ScanSettings.objects.all().delete()
+    ScanSettings.objects.create(patterns=list(pii.BY_CODE), exempt_columns=["CEInputID", "PrgID"])
+    migration.exempt_claim_id(apps, None)
+    migration.exempt_claim_id(apps, None)
+    assert ScanSettings.objects.get().exempt_columns == ["CEInputID", "PrgID", "ClaimID"]
+    [event] = AuditEvent.objects.filter(action="snapshot.scan_settings_changed")
+    assert event.before["exempt_columns"] == ["CEInputID", "PrgID"] and event.actor_label == "system" and event.reason
+
+
+def test_the_columns_left_out_are_chosen_with_the_two_lists(client, cpuc_admin):
+    """The scan settings page chooses the columns left out with the two-list column picker over the data dictionary (each field once,
+    grouped by kind and group); the picker fills the text box, which still takes names the dictionary lacks and is what is saved."""
+    from cedars.services.dictionary import service as dictionary
+
+    dictionary.load_catalog(
+        None,
+        {
+            "source": "test",
+            "fields": [
+                {"name": "CEInputID", "kind": "input", "group": "Measure", "definition": "The measure's ID."},
+                {"name": "ClaimID", "kind": "record", "group": "Claim", "definition": "The claim's ID."},
+            ],
+        },
+    )
+    sign_in(client, cpuc_admin)
+    html = client.get(reverse("snapshots:scan_settings")).content.decode()
+    tag = html.split('id="field-picker"', 1)[1].split(">", 1)[0]
+    assert 'data-target="exempt" data-sep="newline"' in tag and 'data-order="catalog"' in tag
+    catalog = json.loads(html.split('<script id="field-catalog" type="application/json">', 1)[1].split("</script>", 1)[0])
+    assert {c["c"]: c["g"] for c in catalog} == {"CEInputID": "Input: Measure", "ClaimID": "Platform record: Claim"}
+    assert '<option value="g:Input: Measure">' in html and 'name="exempt_columns"' in html

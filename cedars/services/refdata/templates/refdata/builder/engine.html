@@ -1,0 +1,30 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Streams the engine prices: {{ build }}</h1>{% page_help "refdata/builder/engine" %}</div>{% endblock %}
+{% block step %}
+<p>The value streams the engine prices. Tick the ones the set's tests and aggregates read, and the pricings each is read in.</p>
+{% if no_catalog %}
+<p class="card" role="note">The engine installed here {% if engine_here %}is older than ReCET 0.1.92 and has no catalog of its streams{% else %}is missing{% endif %}, so the
+engine's streams cannot be changed on this server. The set keeps the ones it has.</p>
+{% else %}
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+{% if unknown %}<p class="alert" role="alert">The set names engine streams the engine does not price: {{ unknown|join:", " }}. Saving this page drops them.</p>{% endif %}
+<form method="post" class="stack">{% csrf_token %}
+  <h2 id="in-set-h">In the set ({{ included|length }})</h2>
+  {% if included %}
+  {% include "refdata/builder/_engine_table.html" with rows=included label_id="in-set-h" caption="The engine's streams in the set: include each, the pricings it is read in, and its wording" %}
+  {% else %}<p>None yet: tick a stream under Streams not in the set.</p>{% endif %}
+  {% if left_out %}
+  <details class="streams-left-out" id="left-out"{% if left_out_open %} open{% endif %}>
+    <summary>Streams not in the set ({{ left_out|length }})</summary>
+    {% include "refdata/builder/_engine_table.html" with rows=left_out label_id="" caption="The engine's streams the set leaves out: tick one to include it" %}
+  </details>
+  {% endif %}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary" name="then" value="next">Save and go on</button><button type="submit" name="then" value="stay">Save</button></div>{% endif %}
+</form>
+{% endif %}
+{% if program %}
+<h2>The program costs</h2>
+<p>{% for n, s in program %}{{ n }}: {{ s.definition|default:"the ProgramCost.csv costs" }}{% endfor %} The program costs are part of every
+set, priced by each test's own pricing and shared out by its share rule; they are not changed here.</p>
+{% endif %}
+{% endblock %}

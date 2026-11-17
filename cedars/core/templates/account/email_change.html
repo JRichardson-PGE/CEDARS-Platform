@@ -1,0 +1,47 @@
+{% extends "account/base_manage_email.html" %}
+{% load allauth %}
+{% block head_title %}Your email address{% endblock head_title %}
+{% block content %}
+    {% element h1 %}Your email address{% endelement %}
+    <p>The address you sign in with and receive CEDARS email at. A new address takes over once you open the link sent to it; the old
+      address is told of the change, and you are signed out everywhere else.</p>
+    {% if not emailaddresses %}
+        {% include "account/snippets/warn_no_email.html" %}
+    {% endif %}
+    {% url 'account_email' as action_url %}
+    {% element form method="post" action=action_url %}
+        {% slot body %}
+            {% csrf_token %}
+            {% if current_emailaddress %}
+                {% element field id="current_email" disabled=True type="email" value=current_emailaddress.email %}
+                    {% slot label %}Current email address{% endslot %}
+                {% endelement %}
+            {% endif %}
+            {% if new_emailaddress %}
+                {% element field id="new_email" value=new_emailaddress.email disabled=True type="email" %}
+                    {% slot label %}{% if not current_emailaddress %}Current email address{% else %}Changing to{% endif %}{% endslot %}
+                    {% slot help_text %}
+                        Waiting for you to open the link sent to this address.
+                        {% element button form="pending-email" type="submit" name="action_send" tags="minor,secondary" %}Send the link again{% endelement %}
+                        {% if current_emailaddress %}
+                            {% element button form="pending-email" type="submit" name="action_remove" tags="danger,minor" %}Cancel the change{% endelement %}
+                        {% endif %}
+                    {% endslot %}
+                {% endelement %}
+            {% endif %}
+            {% element field id=form.email.auto_id name="email" value=form.email.value errors=form.email.errors type="email" %}
+                {% slot label %}New email address{% endslot %}
+            {% endelement %}
+        {% endslot %}
+        {% slot actions %}
+            {% element button name="action_add" type="submit" %}Change email address{% endelement %}
+        {% endslot %}
+    {% endelement %}
+    {% if new_emailaddress %}
+        <form hidden id="pending-email" method="post" action="{% url 'account_email' %}">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ new_emailaddress.email }}">
+        </form>
+    {% endif %}
+    <p><a href="{% url 'administration:account' %}">Back to your account</a></p>
+{% endblock content %}

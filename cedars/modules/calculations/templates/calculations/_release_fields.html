@@ -1,0 +1,18 @@
+{% comment %}An engine release's form (Add a release, Change a release): its number, then a row for each calculation it offers, the
+calculation named in a box that suggests the ones releases have (a datalist: typing still works, and without scripts it is a plain box),
+its ACCs ticked from a list and a box for a year the list lacks; an empty row below adds one. Then the rest of the form.{% endcomment %}
+{% for field in form.lead_fields %}{{ field.as_field_group }}{% endfor %}
+<fieldset class="calc-rows">
+  <legend>Calculations and the ACCs each has</legend>
+  <p class="small muted">One row for each calculation: ReCET's own (recet) and each CET replica (cet-25.1). Leave a row empty to add nothing.</p>
+  <datalist id="calculation-codes">{% for code in form.calculation_codes %}<option value="{{ code }}"></option>{% endfor %}</datalist>
+  {% for n, calc, accs, more in form.calculation_rows %}
+  <fieldset class="calc-row">
+    <legend>Calculation {{ n }}{% if calc.value %}: {{ calc.value }}{% endif %}</legend>
+    {{ calc.as_field_group }}
+    {{ accs.as_field_group }}
+    {{ more.as_field_group }}
+  </fieldset>
+  {% endfor %}
+</fieldset>
+{% for field in form.rest_fields %}{{ field.as_field_group }}{% endfor %}

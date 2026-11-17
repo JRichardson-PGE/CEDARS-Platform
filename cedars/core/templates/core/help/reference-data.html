@@ -1,0 +1,57 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Reference data are what the calculation engine and the filings read besides your own inputs: the avoided cost calculators (ACCs),
+eTRM packs, the impact profile library, statewide allocation factors and cost-test sets. Every run and every filing records the
+versions it used, so a result can always be traced to its data.</p>
+<h2>Data packs</h2>
+<ol>
+  <li><a href="{% url 'refdata:index' %}">Data packs</a> lists every pack with its status and files, each with its SHA-256 checksum.</li>
+  <li>A draft pack can be used for analysis runs but not for filings. A pack is published once it passes its tie-outs; a published pack
+  is never changed, and a withdrawn one keeps the runs that used it.</li>
+</ol>
+<h3 id="acceptance-checks">Acceptance checks</h3>
+<ul>
+  <li><a href="{% url 'refdata:checks' %}">Pack acceptance checks</a> lists the checks each kind of pack must pass before it is
+  published, such as reconciling an ACC to its published workbook. CPUC system administrators add a check or retire one, with a
+  reason; a check is never edited, and a published pack keeps the checks it was published under.</li>
+  <li>A check's result is recorded on the pack's page by uploading the JSON report the reconciliation script or the engine's tie-out
+  wrote. The report says whether the check passed (<code>"passed"</code> true or false, or <code>"status"</code> PASS or FAIL); a
+  report naming a file's SHA-256 must name one of the pack's files.</li>
+</ul>
+<h3 id="etrm-permutations">eTRM permutation packs</h3>
+<p>The CPUC loads eTRM's permutations downloads (CSV) from {% page_link 'refdata:etrm_upload' "Upload eTRM permutations" %}
+as a draft pack, indexed by Measure Detail ID, and publishes it on its page. Claims check deemed records against the published pack in
+force. The avoided-cost and impact-profile library packs are registered from storage instead: they are gigabytes.</p>
+<h2>Statewide allocation factors</h2>
+<p>The <a href="{% url 'administration:allocations' %}">statewide allocation factors</a> are each funding PA's share of each statewide
+program, by year. Anyone can read the confirmed versions; signed in, you see every version. A confirmed version never changes. The
+funding PAs manage the factors: a member with the permission loads a draft from a factor file and confirms or discards it, and the
+other funding PAs are told. A run that names no version uses the most recently confirmed one for its program year. A version's page
+shows its factors in a table (narrow it by program year or program) and offers them as a CSV in the layout ReCET reads.</p>
+<p>A factor file starts from the template on the allocation page: each statewide program and year, its PercentElectric (required) and
+each funding PA's electric and gas factors, with at most 4 decimal places each (a longer value refuses the file). Each fuel's factors
+must add up to exactly 1.0000. A 100% electric program's gas factors equal its electric factors (and a 0% electric program's
+electric factors its gas factors), so its savings in the other fuel are still allocated; left blank, they are copied. The weighted factors
+are not in the file: each is PercentElectric &times; electric + (1 &minus; PercentElectric) &times; gas, rounded to 4 decimal places,
+and where the rounded values do not add up to exactly 1.0000, the PA whose value was closest to rounding the other way moves by 0.0001
+first until they do.</p>
+<h2>Cost-test sets</h2>
+<ul class="links">
+  <li>A <a href="{% url 'refdata:cost_tests' %}">cost-test set</a> says which value streams each cost test adds up and how it shares the
+  program costs. Every run is pinned to one. A filing is priced only on a published set: the one its filing setup names, or the one in
+  force for its first program year.</li>
+  <li>Anyone signed in may <a href="{% url 'refdata:build_start' %}">build a set</a>, usually from a copy of a registered set, and price
+  their own analysis runs on it from New run. Only the CPUC registers a set for filings.</li>
+  <li>The builder shows each test as a formula, <code>TRC = (ElecBen + GasBen + adder(TaxCredits)) / (ElecSupplyCost + share x
+  ProgramCosts)</code>, and a test can be typed that way. Streams are joined by <code>+</code>, each once; <code>adder(X)</code> adds X to
+  the test's benefits without counting it in the benefits the program costs are shared by; <code>share x ProgramCosts</code> is the
+  test's own share of the program costs and <code>share(TRC) x ProgramCosts</code> takes TRC's.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:recet_docs' %}">Engine documentation</a>: the calculation engine's reference, including the cost tests and
+  the allocation table's layout.</li>
+  <li><a href="{% url 'core:help_guide' 'impact-profiles' %}">Impact profiles</a>.</li>
+  <li><a href="{% url 'core:help_guide' 'calculations' %}">Cost-effectiveness runs</a>.</li>
+</ul>
+{% endblock %}

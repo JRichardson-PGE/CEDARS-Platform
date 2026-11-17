@@ -1,0 +1,42 @@
+{% extends "core/base.html" %}
+{% block title %}Built-in checks: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_checks" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-checks">Checks written in CEDARS' code that a filing on this version meets beside its rules, because they need what a rule
+cannot see: the program registry, earlier confirmed quarters, the filing's other tables, eTRM. Most are CEDARS' own processing (columns,
+keys and IDs, programs, the links between tables) and always run. {% if choosable %}The others can be left out of the version, or made a
+warning or a reject: a filing on the version runs them as it has them.{% endif %}</p>
+<form method="post" novalidate id="checks-form">{% csrf_token %}
+{% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+{% for group, label, list in groups %}
+<h2 id="checks-{{ group }}">{{ label }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}: built-in checks">
+<table class="list">
+  <caption class="sr-only">{{ label }}: built-in checks</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">Runs</th><th scope="col">Severity</th><th scope="col">What it finds</th></tr></thead>
+  <tbody>{% for r in list %}<tr id="check-{{ r.check.rule_id }}"><th scope="row">{{ r.check.rule_id }}</th>
+    <td>{% if r.check.optional %}<label class="inline" for="run-{{ r.check.rule_id }}"><input type="checkbox" name="run" value="{{ r.check.rule_id }}" id="run-{{ r.check.rule_id }}"{% if r.runs %} checked{% endif %}> Runs<span class="sr-only"> {{ r.check.rule_id }}</span></label>{% else %}Always{% endif %}</td>
+    <td>{% if r.check.severities %}<label class="sr-only" for="severity-{{ r.check.rule_id }}">Severity of {{ r.check.rule_id }}</label><select name="severity-{{ r.check.rule_id }}" id="severity-{{ r.check.rule_id }}">{% for s in r.check.severities %}<option value="{{ s }}"{% if s == r.severity %} selected{% endif %}>{% if s == "reject" %}Rejects the record{% else %}Warning{% endif %}</option>{% endfor %}</select>{% elif r.severity == "reject" %}Rejects the record{% elif r.severity == "warning" %}Warning{% else %}Rejects the record or warns, by case{% endif %}</td>
+    <td>{{ r.check.finds }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% empty %}<p>No built-in checks.</p>
+{% endfor %}
+{% if choosable %}<div class="stack form-narrow">{{ form.reason.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Save the built-in checks</button></div></div>{% endif %}
+</form>
+{% if writable %}
+<h2 id="as-rules-h">Write a check as rules</h2>
+<p>These checks can be replaced by rules in this draft's rule set that give the same findings. The check then leaves the version and
+its rules are on the <a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a> page, where they can be changed like any
+other rule, with the severity the check has here. Filings on earlier versions keep the check.</p>
+<form method="post" action="{% url 'specifications:write_check_as_rules' v.specification.code v.slug %}" class="stack form-narrow" id="as-rules-form">{% csrf_token %}
+  <div class="field"><label for="as-rules-check">Check</label>
+    <select name="check" id="as-rules-check">{% for c in writable %}<option value="{{ c.rule_id }}">{{ c.rule_id }}: {{ c.finds }} ({{ c.as_rules|length }} rule{{ c.as_rules|length|pluralize }})</option>{% endfor %}</select></div>
+  {{ as_rules_form.reason.as_field_group }}
+  <div class="actions"><button type="submit">Write it as rules</button></div>
+</form>
+{% endif %}
+{% endblock %}

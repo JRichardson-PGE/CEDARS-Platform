@@ -1,0 +1,214 @@
+{% extends "core/base.html" %}
+{% load work_tags %}
+{% block title %}{{ item.number }}: {{ item.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'work:backlog' %}">Work items</a></li></ol></nav>
+<div class="page-title"><h1>{{ item.number }}: {{ item.title }}</h1>{% page_help "work/item" %}</div>
+<dl class="facts">
+  <dt>Status</dt><dd><span class="status {{ item.status|work_class }}">{{ item.get_status_display }}</span>{% if item.status == "accepted" %} Place {{ item.position }} of {{ backlog_size }}.{% elif item.status == "done" %} It went out in <a href="{% url 'work:release' item.release.pk %}">release {{ item.release.name }}</a> on {{ item.release.released_on|date_words }}.{% elif item.status == "planned" %} <a href="{% url 'work:release' item.release.pk %}">Release {{ item.release.name }}</a>{% if item.release.expected_on %}, expected {{ item.release.expected_on|date_words }}{% endif %} (the plan is {{ item.release.get_status_display|lower }}).{% endif %}{% if item.decided_at and item.status != "done" %} {{ item.decided_at|date_words }}{% if item.decided_by %} by {{ item.decided_by|person }}{% endif %}{% endif %}</dd>
+  {% if item.status == "declined" %}<dt>Reason</dt><dd class="prewrap">{{ item.declined_reason }}</dd>{% endif %}
+  <dt>Kind</dt><dd>{{ item.get_kind_display }}{% if item.severity %}: {{ item.get_severity_display|lower }}{% endif %}</dd>
+  <dt>Size</dt><dd>{% if item.size %}{{ item.get_size_display }}{% else %}Not set{% endif %}</dd>
+  <dt>Who sees it</dt><dd>{% if item.public %}<span class="status info">Public</span> Anyone may read its title, workaround and status on <a href="{% url 'known:item' item.pk %}" id="public-page">its public page</a>.{% else %}Internal: the CPUC's staff only.{% endif %}{% if sensitive %} It is joined to a security concern, so it is never made public.{% endif %}</dd>
+  <dt>Proposed</dt><dd>{{ item.created_at|date_words }} by {{ item.created_by|person }}</dd>
+  {% if item.issue_url %}<dt>Issue</dt><dd><a href="{{ item.issue_url }}" id="issue-link" rel="noopener">{{ item.issue_url }}</a>{% if development.issue_state %} <span id="issue-state">({{ development.issue_state }} in the developers' tracker)</span>{% endif %}</dd>{% endif %}
+  {% if development.pulls %}<dt>Code work</dt><dd id="development">{% if development.words %}{{ development.words }}. {% endif %}{% for p in development.pulls %}<a href="{{ p.url }}" rel="noopener">Pull request #{{ p.number }}</a>: {{ p.get_state_display|lower }}, {{ p.changed_at|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}. <span class="small muted">As the developers' tracker reports it.</span></dd>{% endif %}
+  {% if item.status == "planned" %}<dt>Built</dt><dd id="built">{% if item.built_at %}Yes, marked {{ item.built_at|date_words }} {% if development.by_tracker %}when its issue closed in the developers' tracker{% else %}by {{ item.built_by|person }}{% endif %}.{% else %}Not yet. It is marked built on the release's page.{% endif %}</dd>{% endif %}
+  {% if item.status == "proposed" or item.status == "accepted" %}<dt>Ready for a release</dt><dd id="ready">{% if lacking %}Not yet. It still needs {{ lacking|join:", " }}.{% else %}Yes: it has a story, its pages, a size and an acceptance test.{% endif %}</dd>{% endif %}
+</dl>
+{% if item.awaits_approval %}
+<section class="card" aria-labelledby="approval-h" id="approval">
+  <h2 id="approval-h">Waiting for the CPUC's approval</h2>
+  {% if item.decline_proposed_by %}
+  <h3>Declining it</h3>
+  <p>Proposed by {{ item.decline_proposed_by|person }}, with this reason:</p>
+  <p class="prewrap">{{ item.decline_proposed }}</p>
+  {% if can_approve %}
+  <form method="post" action="{% url 'work:act' item.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="approve"><input type="hidden" name="what" value="decline">
+    <div class="actions"><button type="submit" class="primary">Approve: decline it</button></div>
+  </form>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="turn_down"><input type="hidden" name="what" value="decline">
+    {% for field in turn_down_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" aria-label="Do not approve declining it">Do not approve</button></div>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% if item.public_proposed_by %}
+  <h3>Making it public</h3>
+  <p>Proposed by {{ item.public_proposed_by|person }}. Anyone would read its title, workaround and status.</p>
+  {% if can_approve %}
+  <form method="post" action="{% url 'work:act' item.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="approve"><input type="hidden" name="what" value="public">
+    <div class="actions"><button type="submit" class="primary">Approve: make it public</button></div>
+  </form>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="turn_down"><input type="hidden" name="what" value="public">
+    {% for field in turn_down_public_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" aria-label="Do not approve making it public">Do not approve</button></div>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% if not can_approve %}<p class="small muted">The CPUC's approvers have been told and find it in My queue.</p>{% endif %}
+</section>
+{% endif %}
+<section aria-labelledby="story-h" id="story">
+  <h2 id="story-h">The story</h2>
+  <dl class="facts">
+    <dt>As a</dt><dd>{{ item.who|default:"Not written yet" }}</dd>
+    <dt>On</dt><dd>{% for p in item.page_list %}<code>{{ p }}</code>{% if not forloop.last %}<br>{% endif %}{% empty %}Not written yet{% endfor %}</dd>
+    <dt>I need</dt><dd class="prewrap">{{ item.need|default:"Not written yet" }}</dd>
+    <dt>So that</dt><dd class="prewrap">{{ item.why|default:"Not written yet" }}</dd>
+    <dt>Workaround</dt><dd class="prewrap">{{ item.workaround|default:"None" }}</dd>
+  </dl>
+  {% if can_manage %}<p><a class="button" href="{% url 'work:edit' item.pk %}">Change the story, size or workaround</a></p>{% endif %}
+</section>
+<section aria-labelledby="tests-h" id="tests">
+  <h2 id="tests-h">Acceptance tests</h2>
+  <p>What "done" means for this work item. Each is written as the test scripts' tests are: steps, then the expected result.</p>
+  {% for t in tests %}
+  <article class="card">
+    <h3>{{ t.title }}{% if t.library_id %} <span class="small muted">{{ t.library_id }}</span>{% endif %}</h3>
+    <ol>{% for step in t.step_list %}<li>{{ step }}</li>{% endfor %}</ol>
+    <p><strong>Expected:</strong> <span class="prewrap">{{ t.expected }}</span></p>
+    {% if testing_on and t.library_id %}<p class="small in-scripts">{% if t.case %}In the test scripts: {{ t.case.test_id }}, {{ t.case.title }} (script {{ t.case.script.code }}). It is run in the release's round of testing.{% else %}{{ t.library_id }} is not a test of the test scripts as last loaded, so it is checked by hand.{% endif %}</p>{% endif %}
+    {% if can_manage %}<form method="post" action="{% url 'work:tests' item.pk %}">{% csrf_token %}
+      <button type="submit" name="remove" value="{{ t.pk }}" aria-label="Remove the acceptance test: {{ t.title }}">Remove</button></form>{% endif %}
+  </article>
+  {% empty %}<p>None yet. A work item needs at least one before it can be planned for a release.</p>
+  {% endfor %}
+  {% if can_manage and item.status != "declined" %}
+  <details{% if test_form.errors %} open{% endif %}>
+    <summary>Add an acceptance test</summary>
+    <form method="post" action="{% url 'work:tests' item.pk %}" class="stack form-narrow">{% csrf_token %}
+      {{ test_form.non_field_errors }}
+      {% for field in test_form %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit">Add the test</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% if can_manage and item.status != "declined" and item.status != "done" %}
+<section class="card" aria-labelledby="issue-h" id="issue">
+  <h2 id="issue-h">The issue for the developers</h2>
+  {% if issue_link %}
+  <p>Start the issue in the developers' tracker, filled with this work item's story, pages and acceptance tests. The requests joined to it are not sent. Whoever can read that tracker reads the issue, so check that the story names no person, organization or filing.</p>
+  <p><a class="button" href="{{ issue_link }}" id="start-issue" rel="noopener">Start the issue{% if item.issue_url %} again{% endif %}</a></p>
+  {% else %}
+  <p id="no-issue">An issue cannot be started from here yet. {{ issue_blocked }}</p>
+  {% endif %}
+  {% if can_post_issue %}
+  <details id="post-issue"{% if post_form.errors %} open{% endif %}>
+    <summary>Or have the site post the issue</summary>
+    <p>The site posts this issue to the developers' tracker and keeps its address here. Read it first: whoever can read that tracker reads it.</p>
+    <h3 id="draft-h">{{ issue_draft.0 }}</h3>
+    <pre class="prewrap" id="issue-draft" tabindex="0" role="region" aria-labelledby="draft-h">{{ issue_draft.1 }}</pre>
+    <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+      <input type="hidden" name="do" value="post_issue">
+      {{ post_form.non_field_errors }}
+      {% for field in post_form %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit">Post the issue</button></div>
+    </form>
+  </details>
+  {% endif %}
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="issue">
+    {% for field in issue_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Keep the issue's address</button></div>
+  </form>
+</section>
+{% endif %}
+<section aria-labelledby="evidence-h" id="evidence">
+  <h2 id="evidence-h">Evidence</h2>
+  <p>{{ evidence.requests }} request{{ evidence.requests|pluralize }}{% if evidence.organisations %} from {{ evidence.organisations }} organization{{ evidence.organisations|pluralize }}{% endif %}{% if evidence.urgent %}, {{ evidence.urgent }} of them urgent{% endif %}.{% if evidence.followers %} <span id="followers">{{ evidence.followers }} {{ evidence.followers|pluralize:"person has,people have" }} said on its public page that it affects them too.</span>{% endif %}</p>
+  {% if evidence.links %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Requests joined to this work item">
+  <table class="list">
+    <caption class="sr-only">Requests joined to this work item, the oldest first</caption>
+    <thead><tr><th scope="col">Sent</th><th scope="col">Kind</th><th scope="col">For</th><th scope="col">Page</th>{% if can_propose %}<th scope="col">Take off</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for link in evidence.links %}
+    <tr>
+      <td class="nowrap">{% if link.open %}<a href="{% url 'feedback:detail' link.feedback_id %}">{{ link.sent_at|date_words }}<span class="sr-only">: open this request</span></a>{% else %}{{ link.sent_at|date_words }}{% endif %}</td>
+      <td>{{ link.kind_words }}</td>
+      <td>{% if link.organisation %}{{ link.organisation.code }}{% else %}<span class="muted">No organization</span>{% endif %}</td>
+      <td class="small">{% if link.hidden %}<span class="muted">Not shown</span>{% else %}<code>{{ link.page }}</code>{% endif %}</td>
+      {% if can_propose %}<td><form method="post" action="{% url 'work:unjoin' link.pk %}">{% csrf_token %}<button type="submit" aria-label="Take the request of {{ link.sent_at|date_words }} off this work item">Take off</button></form></td>{% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% if can_propose %}<p class="small muted">Join a request to this work item from the request's own page on Feedback.</p>{% endif %}
+</section>
+{% if item.status == "proposed" and can_manage %}
+<section class="card" aria-labelledby="accept-h">
+  <h2 id="accept-h">Accept it into the backlog</h2>
+  <p>It joins the backlog at the bottom; then move it to its place.</p>
+  <form method="post" action="{% url 'work:act' item.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="accept">
+    <div class="actions"><button type="submit" class="primary">Accept</button></div>
+  </form>
+</section>
+{% endif %}
+{% if item.status == "accepted" and can_manage %}
+<section class="card" aria-labelledby="move-h">
+  <h2 id="move-h">Move it in the backlog</h2>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="move">
+    <div class="field"><label for="move_to">Position (1 is first, {{ backlog_size }} is last)</label>
+    <input type="number" id="move_to" name="to" min="1" max="{{ backlog_size }}" value="{{ item.position }}" required></div>
+    <div class="actions"><button type="submit">Move to that position</button></div>
+  </form>
+</section>
+{% endif %}
+{% if item.status == "accepted" and can_manage %}<p id="plan-it">To plan it for a release, open the release on <a href="{% url 'work:releases' %}">Release plans</a>.</p>{% endif %}
+{% if item.status == "done" %}
+{% elif item.status != "declined" %}
+{% if can_manage or can_approve %}
+{% if not item.public and not item.public_proposed_by and not sensitive %}
+<section class="card" aria-labelledby="public-h">
+  <h2 id="public-h">Make it public</h2>
+  <p>Anyone may then read its title, workaround and status. {% if can_approve %}It takes effect at once.{% else %}It takes effect when the CPUC approves it.{% endif %} Check first that the title and workaround name no person, organization or filing.</p>
+  <form method="post" action="{% url 'work:act' item.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="public">
+    <div class="actions"><button type="submit">{% if can_approve %}Make it public{% else %}Propose making it public{% endif %}</button></div>
+  </form>
+</section>
+{% endif %}
+{% if item.public and can_approve %}
+<section class="card" aria-labelledby="internal-h">
+  <h2 id="internal-h">Take it out of public view</h2>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="internal">
+    {% for field in internal_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Make it internal</button></div>
+  </form>
+</section>
+{% endif %}
+{% if not item.decline_proposed_by and item.status != "planned" %}
+<section class="card" aria-labelledby="decline-h">
+  <h2 id="decline-h">Decline it</h2>
+  <p>{% if can_approve %}It becomes Not planned at once.{% else %}It becomes Not planned when the CPUC approves it.{% endif %}</p>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="decline">
+    {% for field in decline_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">{% if can_approve %}Decline{% else %}Propose declining it{% endif %}</button></div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% elif can_approve %}
+<section class="card" aria-labelledby="reconsider-h">
+  <h2 id="reconsider-h">Reconsider it</h2>
+  <p>It goes back to Proposed.</p>
+  <form method="post" action="{% url 'work:act' item.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="reconsider">
+    {% for field in reconsider_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Reconsider</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

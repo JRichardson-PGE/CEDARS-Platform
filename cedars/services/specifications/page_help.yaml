@@ -1,0 +1,491 @@
+# Help for each page (cedars/core/page_help.py): filing specifications.
+
+specifications/index:
+  title: Filing specifications
+  guide:
+    - What each kind of filing must contain (quarterly claims, budget and application filings, monthly reports), with its tables, the
+      fields of each table, which are required, each field's type and value list, and the rules and built-in checks every record is
+      checked against.
+    - The CPUC publishes each specification in named versions. A published version never changes. Each filing set (a claim year, a
+      budget filing, a year of monthly reports) is set up with one version, and its uploads and corrections use that version whenever
+      they are made, so several versions can be in use at once.
+  how:
+    - Select a version to read its tables, fields and rules and to download its template.
+    - Signed in, read a version proposed for comment from the list at the top and comment on it before its last day.
+    - Compare two versions shows the fields, rules and settings that change between them.
+    - Under each specification, Legacy CEDARS layouts lists the layouts of the legacy downloads the imported years came in.
+  see: rules-and-lists
+  tour:
+    - target: "#open-for-comment"
+      title: Open for comment
+      text: Versions the CPUC proposes before publishing them, and the last day to comment on each.
+      optional: true
+    - target: main p.actions
+      title: Compare two versions
+      text: See what changes from one version to another, or between two specifications' tables.
+    - target: main section table.list
+      title: Versions
+      text: Each version of the specification, its status, when it was published and how many filings on the calendar use it.
+    - target: main section h3
+      title: Legacy CEDARS layouts
+      text: The layouts of legacy CEDARS' record-level downloads that the imported years came in, read only.
+      optional: true
+
+specifications/version:
+  title: A filing specification version
+  guide:
+    - One version of a filing specification, which filings set up with it are checked against. Its tables come in upload order; each
+      field shows whether it is required, its type, its value list and its definition, and the rules about the field open in place.
+    - Built-in checks are the checks written in CEDARS' code that need more than one record can show, such as the program registry or
+      earlier quarters. A finding on a validation report names the rule or check by its ID.
+    - The template, the fields-and-rules workbook, the JSON and each table's JSON Schema are made from this version, so they always
+      match it.
+    - A version imported from another CEDARS environment says where it came from and whether it is still exactly the version exported
+      there, or what was changed here after it was imported.
+    - Before publishing a version, the CPUC may propose it for comment. A proposed version is shown to anyone signed in. Read it,
+      download its template and examples, check a file against it with the pre-upload checker, and comment on the whole version, a
+      table or a field until its last day for comments. The CPUC answers under each comment. It does not change while it is proposed.
+    - A legacy CEDARS layout records the columns of a record-level download legacy CEDARS published, each under CEDARS' own label
+      with the field it is loaded into here, and lists the years imported from downloads in it. Those years were filed and checked in
+      legacy CEDARS, so no filing is set up with a layout or checked against it, and it never changes.
+  how:
+    - Download the upload template (a workbook, or a .zip of pipe-delimited files) and fill in each table.
+    - On a proposed version, choose what your comment is about, write it and post it for your organization.
+    - Open a field's rules to read them as sentences with their suggested fixes.
+    - Compare with another version to see what changed.
+  see: rules-and-lists
+  tour:
+    - target: "#spec-status"
+      title: Status
+      text: Whether the version is proposed, published or withdrawn, when, and whether new filings are set up with it.
+    - target: "#proposal-h"
+      title: While it is proposed
+      text: For CPUC system administrators, return it to draft, move the last day for comments, end comments or publish it.
+      optional: true
+    - target: "#comments-h"
+      title: Comments
+      text: For a version proposed for comment, the comments of filers and the CPUC's answers, and the form to comment while comments are open.
+      optional: true
+    - target: "#export-h"
+      title: Move it to another environment
+      text: For CPUC system administrators, export the version as one package to import into another CEDARS environment.
+      optional: true
+    - target: "#provenance-h"
+      title: Where it came from
+      text: For a version imported from another environment, whether it is still exactly the version exported there.
+      optional: true
+    - target: "#downloads-h"
+      title: Templates and downloads
+      text: The upload template, every field and rule as a workbook, and the whole specification as data.
+    - target: "#imports-h"
+      title: Years imported in this layout
+      text: For a legacy CEDARS layout, the years loaded from downloads in it, each by program administrator.
+      optional: true
+    - target: "#about-h"
+      title: About this version
+      text: Its rules, what prices its filings, its file format and the filings that use it.
+    - target: main section.spec-table
+      title: A table and its fields
+      text: Each field's requirement, type, value list and definition. Open a field's rules to read them.
+    - target: "#checks-h"
+      title: Built-in checks
+      text: The checks written in CEDARS' code that a filing on this version also meets.
+      optional: true
+
+specifications/import_version:
+  title: Import a specification version
+  guide:
+    - For CPUC system administrators. A version built and tested in another CEDARS environment, such as the sandbox, comes here as the
+      package exported from its page there. The import always makes a draft, so nothing a filing is checked against changes until it is
+      published here, after the same checks as any draft, including the impact test on this environment's own filings.
+    - Loading the package shows what it would make, how it differs from the version published here, and what this environment lacks.
+      An engine release or cost-test set not registered here stops the import until it is. A value list the package names that is
+      missing here is made in the draft from the package's codes; one with other codes here is reported and kept as it is, and so is a
+      field definition that differs from the data dictionary.
+    - The draft's page and, once published, the version's page say where it came from and whether it is still exactly what was
+      exported.
+  how:
+    - Export the version from its page in the other environment.
+    - Load the package here and select Show what it would make.
+    - Settle anything that stops it, give the reason and import it as a draft.
+  see: rules-and-lists
+  tour:
+    - target: "#import-about"
+      title: Importing a version
+      text: What an import makes, and what it never changes.
+    - target: "#import-load-h"
+      title: Load the package
+      text: Choose the package exported from the other environment. Nothing is made yet.
+    - target: "#import-preview-h"
+      title: What it would make
+      text: The draft it makes, anything that stops it, and what this environment has differently.
+      optional: true
+    - target: "#import-confirm"
+      title: Import it
+      text: The reason kept with the draft, and the button that makes it.
+      optional: true
+
+specifications/compare:
+  title: Compare two specification versions
+  guide:
+    - What changes from one version to another, as tables, fields and their attributes, rules, built-in checks and settings added,
+      removed or changed. Two versions of different specifications can be compared too; tables are matched by name.
+  how:
+    - Choose the version to compare from and the one to compare to, then Compare.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: Choose two versions
+      text: The version to compare from and the one to compare to.
+    - target: "#result-h"
+      title: What changes
+      text: Tables, fields, rules, built-in checks and settings that are added, removed or changed.
+      optional: true
+
+specifications/edit_fields:
+  title: A draft's tables and fields
+  guide:
+    - The tables of a draft specification version and their fields, in template order, with each field's requirement, type, value list
+      and whether it is locked. Nothing here is used by a filing until the draft is published.
+    - A locked field is one the engine reads to price a record or CEDARS' own processing reads (a key, a program ID, a year and
+      quarter, a link to the PII vault). It stays in the version with its type, and a required one stays required; its wording, example
+      and other accepted names can change.
+  how:
+    - Add a field to a table from the data dictionary, or a new one with its definition.
+    - Select Change beside a field to change its requirement, type, value list, wording or place, to rename it, or to remove it.
+    - A field another specification renamed in the data dictionary is listed at the top: rename it here too, or keep the name.
+    - The value lists made in the draft for new codes are listed at the top; open one to change its codes or load them from a CSV.
+    - Change a table's other accepted names and the guidance shown above its fields.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-status"
+      title: The draft
+      text: What it was copied from, and how many things are left to settle before it can be published.
+    - target: main nav.subnav
+      title: Parts of the draft
+      text: A page for each part of the draft, from its settings to Publish.
+    - target: "#pending-renames"
+      title: Renamed in the data dictionary
+      text: Fields another specification renamed; rename each here too, or keep its name.
+      optional: true
+    - target: "#made-lists"
+      title: New value lists
+      text: The lists made in this draft for new codes, published with it.
+      optional: true
+    - target: main section.spec-table
+      title: A table and its fields
+      text: Each field's requirement, type, value list and lock. Add a field, or change one from its row.
+
+specifications/edit_settings:
+  title: A draft's settings
+  guide:
+    - The draft's name (fixed once it is published and shown to filers everywhere), its summary, and what prices its filings, the engine
+      release and the cost-test set. Every filing on the version is priced with them, the first time and on every later correction.
+    - Moving to another engine release or cost-test set is a new version even when no field or rule changes.
+  how:
+    - Change the name, the summary, the engine release or the cost-test set, say why, and save.
+  see: rules-and-lists
+  tour:
+    - target: "#settings-form"
+      title: The settings
+      text: Name, summary, engine release and cost-test set, and why they change.
+
+specifications/edit_rules:
+  title: A draft's rules
+  guide:
+    - The rules a filing on the draft version will be checked against. They are a draft copy of the rules of the version it was copied
+      from, kept in the rule library and published with the version on the day it takes effect.
+    - Field requirements, types, lengths and value lists are checked from the fields themselves and need no rule.
+  how:
+    - Add a rule, or open a rule to change its test or wording or to take it out.
+    - What the rules change compares them with the rules of the version the draft was copied from.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-rules"
+      title: The draft's rules
+      text: Where they come from and how they are published.
+    - target: main table.list
+      title: Rules
+      text: Each rule with its severity, table, field, message and suggested fix.
+      optional: true
+
+specifications/edit_checks:
+  title: A draft's built-in checks
+  guide:
+    - The checks written in CEDARS' code that a filing on the draft version meets beside its rules, because they need what a rule
+      cannot see, such as the program registry, earlier quarters or eTRM.
+    - Most are CEDARS' own processing (columns, keys and IDs, programs, the links between tables) and always run. A few, such as
+      CEDARS' data rules on the Claim and Site tables and the warnings about program costs, can be left out of a version or made a
+      warning or a reject. A filing on the version runs them as the version has them, the first time and on every correction.
+  how:
+    - Untick Runs to leave a check out of the version, or tick it to put it back.
+    - Choose whether a check rejects the record or only warns.
+    - Say why, and save. What changes lists it for the release note.
+    - Under Write a check as rules, choose a check, say why and write it. Its rules join the draft's Rules page with the check's
+      severity and give the same findings; the check leaves the version, and filings on earlier versions keep it.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-checks"
+      title: Built-in checks
+      text: What they are, and which can change.
+    - target: "#checks-form"
+      title: The checks
+      text: Each filing's checks; Runs and Severity can change where a version may choose them.
+    - target: "#as-rules-form"
+      title: Write a check as rules
+      text: Replace a check with rules of the draft's rule set that give the same findings, so it is changed as data from then on.
+      optional: true
+
+specifications/edit_examples:
+  title: A draft's example files
+  guide:
+    - The example files filers download with the version. Each is checked by the same checks a filing gets, as the example program
+      administrator's filing for this year, and the version cannot be published while one has a rejected record.
+    - CEDARS writes the first example from the fields (one record per table, each field's example or default, else a value of its type,
+      codes from its value list, IDs that link the tables). A draft's examples follow its fields as they change.
+    - Each example's report says what it fails, with the record and why; which conditional rules no record meets, so the example does
+      not show them; and which built-in checks need real reference data (the program registry, eTRM, the year so far), which an
+      example cannot pass and which do not count against it.
+  how:
+    - Download an example as a workbook or a .zip, change its records, and load it back with the reason.
+    - Write the generated example again from the fields as they are now.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-examples"
+      title: Example files
+      text: What they are, and when they are checked.
+    - target: "#generate-h"
+      title: The generated example
+      text: CEDARS writes one record per table from the fields.
+    - target: main section.spec-example
+      title: An example and its report
+      text: Whether it passes, what it fails, the rules it does not show and the checks that need real reference data.
+      optional: true
+
+specifications/edit_workbook:
+  title: Editing a draft in a workbook
+  guide:
+    - For changing many fields and rules at once. Download the draft as a workbook, change its Settings, Tables, Fields and Rules
+      sheets in Excel, and load it back. Its About sheet says what each sheet takes.
+    - In the Fields sheet each row is a field, in the template's order. Put a new name in Rename to to rename a field (its old name is
+      still accepted and its rules follow it), add a row to add a field and delete a row to remove one. In the Rules sheet a row with
+      no Rule ID is a new rule, a deleted row removes a rule, and a changed test gives the rule a new ID.
+    - Loading shows every difference first and whether any would be refused, with its sheet and row. Nothing changes until you
+      confirm with a reason; then every change is made, each checked as on its own page and kept in the draft's history, or none is.
+  how:
+    - Download the draft, change the workbook in Excel and save it.
+    - Load it and select Show the differences.
+    - Read the differences, give the reason and make the changes.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-workbook"
+      title: The workbook
+      text: What it is for, and how the changes are made.
+    - target: "#workbook-download-h"
+      title: Download the draft
+      text: The draft as a workbook, and what each sheet takes.
+    - target: "#workbook-load-h"
+      title: Load it back
+      text: Choose the changed workbook to see its differences. Nothing changes yet.
+    - target: "#workbook-preview-h"
+      title: The differences
+      text: Every change the workbook makes, and any that would be refused.
+      optional: true
+    - target: "#workbook-confirm"
+      title: Make the changes
+      text: The reason kept with each change, and the button that makes them.
+      optional: true
+
+specifications/edit_impact:
+  title: A draft's impact test
+  guide:
+    - How real filings already in CEDARS would fare under the draft. It takes the latest confirmed version of each program
+      administrator's most recent filing of this kind, filed on CEDARS, and checks it twice by the same checks a filing gets, once under
+      the version it was checked against and once under the draft, so the difference is the draft's alone.
+    - The result says, for each program administrator and each rule, how many records that were not rejected before would now be
+      rejected, how many would newly be warned and how many would no longer be rejected, and which required fields the filings do not
+      have or leave blank. Nothing is changed by the test.
+    - The test does not stop a version being published. It runs again when the draft is published, if the draft has changed since, so
+      the published version keeps the test it was published on.
+  how:
+    - Run the impact test, or run it again after changing the draft.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-impact"
+      title: The impact test
+      text: Which filings it checks, and how.
+    - target: "#impact-run-h"
+      title: Run it
+      text: The filings it will check, and the button that runs it.
+    - target: "#impact-result"
+      title: Result
+      text: Whether it is current, and what would newly be rejected or warned.
+    - target: "#impact-filings"
+      title: By program administrator
+      text: Each filing tested, before and under the draft.
+      optional: true
+    - target: "#impact-rules-h"
+      title: By rule
+      text: The new findings, by rule, with a few of the records.
+      optional: true
+
+specifications/edit_changes:
+  title: What a draft changes
+  guide:
+    - What the draft changes from the version it was copied from, worked out by CEDARS (fields added, removed and changed, rules,
+      built-in checks and settings). The sentences at the top are offered as the release note's text when the draft is published.
+  see: rules-and-lists
+  tour:
+    - target: "#result-h"
+      title: What changes
+      text: Every difference from the version the draft was copied from.
+    - target: "#note-h"
+      title: In the release note
+      text: The sentences offered as the release note's text.
+      optional: true
+
+specifications/edit_publish:
+  title: Publish a draft
+  guide:
+    - The checks a draft must pass before it is published, and the form that publishes it. Publishing freezes the version for good,
+      publishes its rules with it and publishes a release note that announces it.
+    - A version takes effect at least the usual notice after the day it is published, unless a reason is given and shown with it.
+      Filing sets set up from that day use it; filings already set up keep their version for every later upload and correction.
+    - The impact test's result is shown beside the checks. It does not stop publishing; it runs again as the version is published if
+      the draft has changed since, so the version keeps the test it was published on.
+    - Proposing it for comment first is optional. A proposed version is frozen and shown to anyone signed in, who can check a file
+      against it and comment until the last day you give. Return it to draft to act on the comments, or publish it as it is once
+      comments have closed.
+  how:
+    - Settle each check that is not passed; each links the part of the draft it is in.
+    - To consult filers first, give the last day for comments and what they should look at, then propose it.
+    - Choose the day it takes effect, word what changes and what filers need to do, then publish.
+    - Discard the draft, with its rules, if it is not wanted.
+  see: rules-and-lists
+  tour:
+    - target: "#checks-h"
+      title: Checks before publishing
+      text: What is still to settle, or that the draft passes.
+    - target: "#publish-impact"
+      title: Impact test
+      text: How confirmed filings would fare under the draft, and whether the test is current.
+    - target: "#propose-form"
+      title: Propose it for comment
+      text: Optional. Freeze the draft and let filers read it, check files against it and comment before it is published.
+      optional: true
+    - target: "#publish-comments"
+      title: Comments
+      text: For a proposed version, whether comments are still open and how many are not answered.
+      optional: true
+    - target: "#publish-form"
+      title: Publish
+      text: The day it takes effect, the release note's words, and the button.
+    - target: "#discard"
+      title: Discard
+      text: Drop the draft and its rules; nothing a filing uses changes.
+      optional: true
+
+specifications/edit_comments:
+  title: Comments on a proposed version
+  guide:
+    - The comments filers made while the version was proposed, each about the whole version, a table or a field, with the CPUC's
+      answers. Anyone signed in reads them; they stay with the version once it is published, as the record of its consultation.
+    - Answer each comment here or on the version's page. The answer is shown under it, and the filer is told. A comment is never
+      edited; a correction is another comment.
+    - Change the draft to act on the comments, then propose it again (a new round of comments) or publish it.
+  how:
+    - Open "Answer" under a comment, write the CPUC's answer and post it.
+  see: rules-and-lists
+  tour:
+    - target: "#comments-h"
+      title: Comments
+      text: Each comment, what it is about, and the CPUC's answer or that it is not answered yet.
+      optional: true
+    - target: "#no-proposal"
+      title: Not proposed
+      text: A draft that was never proposed has no comments; proposing it is on the Publish page.
+      optional: true
+
+specifications/edit_field:
+  title: Add or change a field of a draft
+  guide:
+    - A field of a draft specification version. Its type comes from a fixed list, and each type brings its own check and its own words
+      on the specification pages. A coded field names the value list whose codes are accepted.
+    - A locked field keeps its type, and a required one stays required. A field required only in some cases is optional here, with a
+      rule that says when.
+  how:
+    - Set the requirement, type, size, value list, example and wording, say why, and save.
+    - To add a field, pick one the data dictionary has or give a new name and definition.
+    - Rename a field that is not locked; it stays the same field, its old name is still accepted on upload, its rules follow it and
+      the data dictionary renames it when the version is published.
+    - Remove a field that is not locked; data filed under earlier versions keeps it.
+    - For new codes no list has, make a new value list for a field that is not locked; give its name and codes, one to a line. It is
+      published with the version, and a value not in it is rejected.
+  see: rules-and-lists
+  tour:
+    - target: "#field-form"
+      title: The field
+      text: Requirement, type, value list, example, wording and its place in the template.
+    - target: "#field-lock"
+      title: Locked
+      text: Why the field is locked and what may still change.
+      optional: true
+    - target: "#rename-field"
+      title: Rename the field
+      text: A new name for the same field; the old name is still accepted.
+      optional: true
+    - target: "#remove-field"
+      title: Remove the field
+      text: Take it out of the draft, with the reason.
+      optional: true
+    - target: "#new-value-list"
+      title: A new value list
+      text: New codes for the field, in a list published with the version.
+      optional: true
+
+specifications/edit_table:
+  title: A draft table's names and guidance
+  guide:
+    - The other names a file or sheet may give a table of a draft, and the guidance shown above its fields. Its key, how a later upload
+      replaces its records and whether it is kept in the PII vault are CEDARS' processing and stay as they are.
+  how:
+    - Change the other names (separated by commas) or the guidance, say why, and save.
+  see: rules-and-lists
+  tour:
+    - target: "#table-facts"
+      title: The table
+      text: What stays as it is.
+    - target: "#table-form"
+      title: Names and guidance
+      text: What a file or sheet may be called, and what filers read above the fields.
+
+specifications/move_filing_set:
+  title: Move a filing set to another specification version
+  guide:
+    - Every filing in a filing set (a claim year, a budget filing, a year of monthly reports) follows one filing specification version,
+      for every upload, check and correction. A mistake in a version that is in use is fixed by publishing the next version and moving
+      the set to it.
+    - Choose a later published version in effect to see its impact test on the set's confirmed filings, then confirm the move with the
+      reason. Open versions are checked again against the new version, and a calculation they had is void, so they are priced again.
+      Confirmed versions stay as they are, recorded against the version they were checked with. The filing calendar's subscribers are
+      told, with the reason.
+    - The version's engine release must have the ACC the set is priced on; the page says when it does not.
+  how:
+    - Choose the version and select Show its impact.
+    - Read the impact test, give the reason and confirm the move.
+  see: rules-and-lists
+  tour:
+    - target: "#move-now-h"
+      title: Now
+      text: The version the set's filings follow, and how many open versions would be checked again.
+    - target: "#move-choose-h"
+      title: Choose the version
+      text: The later published versions in effect the set can move to.
+    - target: "#impact-result"
+      title: Impact
+      text: How the set's confirmed filings would fare on the chosen version.
+      optional: true
+    - target: "#move-form"
+      title: Confirm the move
+      text: The reason filers see, and the button that moves the set.
+      optional: true

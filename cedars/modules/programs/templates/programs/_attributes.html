@@ -1,0 +1,8 @@
+{% comment %}A program form's fields: the attributes, then how the program is delivered as one group.{% endcomment %}
+{% for field in form.attribute_fields %}{{ field.as_field_group }}{% endfor %}
+<fieldset class="stack" aria-describedby="delivery-help">
+  <legend>Delivery</legend>
+  <p class="helptext" id="delivery-help">How the program is delivered, as CEDARS' Programs list records it: tick each that applies.
+    <a href="{% url 'programs:fields' %}#field-flags" target="_blank" rel="noopener">More about delivery (opens in a new tab)</a></p>
+  {% for field in form.flag_fields %}{{ field.as_field_group }}{% endfor %}
+</fieldset>

@@ -1,0 +1,96 @@
+{% extends "core/base.html" %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="library" %}
+<div class="head-row">
+  <div class="page-title"><h1>Documents</h1>{% page_help "documents/library" %}</div>
+  {% if collections %}<a class="button" href="{% url 'documents:new' %}">File a document</a>{% endif %}
+</div>
+<p>PA documents, CPUC staff guidance, DEER resources, program files and EM&amp;V documents in one library. Published documents are open to
+everyone; each has a permanent link, and every earlier version stays listed. <a href="{% url 'documents:lists' %}">The value lists</a>
+behind the filters are kept by CPUC Energy Division.</p>
+<div{% if home %} class="library-layout"{% endif %}>
+<div class="library-main">
+<form method="get" class="filters" aria-label="Search the documents">
+  {{ form.q.as_field_group }}
+  {{ form.collection.as_field_group }}
+  {{ form.document_type.as_field_group }}
+  {{ form.pa.as_field_group }}
+  {% if form.status %}{{ form.status.as_field_group }}{% endif %}
+  <details{% if advanced %} open{% endif %} class="filters-more">
+    <summary>More filters: program, year, dates and attributes</summary>
+    <div class="filters">
+      {{ form.program.as_field_group }}
+      {{ form.year.as_field_group }}
+      {{ form.published_from.as_field_group }}
+      {{ form.published_to.as_field_group }}
+      {{ form.study.as_field_group }}
+      {{ form.work_order.as_field_group }}
+    </div>
+    <p class="small muted">Within a list, a document matching any value you tick is kept; across lists, it must match each list.</p>
+    {% for tl in lists %}{% include "core/_tick_list.html" %}{% endfor %}
+  </details>
+  <button type="submit">Apply</button>
+</form>
+<div class="head-row">
+  <p>{{ total }} document{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
+  <p><a href="{% url 'documents:library_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
+</div>
+{% if rows %}
+{% pager page query=query label="Result pages" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Documents">
+<table class="list">
+  <caption class="sr-only">Documents, newest publication first</caption>
+  <thead><tr><th scope="col">Title</th><th scope="col">Collection and type</th><th scope="col">PAs</th><th scope="col">Years</th><th scope="col">Published</th><th scope="col">Version</th></tr></thead>
+  <tbody>
+  {% for doc, v, stage, extracts in rows %}
+  <tr>
+    <th scope="row"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a>{% if doc.summary %}<br><span class="small muted">{{ doc.summary|truncatewords:30 }}</span>{% endif %}
+      {% for f, extract in extracts %}<br><span class="small">Found in {{ f.name }}{% if f.version.number != v.number %} (version {{ f.version.number }}){% endif %}: “{{ extract }}”</span>{% endfor %}</th>
+    <td>{{ doc.get_collection_display }}<br><span class="small">{{ doc.document_type.label }}</span></td>
+    <td>{% for o in doc.pas.all %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}{{ doc.owner.code }}{% endfor %}</td>
+    <td class="nowrap">{{ doc.years }}</td>
+    <td class="nowrap">{% if doc.published_at %}{{ doc.published_at|date_words }}{% else %}<span class="status">Not published</span>{% endif %}</td>
+    <td>{% if v %}{{ v.number }}{% endif %}{% if stage %}<br><span class="small">{{ stage }}</span>{% endif %}{% if v.placeholder %}<br><span class="status warn">Placeholder</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+{% if request.GET %}{% url 'documents:library' as clear_url %}{% endif %}
+{% include "ui/empty.html" with title="No documents match" text="Published documents are open to everyone; change or clear the search to see more of the library." action_url=clear_url action="Clear the search" %}
+{% endif %}
+{% pager page query=query label="Result pages" where="below" %}
+</div>
+{% if home %}
+<aside class="library-side" aria-label="Key dates and comment periods">
+<section class="card" aria-labelledby="dates-h">
+  <h2 id="dates-h">Key dates</h2>
+  {% if upcoming or recent %}
+  {% if upcoming %}<h3>Coming up</h3>
+  <ul class="links">{% for kd in upcoming %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
+  {% if recent %}<h3>In the last 30 days</h3>
+  <ul class="links">{% for kd in recent %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
+  {% else %}<p>No key dates are posted.</p>{% endif %}
+  {% if key_date_form %}
+  <details>
+    <summary>Post a key date</summary>
+    <form method="post" action="{% url 'documents:add_key_date' %}">{% csrf_token %}
+      {{ key_date_form.as_div }}
+      <p><button type="submit">Post the key date</button></p>
+    </form>
+  </details>
+  {% endif %}
+</section>
+<section class="card" aria-labelledby="open-h">
+  <h2 id="open-h">Open for comment now</h2>
+  {% if open_for_comment %}
+  <ul class="links">{% for v in open_for_comment %}<li><a href="{% url 'documents:comments' v.document_id %}">{{ v.document.title }}</a>{% if v.stage %}, {{ v.stage_label|lower }}{% else %}, version {{ v.number }}{% endif %}: until {{ v.comment_period.closes|date_words }}</li>{% endfor %}</ul>
+  {% else %}<p>Nothing is open for comment today.</p>{% endif %}
+  <p class="small">{% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}">Choose what you hear about</a>{% else %}<a href="{% url 'account_login' %}?next={% url 'documents:subscriptions' %}">Sign in to subscribe</a>{% endif %}: new documents by collection or attribute, studies and work orders.</p>
+</section>
+</aside>
+{% endif %}
+</div>
+{% endblock %}

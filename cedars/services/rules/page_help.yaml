@@ -1,0 +1,195 @@
+# Help for each page (cedars/core/page_help.py): validation rule sets and the file checker.
+
+rules/index:
+  title: Validation rules
+  guide:
+    - The rules each filing is checked against, as versioned rule sets. A filing is checked against the rule set its specification
+      version names, whatever the date; the version marked in force is the newest published one effective today. Every submission and
+      run records the version it was checked against.
+    - Check a file before you file it runs the current specification's rules on your file without filing it. Compare two rule sets shows what changed
+      between versions. Built-in checks lists the checks written in the platform's code that run beside the rule sets.
+  how:
+    - Check a file before you file it runs the current specification's rules on your file.
+    - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
+    - Built-in checks lists each filing's checks written in code, with their IDs, severity and message.
+  see: rules-and-lists
+  tour:
+    - target: main p.actions
+      title: Check a file, compare rule sets, or read the built-in checks
+      text: Check your file against the current specification's rules, see what changed between two sets, or read the checks written in code.
+    - target: main table.list
+      title: Rule sets
+      text: Each set and version, its effective date and status. Select one to read its rules.
+    - target: "#imp-h"
+      title: Import CEDARS' rules
+      text: For CPUC system administrators. Imported rules start as a draft until published.
+      optional: true
+
+rules/built_in:
+  title: Built-in checks
+  guide:
+    - The checks written in the platform's code that run beside the published rule sets, by filing (budget and application filings,
+      claims, monthly reports, claims PII files, load-shape uploads). They need what a rule set cannot see, such as the program registry,
+      the filing's cycle or month, its other tables, earlier confirmations and eTRM.
+    - Each check has its rule ID, as a finding on a validation report shows it, its severity, the tables and fields it looks at, what it
+      finds and how to fix it. Read only; they change with a release of the platform, which its release notes announce.
+    - A filing runs them as its filing specification version lists them. Most always run; a check a version may leave out runs only
+      when the version lists it, with the severity the version gives it.
+  how:
+    - Filter by rule, field or words and by severity, then Apply.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By rule ID, field or words and by severity, then Apply.
+    - target: "#built-in-count"
+      title: How many match
+      text: The number of checks shown, of all the built-in checks.
+    - target: main table.coded-checks
+      title: The checks
+      text: One table for each filing. Each check's ID, severity, tables, fields, what it finds and how to fix it.
+      optional: true
+
+rules/detail:
+  title: A rule set
+  guide:
+    - One version of a rule set, every rule in it with its ID, severity (reject or warning), field and message. A rule's ID is a content
+      hash, the same wherever the same rule is used.
+    - CPUC system administrators change the rules without a code change. Start a new version of a published set, with the
+      date it takes effect and the reason; in the draft, add rules, change a rule's test or wording, or take a rule out; then publish
+      it. A published version never changes, and the version in force stays in force until the new one takes effect. Filings are
+      checked against the rule set their specification version names, so a new version reaches filings once a specification version
+      names it.
+  how:
+    - Filter by field or words, severity and table, and download the rules shown as CSV.
+    - A published version offers Check a file against these rules, and its rules as JSON with how each is checked and the value lists
+      it reads, to check files in your own systems.
+    - "Administrators: Start the draft makes a new version to change; in a draft, Add a rule, open a rule to change it, and Publish
+      this rule set."
+  see: rules-and-lists
+  tour:
+    - target: "#version-h"
+      title: Start a new version
+      text: For CPUC system administrators. A draft copy of these rules with a later effective date, to change and publish.
+      optional: true
+    - target: "#draft-h"
+      title: Change this draft
+      text: Add a rule, open a rule to change it, publish the draft, or discard it.
+      optional: true
+    - target: "#check-with"
+      title: Check a file
+      text: Check a file against this version, or download its rules as JSON to check files in your own systems.
+      optional: true
+    - target: main form.filters
+      title: Filter
+      text: By field or words, severity and table, then Apply, or download the rules shown as CSV.
+    - target: main table.list
+      title: The rules
+      text: Each rule. Select its ID for the rule as data.
+
+rules/rule:
+  title: A rule
+  guide:
+    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it. The rule as data, exactly as the
+      checker runs it, is folded at the foot of the page; open it to read it.
+    - In a draft rule set, a CPUC system administrator changes the rule or takes it out. A rule whose test changed names the rule it
+      replaces.
+  how:
+    - "Administrators, in a draft: Change the rule, or Take it out with the reason."
+  see: rules-and-lists
+  tour:
+    - target: "#change-h"
+      title: Change this rule
+      text: In a draft, change the rule's test or wording, or take it out of the draft.
+      optional: true
+    - heading: The rule as data
+      title: The rule as data
+      text: Open it for the rule's definition as the checker reads it.
+
+rules/differences:
+  title: Comparing two rule sets
+  guide:
+    - The rules only in the first set, only in the second, and those whose wording or severity changed. Use it to see what a new version of
+      the rules changes before it takes effect.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: The two sets
+      text: Choose the first and second set, then Compare.
+    - target: main h2
+      title: The differences
+      text: Each group of rules that differ.
+      optional: true
+
+rules/check:
+  title: Checking a file before you file it
+  guide:
+    - Runs a filing's validation rules on one table of your file, exactly as the upload runs them (the same code), and lists every
+      finding by rule, rejects first. Nothing you upload here is kept.
+    - Check against the rules of the current specification version, or any other published version. A filing is checked against
+      the rules of the specification version it follows, on any date. Claims are checked with
+      the claim year as the filing year; budget filings year by year, each year as its own filing.
+    - The upload also runs the checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed
+      claims), so a file that passes here can still get findings on upload.
+    - The same check is offered through the API (POST /api/v1/rules/check, with an API token), and each rule set can be downloaded as
+      JSON with how each rule is checked, for systems that check files without sending them.
+  how:
+    - Choose the rules, the table and the file, then Check. Check and download every finding (CSV) gives each finding's line, record,
+      field and how to fix it.
+    - Other ways to check lists the API, the JSON download and ReCET's preflight.
+  see: rules-and-lists
+  tour:
+    - target: main form
+      title: The file
+      text: Choose the rules (the current specification's are selected), the table and the file, then Check.
+      optional: true
+    - target: "#res-h"
+      title: Results
+      text: How many records were rejected or warned, and the findings by rule.
+      optional: true
+    - target: "#other-h"
+      title: Other ways to check
+      text: The same check through the API, the rules as JSON for your own systems, or ReCET's preflight.
+
+rules/rule_form:
+  title: Adding or changing a rule
+  guide:
+    - A rule is either a test on a record (when some fields hold, another field must pass a test, such as NumUnits is greater than 0
+      when MeasAppType equals 'AR') or a constraint on one field (filled in, a number, at most so many characters, a code of a value
+      list, within a range). Choose the kind first; the form then shows only that kind's part. Without scripts both parts show, and the
+      part for the other kind is ignored.
+    - Fields are picked from the data dictionary as you type. Any name the dictionary lists works too, such as CET's, and a key of
+      several fields joins them with +. The name is kept as you give it.
+    - A rule may test any table of the filing its specification version lays out. A condition may read the record itself, the linked
+      record of another table of the filing (sharing its key, such as a claim's measure by ClaimID), the program's record in the
+      registry, or who files (the PA and its kind). Conditions put in the same group count as one condition, holding when all or any
+      of them hold.
+    - Besides comparisons, a test may look for text a field contains, whether a flag is true, compare dates (with a date, another date
+      field or UploadDate, the day of the upload), ask that a date be within a number of years of the upload, or that a code be in
+      effect on the date in another field.
+    - The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. A rule's ID is worked
+      out from its test, so a changed test gives the rule a new ID that records the one it replaces. Leave the message and fix blank to
+      have them written from the test.
+  how:
+    - Choose the kind of rule, then the table and the field it tests.
+    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to. For each,
+      choose what it reads, its field, its test, its value and, to join several into one, a group (More conditions holds the second to the fifth).
+    - For a constraint on one field, choose what the field must be and what that constraint needs.
+    - Choose whether a failing record is rejected or warned, give the reason, then Add the rule or Save the change.
+  see: rules-and-lists
+  tour:
+    - heading: What the rule tests
+      title: What the rule tests
+      text: The kind of rule first, then the table and the field it tests, picked from the data dictionary.
+    - target: "#record-h"
+      title: A test on a record
+      text: The test, its value and up to five conditions; shown when the kind is a test on a record.
+      optional: true
+    - target: "#spec-h"
+      title: A constraint on one field
+      text: What the field must be; shown when the kind is a constraint on one field.
+      optional: true
+    - heading: When a record fails
+      title: When a record fails
+      text: Whether a failing record is rejected or only warned, the message and fix a filer sees (blank to write them from the test),
+        the modules that apply the rule and your reason.

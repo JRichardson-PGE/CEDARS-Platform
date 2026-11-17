@@ -1,0 +1,49 @@
+{% extends "mfa/recovery_codes/base.html" %}
+{% load i18n allauth static %}
+{% comment %}django-allauth's mfa/recovery_codes/index.html (allauth 65.21.0), copied to write its heading in sentence case like every
+   other page (UAT 2, U11) and, after a new account's first second factor (UI review 3, U6), to say what the codes are for, offer Download
+   and Print, show where the set-up is and a Continue button to where the sign-in was heading (core.views.after_set_up; an account in no
+   organization goes on to Ask for access). Keep it in step with allauth's when allauth is upgraded.{% endcomment %}
+{% block content %}
+    {% element h1 %}
+        {% translate "Recovery codes" %}
+    {% endelement %}
+    {% if "cedars_first_set_up" in request.session %}{% include "core/_set_up_steps.html" with step=2 %}{% endif %}
+    <p>Each recovery code signs you in once in place of your authenticator app's code, if you lose your phone or the app. Keep them somewhere safe, apart from the phone: print them, or download them to a password manager.</p>
+    <p class="small muted">
+        {% blocktranslate count unused_count=unused_codes|length %}There is {{ unused_count }} out of {{ total_count }} recovery codes available.{% plural %}There are {{ unused_count }} out of {{ total_count }} recovery codes available.{% endblocktranslate %}
+    </p>
+    {% if can_view_codes %}
+        <h2 class="sr-only" id="codes-h">Unused codes</h2>
+        <ul class="recovery-codes" aria-labelledby="codes-h">{% for code in unused_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+    {% endif %}
+    <div class="actions">
+        {% if can_download_codes %}<a class="button" href="{% url 'mfa_download_recovery_codes' %}">Download the codes</a>{% endif %}
+        {% if can_view_codes %}<button type="button" data-print hidden>Print the codes</button>{% endif %}
+        {% if "cedars_first_set_up" in request.session %}
+            <a class="button primary" href="{% url 'core:after_set_up' %}">Continue{% if not nav.member %} to Ask for access{% endif %}</a>
+        {% else %}
+            {% if can_generate_codes %}<a class="button" href="{% url 'mfa_generate_recovery_codes' %}">Generate new codes</a>{% endif %}
+            <a class="button" href="{% url 'mfa_index' %}">Back to your security settings</a>
+        {% endif %}
+    </div>
+    {% if MFA_RECOVERY_CODES_SHOW_ONCE and can_view_codes %}
+        {% element field type="checkbox" id="codes_saved" %}
+            {% slot label %}
+                {% translate "I have saved my recovery codes" %}
+            {% endslot %}
+        {% endelement %}
+    {% endif %}
+{% endblock content %}
+{% block extra_body %}
+    {{ block.super }}
+    <script src="{% static 'mfa/js/recovery_codes.js' %}"></script>
+    <script src="{% static 'account/js/onload.js' %}"></script>
+    <script data-allauth-onload="allauth.recoveryCodes.forms.viewForm" type="application/json">{
+    "ids": {
+        "saveConfirmation": "codes_saved",
+        "recoveryCodes": "recovery_codes"
+    }
+}
+    </script>
+{% endblock extra_body %}

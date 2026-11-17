@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% load feedback_tags work_tags %}
+{% block title %}{% if own %}My request{% else %}Request{% endif %} of {{ fb.created_at|date_words }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs">{% if own %}<li><a href="{% url 'feedback:mine' %}">My requests</a></li>{% else %}<li><a href="{% url 'feedback:organization' %}">Requests from {{ fb.organisation.code }}'s members</a></li>{% endif %}</ol></nav>
+<div class="page-title"><h1>{{ fb.get_kind_display }} of {{ fb.created_at|date_words }}</h1>{% page_help "feedback/request" %}</div>
+<dl class="facts">
+  <dt>Status</dt><dd><span class="status {{ fb.status|request_class }}">{{ fb.get_status_display }}</span>{% if fb.status == "waiting" %} The CPUC asked {% if own %}you{% else %}the sender{% endif %} a question below.{% elif fb.status == "closed" and fb.closed_at %} {{ fb.closed_at|date_words }}{% endif %}</dd>
+  {% if not own %}<dt>From</dt><dd>{{ fb.user|person }}</dd>{% endif %}
+  <dt>Page</dt><dd><a href="{{ fb.page }}"><code>{{ fb.page }}</code></a></dd>
+  <dt>Read by</dt><dd id="read-by">{% if own %}You, {% else %}The sender, {% endif %}{{ reads }}</dd>
+  {% if fb.status == "closed" and fb.note %}<dt>Note when closed</dt><dd class="prewrap">{{ fb.note }}</dd>{% endif %}
+</dl>
+{% request_progress fb %}
+<section aria-labelledby="conv-h">
+  <h2 id="conv-h">Messages</h2>
+  {% include "feedback/_conversation.html" with staff=False %}
+</section>
+{% if not own %}
+<p id="read-only">You are reading this as an administrator of {{ fb.organisation.code }}. Only its sender and the CPUC add to it.</p>
+{% elif fb.is_open %}
+<section class="card" aria-labelledby="reply-h">
+  <h2 id="reply-h">{% if fb.status == "waiting" %}Reply to the CPUC{% else %}Add something{% endif %}</h2>
+  <form method="post" action="{% url 'feedback:reply' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in reply_form %}{{ field.as_field_group }}{% endfor %}
+    <p class="small muted">Please leave out personal information such as customers' names, addresses or account numbers.</p>
+    <div class="actions"><button type="submit" class="primary">Send</button></div>
+  </form>
+</section>
+<section class="card" aria-labelledby="settle-h">
+  <h2 id="settle-h">Settled?</h2>
+  <p>If you have what you need, say so and the request closes.</p>
+  <form method="post" action="{% url 'feedback:settle' fb.pk %}">{% csrf_token %}
+    <div class="actions"><button type="submit">This is settled</button></div>
+  </form>
+</section>
+{% else %}
+<p id="closed-note">This request is closed. For anything more, use the Feedback link at the foot of the page it is about.</p>
+{% endif %}
+{% endblock %}

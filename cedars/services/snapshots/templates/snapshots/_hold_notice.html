@@ -1,0 +1,7 @@
+{% if scan %}<section class="notice hold-notice" aria-labelledby="hold-notice-h">
+  <h2 id="hold-notice-h">Publication held</h2>
+  <p>This version is confirmed, but its records are not on the public dashboards and record downloads yet: the publication scan found
+  what may be personal information. The public data keep what was published before.</p>
+  {% if summary %}<ul>{% for line in summary %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+  <p><a href="{% url 'snapshots:hold' scan.snapshot.pk %}">See what the scan found and what to do next</a></p>
+</section>{% endif %}

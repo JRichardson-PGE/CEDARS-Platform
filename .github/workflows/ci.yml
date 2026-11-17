@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 14 * * 1" # Mondays: the dependency audit and image scan pick up vulnerabilities published since the last change
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels that pull request's run still in progress; main and the Monday run each get their own group and
+# are never canceled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cedars
+          POSTGRES_PASSWORD: cedars
+          POSTGRES_DB: cedars
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
+    steps:
+      - name: PostgreSQL without disk syncing (a throwaway CI database; fsync and friends reload without a restart)
+        run: >-
+          psql "$DATABASE_URL" -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off"
+          -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - name: Install the pinned ReCET engine (engine/recet-commit)
+        run: uv pip install "recet @ git+https://github.com/JRichardson-PGE/ReCET@$(cat engine/recet-commit)"
+      - name: Migrations match the models
+        run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: cedars.settings.test
+      - name: Production settings pass Django's deployment checks
+        run: uv run python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_SETTINGS_MODULE: cedars.settings.prod
+          DJANGO_SECRET_KEY: ci-only-${{ github.run_id }}-not-a-secret-but-long-enough-for-the-deploy-check
+          DJANGO_ALLOWED_HOSTS: cedars.example.org
+      - run: uv run pytest -q -n auto
+
+  axe:
+    # The browser checks are most of CI's time, so they run as four parallel jobs: each takes every fourth check (PYTEST_SHARD in
+    # tests/conftest.py), and together they run every check once. The accessibility job below reports them as one check.
+    name: accessibility (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cedars
+          POSTGRES_PASSWORD: cedars
+          POSTGRES_DB: cedars
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
+      PYTEST_SHARD: ${{ matrix.shard }}/4
+    steps:
+      - name: PostgreSQL without disk syncing (a throwaway CI database; fsync and friends reload without a restart)
+        run: >-
+          psql "$DATABASE_URL" -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off"
+          -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - name: Playwright version (the browser cache key)
+        id: playwright
+        run: echo "version=$(uv run python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright's Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium (from Playwright's download host, not apt; a no-op when cached)
+        run: |
+          for attempt in 1 2 3; do
+            uv run playwright install chromium && exit 0
+            echo "Chromium download attempt $attempt failed"; sleep $((attempt * 10))
+          done
+          exit 1
+      - name: Install Chromium's system packages (retried; skipped when the Ubuntu mirrors cannot be reached)
+        # The runner image already carries the libraries Chromium needs; apt adds only extra fonts. When the Ubuntu mirrors do not resolve,
+        # apt would spend ten minutes timing out and then fail, so the job goes on without those fonts. The next step fails the job if
+        # Chromium cannot start, and the axe tests run either way. (playwright runs apt through sudo itself.)
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          hosts=$(sed -E 's#^[a-z]+://([^/]+).*#\1#' /etc/apt/apt-mirrors.txt 2>/dev/null; echo archive.ubuntu.com; echo security.ubuntu.com)
+          reachable=""
+          for h in $(echo "$hosts" | sort -u); do
+            if timeout 10 getent hosts "$h" > /dev/null; then reachable="$h"; break; fi
+          done
+          if [ -z "$reachable" ]; then
+            echo "::warning::No Ubuntu mirror resolves; skipping Chromium's apt packages (extra fonts). The launch check below still runs."
+            exit 0
+          fi
+          for attempt in 1 2; do
+            if timeout --kill-after=15 180 uv run playwright install-deps chromium; then exit 0; fi
+            echo "install-deps attempt $attempt failed"; sleep 15
+          done
+          echo "::warning::Chromium's apt packages could not be installed after two attempts; going on if Chromium starts."
+      - name: Chromium starts
+        shell: uv run python {0}
+        run: |
+          from playwright.sync_api import sync_playwright
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              page.set_content("<p>Chromium starts</p>")
+              print(page.text_content("p"))
+              browser.close()
+      - name: axe-core (WCAG 2.2 AA) on every page, both color schemes, and reflow at 320 px
+        run: uv run pytest -q -m a11y -n auto
+
+  accessibility:
+    # One check for the four parts above, under the name the accessibility job has always had.
+    needs: axe
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every part of the browser checks passed
+        run: |
+          echo "Browser checks: ${{ needs.axe.result }}"
+          test "${{ needs.axe.result }}" = success
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build the pinned ReCET engine's wheel for the image (engine/README.md)
+        run: scripts/build_engine_wheel.sh
+      - run: docker build -t cedars-platform:ci .
+      - name: The image imports the engine it was built with
+        run: docker run --rm cedars-platform:ci python -c "import recet, recet.results_view; print('recet', recet.__version__)"
+      - name: Image scan (grype 0.118.0) fails on a High or Critical vulnerability that has a fix
+        # OS packages and every Python package in the image, the engine's included. Pinned binary, checked against its SHA-256.
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/grype.tgz" https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_linux_amd64.tar.gz
+          echo "1d444c5e7360471815f7158f71935fcecc68a3c417d85c7344f770854300bba2  $RUNNER_TEMP/grype.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/grype.tgz" -C "$RUNNER_TEMP" grype
+          "$RUNNER_TEMP/grype" docker:cedars-platform:ci --only-fixed --fail-on high --by-cve
+
+  dependency-audit:
+    # Every locked Python package (uv.lock, with the development tools) against the PyPI / OSV advisories. The pinned engine's own
+    # dependencies are locked and audited in its repository and scanned here inside the image.
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv export --locked --format requirements-txt --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+      - name: pip-audit 2.9.0
+        run: uvx --from pip-audit==2.9.0 pip-audit --disable-pip --require-hashes --progress-spinner off -r "$RUNNER_TEMP/requirements.txt"
+
+  secret-scan:
+    # The repository is public: gitleaks (gitleaks.toml: its default rules plus personal emails, Windows user folders, key files,
+    # EC2 logins and public IP addresses) over the whole history, and every commit authored and committed under a noreply address.
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks 8.21.2
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --config gitleaks.toml --redact --no-banner --verbose .
+      - name: Commit authors and committers use noreply addresses
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          bad=$(git log --format='%ae%n%ce' "$HEAD_SHA" | sort -u | grep -vE '(@users\.noreply\.github\.com|^noreply@github\.com)$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Commits use an address that is not a noreply address (set git config user.email to your GitHub noreply address):"
+            echo "$bad" | sed 's/^\(..\).*@/\1...@/'
+            exit 1
+          fi
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive infra/terraform
+      - name: Validate each environment (never applied from CI)
+        run: |
+          for env in sandbox staging production; do
+            (cd infra/terraform/environments/$env && terraform init -backend=false -input=false && terraform validate)
+          done
+

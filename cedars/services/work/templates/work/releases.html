@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% load work_tags %}
+{% block title %}Release plans{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'work:backlog' %}">Work items</a></li></ol></nav>
+<div class="page-title"><h1>Release plans</h1>{% page_help "work/releases" %}</div>
+<p>A release plan is what a coming release is to hold: work items taken from the top of the backlog. A backlog manager fills it and proposes it, and it is the plan once the CPUC approves it. When every work item is built, the CPUC decides whether the release goes.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Release plans">
+<table class="list" id="plans">
+  <caption class="sr-only">Release plans, the soonest expected first</caption>
+  <thead><tr><th scope="col">Release</th><th scope="col">Expected</th><th scope="col">Work items</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for plan in plans %}
+  <tr>
+    <th scope="row"><a href="{% url 'work:release' plan.pk %}">Release {{ plan.name }}</a></th>
+    <td>{% if plan.status == "released" %}Released {{ plan.released_on|date_words }}{% elif plan.expected_on %}{{ plan.expected_on|date_words }}{% else %}<span class="muted">Not set</span>{% endif %}</td>
+    <td>{{ plan.count }}</td>
+    <td><span class="status {{ plan.status|plan_class }}">{{ plan.get_status_display }}</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="4">No release plan yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if can_manage %}
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">Start a release plan</h2>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Start the plan</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

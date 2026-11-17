@@ -1,0 +1,1 @@
+{% comment %}Replaces django-allauth's message in the site's words (UAT 2, U11).{% endcomment %}{% load account %}{% user_display user as name %}Signed in as {{ name }}.

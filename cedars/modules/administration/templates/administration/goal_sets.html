@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}CPUC goal decisions{% endblock %}
+{% block content %}
+<div class="page-title"><h1>CPUC goal decisions</h1>{% page_help "administration/goal_sets" %}</div>
+<p>Each CPUC goal decision is loaded as a set of goals for each IOU; the newest confirmed set replaces the earlier ones for every year it
+covers.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Goal sets">
+<table class="list">
+  <caption class="sr-only">Goal sets, newest first</caption>
+  <thead><tr><th scope="col">Decision</th><th scope="col">Adopted</th><th scope="col">Status</th><th scope="col">In force for</th><th scope="col">Source file</th></tr></thead>
+  <tbody>
+  {% for s, years in sets %}
+  <tr><th scope="row"><a href="{% url 'administration:goal_set' s.pk %}">{{ s.decision }}</a></th><td>{{ s.adopted|date_words }}</td>
+    <td><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if s.confirmed_at %} <span class="small muted nowrap">{{ s.confirmed_at|date_words }}</span>{% endif %}</td>
+    <td>{% if s.status == "confirmed" %}{% if years.annual %}targets {{ years.annual|first }}-{{ years.annual|last }}{% endif %}{% if years.annual and years.cycle %}; {% endif %}{% if years.cycle %}cycles {{ years.cycle|first }}-{{ years.cycle|last }}{% endif %}{% if not years.annual and not years.cycle %}Replaced by newer goals{% endif %}{% else %}Not yet{% endif %}</td>
+    <td class="small">{{ s.source_name }}</td></tr>
+  {% empty %}<tr><td colspan="5">No goals loaded yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="up-h">
+  <h2 id="up-h">Load a decision's goals</h2>
+  <p class="small">Goal file columns: Utility (PGE, SCE, SDGE, SCG), Kind (cycle or annual), FirstYear, LastYear, ProgramTSB, ProgramGWh,
+  ProgramMW, ProgramMMTherms, CSGWh, CSMW, CSMMTherms. Leave a cell blank (or "-") where the decision sets no value. Counting rule file
+  columns: PA, Territory, Share (0 to 1), AppliesTo (all, programs or cs), Source.</p>
+  <p class="small" id="goal-templates">Templates: <a href="{% url 'administration:goal_template_csv' 'goals' %}" download>Download the goal file template (CSV)</a>
+  and <a href="{% url 'administration:goal_template_csv' 'rules' %}" download>the counting rule file template (CSV)</a>.</p>
+    {% url 'administration:goal_template_csv' 'goals' as tmpl %}{% before_upload template=tmpl template_label="the goal file template" fields="#goal-templates" fields_label="the columns, above" rules_note="each row is checked when the file is loaded" %}
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>
+  </form>
+</section>
+{% endblock %}

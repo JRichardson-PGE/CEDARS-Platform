@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}Data packs{% endblock %}
+{% block content %}
+{% section_nav "reference" %}
+<div class="page-title"><h1>Data packs</h1>{% page_help "refdata/index" %}</div>
+<p>The data packs the engine and the modules read; every run and filing records the packs it used. The cost tests are on <a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>.</p>
+<p><a href="{% url 'refdata:checks' %}">The checks each kind of pack needs before it is published</a>{% if can_load_etrm %} · <a href="{% url 'refdata:etrm_upload' %}">Upload an eTRM permutations download</a>{% endif %}</p>
+{% if in_force %}
+<h2>In force today</h2>
+<dl class="facts">{% for label, p in in_force %}<dt>{{ label }}</dt><dd><a href="{% url 'refdata:detail' p.pk %}">{{ p }}</a></dd>{% endfor %}</dl>
+{% endif %}
+<h2>All packs</h2>
+<form method="get" class="row-form">
+  <p><label for="kind">Kind</label>
+  <select id="kind" name="kind"><option value="">Every kind</option>{% for code, label in kinds %}<option value="{{ code }}"{% if code == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></p>
+  <div class="actions"><button type="submit">Apply</button></div>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Data packs">
+<table class="list">
+  <caption class="sr-only">Data packs, newest first within each kind</caption>
+  <thead><tr><th scope="col">Pack</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">In force from</th><th scope="col">Files</th><th scope="col">Registered</th></tr></thead>
+  <tbody>
+  {% for p in packs %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}</a></th><td>{{ p.get_kind_display }}</td><td><span class="status {{ p.status|status_tone }}">{{ p.get_status_display }}</span></td><td>{{ p.valid_from|date_words|default:"not dated" }}</td><td>{{ p.files }}</td><td>{{ p.registered_at|date_words }}</td></tr>
+  {% empty %}<tr><td colspan="6">No data packs yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+{% block title %}Your account{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Your account</h1>{% page_help "administration/account" %}</div>
+<dl class="facts">
+  <dt>Name</dt><dd>{{ user.name|default:"Not given: pages show your email address" }}</dd>
+  <dt>Email</dt><dd>{{ user.email }}</dd>
+  <dt>Signed in with</dt><dd>{% if assurance == "federated" %}your organization's own sign-in{% elif assurance == "mfa" %}password and a second factor{% else %}password only{% endif %}</dd>
+  <dt>Acting for</dt><dd>{% if request.organisation %}{{ request.organisation }}{% else %}no organization (a community account: public data and your own runs){% endif %}</dd>
+</dl>
+<p class="actions"><a class="button" href="{% url 'mfa_index' %}">Second factor and recovery codes</a> <a class="button" href="{% url 'account_change_password' %}">Change password</a> <a class="button" href="{% url 'account_email' %}" id="change-email">Change your email address</a></p>
+<nav class="account-links" aria-labelledby="yours-h">
+  <h2 id="yours-h">Your settings and saved work</h2>
+  <ul class="links">
+    <li><a href="{% url 'notifications:settings' %}">Notification settings</a>: what you hear about, and whether it is emailed</li>
+    <li><a href="{% url 'notifications:index' %}">Your notifications</a></li>
+    <li><a href="{% url 'data:views' %}">Saved views</a>: page settings you saved to come back to</li>
+    <li><a href="{% url 'data:downloads' %}">Your downloads</a>: record downloads you asked for</li>
+  </ul>
+</nav>
+<details class="card" id="your-name">
+  <summary>Your name</summary>
+  <p class="small">The name pages show beside what you file, comment and decide, and in organization member lists.</p>
+  <form method="post" action="{% url 'administration:account_name' %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in name_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Save your name</button></div>
+  </form>
+</details>
+
+<h2>Your organizations and permissions</h2>
+{% if rows %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Your organizations and permissions">
+<table class="list">
+  <caption class="sr-only">Your organizations and permissions</caption>
+  <thead><tr><th scope="col">Organization</th><th scope="col">Member since</th><th scope="col">Permissions</th></tr></thead>
+  <tbody>
+  {% for m, grants in rows %}
+  <tr><th scope="row">{{ m.organisation }}</th><td>{{ m.started_at|date_words }}</td>
+    <td>{% if grants %}<ul class="grants">{% for g, label in grants %}<li>{{ label }}{% if g.status != "active" %} <span class="status">{{ g.get_status_display }}</span>{% endif %}{% if g.expires_at %} <span class="small muted">until {{ g.expires_at|date_words }}</span>{% endif %}</li>{% endfor %}</ul>{% else %}<span class="muted">None</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>You are not a member of any organization yet.</p>
+{% endif %}
+<p><a class="button{% if not rows %} primary{% endif %}" href="{% url 'administration:request_access' %}">Ask an organization for access</a></p>
+
+<h2 id="tokens-h">API tokens</h2>
+<p>A token lets your own systems call the CEDARS API for one organization. It can do no more than you can, only in the modules you pick,
+and stops working when it expires, when you revoke it, or when you leave the organization.</p>
+{% if tokens %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="tokens-h">
+<table class="list">
+  <caption class="sr-only">Your API tokens, newest first</caption>
+  <thead><tr><th scope="col">Name</th><th scope="col">Key starts</th><th scope="col">Acting for</th><th scope="col">Modules</th><th scope="col">Status</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+  <tr><th scope="row">{{ t.name }}</th><td><code>cedars_{{ t.prefix }}</code></td><td>{{ t.organisation.code|default:"Own calculations" }}</td><td>{{ t.scopes|module_names }}</td>
+    <td>{% if t.status == "active" %}Active until {{ t.expires_at|date_words }}{% elif t.status == "expired" %}Expired {{ t.expires_at|date_words }}{% else %}Revoked {{ t.revoked_at|date_words }}{% endif %}</td>
+    <td>{{ t.last_used_at|datetime_words|default:"Never" }}</td>
+    <td>{% if t.status == "active" %}<form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<button type="submit">Revoke<span class="sr-only"> the token {{ t.name }}</span></button></form>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<details class="card">
+  <summary>Make a token</summary>
+  <form method="post" action="{% url 'administration:token_create' %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in token_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Make the token</button></div>
+  </form>
+</details>
+
+{% if requests %}
+<h2>Your access requests</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Your access requests">
+<table class="list">
+  <caption class="sr-only">Your access requests</caption>
+  <thead><tr><th scope="col">Organization</th><th scope="col">Asked</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for r in requests %}
+  <tr><th scope="row">{{ r.organisation.code }}</th><td>{{ r.created_at|date_words }}</td><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span>{% if r.decision_note %}: {{ r.decision_note }}{% endif %}</td>
+    <td>{% if r.status == "pending" %}<form method="post" action="{% url 'administration:withdraw_request' r.pk %}">{% csrf_token %}<button type="submit">Withdraw<span class="sr-only"> the request to {{ r.organisation.code }}</span></button></form>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_close %}
+<details class="card" id="close-account">
+  <summary>Close your account</summary>
+  <p>Closing your account signs you out everywhere, revokes your API tokens and stops you signing in. Your runs and history are kept, not
+    deleted; to use CEDARS again, ask the CPUC to reopen the account.</p>
+  <form method="post" action="{% url 'administration:account_close' %}" class="stack form-narrow">{% csrf_token %}
+    <label for="close-reason">Why are you closing it?</label><input type="text" id="close-reason" name="reason" maxlength="500" required>
+    <label><input type="checkbox" name="confirm" value="yes" required> I understand I will not be able to sign in again until the CPUC reopens my account.</label>
+    <div class="actions"><button type="submit">Close my account</button></div>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

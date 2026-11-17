@@ -1,0 +1,307 @@
+import json
+
+from django.conf import settings
+from django.db import models
+from django.db.models import Q
+
+
+class PackVersion(models.Model):
+    """One version of a data pack the engine or a module reads: an ACC release, the impact-profile library, an eTRM snapshot, DEER
+    package, value lists, run parameters, an engine release or a cost-test definition set. The files live in object storage under
+    storage_uri; the manifest lists each with its SHA-256, and the fingerprint is the SHA-256 of the manifest, so a run that records it
+    names its inputs exactly.
+
+    A draft is usable for analysis runs and refused for filings. Publishing needs the tie-outs its kind requires.
+    Once published, nothing that identifies the data changes (a database trigger refuses it); a pack is withdrawn, never deleted."""
+
+    class Kind(models.TextChoices):
+        ACC_ELECTRIC = "acc_electric", "ACC, electric (hourly)"
+        ACC_GAS = "acc_gas", "ACC, gas (monthly)"
+        IMPACT_PROFILES = "impact_profiles", "Impact-profile library"
+        ETRM_SNAPSHOT = "etrm_snapshot", "eTRM measures and permutations"
+        ETRM_PERMUTATIONS = "etrm_permutations", "eTRM published permutations"
+        DEER = "deer", "DEER package"
+        VALUE_LISTS = "value_lists", "Value lists"
+        RUN_PARAMETERS = "run_parameters", "Run parameters"
+        ENGINE_RELEASE = "engine_release", "Engine release"
+        COST_TESTS = "cost_tests", "Cost-test definition set"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft (analysis only)"
+        PUBLISHED = "published", "Published"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    label = models.CharField(max_length=120, help_text='e.g. "2026 ACC"')
+    version = models.CharField(max_length=60, blank=True, help_text='the source\'s own version, e.g. "v1b" or an export number')
+    acc_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    valid_from = models.DateField(null=True, blank=True, help_text="in force for program years from this date (blank: not dated)")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    manifest = models.JSONField(default=dict, help_text="{path: {sha256, bytes}}")
+    fingerprint = models.CharField(max_length=64)
+    storage_uri = models.CharField(max_length=500)
+    source = models.TextField(blank=True, help_text="where the data came from (published file, sync job, module export)")
+    notes = models.TextField(blank=True)
+    registered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    registered_at = models.DateTimeField(auto_now_add=True)
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    published_at = models.DateTimeField(null=True, blank=True)
+    withdrawn_reason = models.TextField(blank=True)
+    checks_at_publication = models.JSONField(
+        null=True, blank=True, help_text="the names of the acceptance checks in force when it was published (blank: not published)"
+    )
+
+    class Meta:
+        ordering = ["kind", "-registered_at"]
+        constraints = [models.UniqueConstraint(fields=["kind", "label", "version"], name="refdata_one_pack_version")]
+
+    def __str__(self):
+        return f"{self.label}{f' {self.version}' if self.version else ''}{' (draft)' if self.status == self.Status.DRAFT else ''}"
+
+    @property
+    def files(self) -> int:
+        return len(self.manifest)
+
+    @property
+    def bytes(self) -> int:
+        return sum(int(m.get("bytes", 0)) for m in self.manifest.values())
+
+
+# A check's name in words, wherever a person reads it (UI review 3, U12). The name itself (source_workbook) is what a check's report and
+# the scripts use, and stays on the checks page in small type for them.
+CHECK_WORDS = {
+    "source_workbook": "Matches the published workbook",
+    "reference_measures": "Reference measures price alike",
+    "profile_checks": "Profiles are complete and sum to 1",
+    "engine_check": "Engine check",
+}
+
+
+def check_words(name: str) -> str:
+    """A pack check in plain words: "Matches the published workbook" for source_workbook; a check added later reads as its name in
+    words ("load_shapes_match" is "Load shapes match")."""
+    said = CHECK_WORDS.get(name) or (name or "").replace("_", " ")
+    return said[:1].upper() + said[1:]
+
+
+class TieOutRequirement(models.Model):
+    """A check a kind of pack must pass before it is published (configuration, not code; the first ones seeded by migration 0002).
+    CPUC system administrators add and retire checks on the Pack acceptance checks page; a check is never edited (retire it and add
+    another), and a published pack keeps the checks it was published under (PackVersion.checks_at_publication)."""
+
+    kind = models.CharField(max_length=20, choices=PackVersion.Kind.choices)
+    name = models.CharField(max_length=40)
+    description = models.TextField()
+    added_at = models.DateTimeField(null=True, blank=True, help_text="blank for the checks seeded with the platform")
+    added_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField(blank=True, help_text="why it was added")
+    retired_at = models.DateTimeField(null=True, blank=True)
+    retired_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    retired_reason = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["kind", "name"], name="refdata_one_requirement")]
+
+    def __str__(self):
+        return f"{self.kind}: {self.name}"
+
+    @property
+    def active(self) -> bool:
+        return self.retired_at is None
+
+    @property
+    def words(self) -> str:
+        return check_words(self.name)
+
+
+class TieOut(models.Model):
+    """The result of one acceptance check on a pack: the loaded data reconcile to the source workbook, or a reference set of measures
+    priced by an independent calculation matches the engine to a stated precision."""
+
+    pack = models.ForeignKey(PackVersion, on_delete=models.PROTECT, related_name="tie_outs")
+    name = models.CharField(max_length=40)
+    passed = models.BooleanField()
+    precision = models.FloatField(null=True, blank=True, help_text="largest relative difference allowed")
+    largest_difference = models.FloatField(null=True, blank=True)
+    engine_release = models.CharField(max_length=60, blank=True)
+    summary = models.TextField(blank=True)
+    report = models.JSONField(default=dict, blank=True)
+    report_uri = models.CharField(max_length=500, blank=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-recorded_at"]
+        constraints = [
+            models.CheckConstraint(condition=Q(precision__isnull=True) | Q(precision__gte=0), name="refdata_tieout_precision_not_negative")
+        ]
+
+    def __str__(self):
+        return f"{self.pack} {self.name}: {'passed' if self.passed else 'failed'}"
+
+    @property
+    def words(self) -> str:
+        return check_words(self.name)
+
+
+class EtrmPermutation(models.Model):
+    """One published eTRM permutation of an eTRM permutations pack, by its Measure Detail ID (a claim's MeasDetailID): the deemed values
+    the platform reads, under eTRM's own column labels (refdata.etrm.KEPT; blanks left out). Indexed from the pack's files when it is
+    loaded, and never changed: a new download is a new pack."""
+
+    pack = models.ForeignKey(PackVersion, on_delete=models.CASCADE, related_name="etrm_permutations")
+    measure_detail_id = models.CharField(max_length=255)
+    key = models.CharField(max_length=255, help_text="measure_detail_id in lower case, for the lookup")
+    measure_version_id = models.CharField(max_length=60, help_text="e.g. SWHC052-02, in lower case")
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    values = models.JSONField(default=dict)
+    # the offering keys, in the Measure Detail ID's order (refdata.etrm.OFFERING_KEYS), as their own columns so the input editor's
+    # narrowing lookup reads them from one index: each choice's values are a few index probes, whatever the pack's size
+    offering = models.CharField(max_length=60, blank=True)
+    meas_app_type = models.CharField(max_length=60, blank=True)
+    delivery_type = models.CharField(max_length=60, blank=True)
+    sector = models.CharField(max_length=60, blank=True)
+    bldg_type = models.CharField(max_length=60, blank=True)
+    bldg_vint = models.CharField(max_length=60, blank=True)
+    bldg_hvac = models.CharField(max_length=60, blank=True)
+    bldg_loc = models.CharField(max_length=60, blank=True)
+    ntg_id = models.CharField(max_length=100, blank=True)
+    gsia_id = models.CharField(max_length=60, blank=True)
+    pa_type = models.CharField(max_length=60, blank=True)
+    pa = models.CharField(max_length=60, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["pack", "key"], name="refdata_one_permutation_per_pack")]
+        indexes = [
+            models.Index(
+                fields=[
+                    "pack",
+                    "measure_version_id",
+                    "offering",
+                    "meas_app_type",
+                    "delivery_type",
+                    "sector",
+                    "bldg_type",
+                    "bldg_vint",
+                    "bldg_hvac",
+                    "bldg_loc",
+                    "ntg_id",
+                    "gsia_id",
+                    "pa_type",
+                    "pa",
+                ],
+                name="refdata_perm_offering",
+            )
+        ]
+
+    def __str__(self):
+        return self.measure_detail_id
+
+
+class EtrmPackage(models.Model):
+    """One measure package (an eTRM measure version, e.g. SWHC052-02) of an eTRM permutations pack: its name, offerings and dates, written
+    when the pack is loaded, so the input editor lists packages without reading the permutations."""
+
+    pack = models.ForeignKey(PackVersion, on_delete=models.CASCADE, related_name="etrm_packages")
+    measure_version_id = models.CharField(max_length=60, help_text="in lower case, as on the permutations")
+    label = models.CharField(max_length=60, help_text="the measure version as eTRM writes it, e.g. SWHC052-02")
+    name = models.CharField(max_length=255, blank=True)
+    use_category = models.CharField(max_length=60, blank=True)
+    offerings = models.JSONField(default=dict, help_text="{Offering ID: Offering Description}")
+    permutations = models.PositiveIntegerField(default=0)
+    start_date = models.DateField(null=True, blank=True, help_text="the earliest permutation's start")
+    end_date = models.DateField(null=True, blank=True, help_text="the latest permutation's end; blank while any is open-ended")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["pack", "measure_version_id"], name="refdata_one_package_per_pack")]
+        ordering = ["label"]
+
+    def __str__(self):
+        return self.label
+
+
+class OrderedJSONField(models.TextField):
+    """JSON kept as its text, so a mapping comes back in the order it was saved. PostgreSQL's jsonb reorders keys (shortest first), and a
+    cost-test set's order is part of it: its tests, streams and aggregates are written, described and shown in the set's order."""
+
+    def from_db_value(self, value, expression, connection):
+        return None if value is None else json.loads(value)
+
+    def to_python(self, value):
+        return json.loads(value) if isinstance(value, str) else value
+
+    def get_prep_value(self, value):
+        return None if value is None else json.dumps(value, ensure_ascii=False)
+
+    def value_to_string(self, obj):
+        return self.get_prep_value(self.value_from_object(obj))
+
+
+class CostTestBuild(models.Model):
+    """A cost-test set being built on the set builder (refdata/builder.py): the set as its YAML's mapping, edited one part at a time and
+    checked with the engine's own validator on every save. Every signed-in user may build sets and price their own analysis runs on them;
+    only the CPUC's cost-test pack managers register a set as a pack, publish it and pin it to a filing (Jake, 2026-11-03). A working copy
+    is not a version: once registered it is the pack that is versioned, and the build is kept, read-only, to be copied again.
+
+    Shared with an organization, it is read and changed by the members who may start runs there, as Edit inputs drafts are."""
+
+    class Status(models.TextChoices):
+        BUILDING = "building", "Being built"
+        OFFERED = "offered", "Offered to the CPUC"
+        REGISTERED = "registered", "Registered as a pack"
+        DISCARDED = "discarded", "Discarded"
+
+    data = OrderedJSONField(default=dict, help_text="the set, as its YAML file's mapping")
+    set_aside = OrderedJSONField(
+        default=dict, blank=True, help_text="keys of an uploaded file the set format does not have, kept here and shown, never written out"
+    )
+    source = models.CharField(max_length=300, blank=True, help_text="what the build was started from")
+    parent = models.ForeignKey(
+        PackVersion,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="builds",
+        help_text="the registered set it was copied from",
+    )
+    parent_build = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="copies", help_text="the build it was copied from"
+    )
+    parent_data = OrderedJSONField(default=dict, blank=True, help_text="the set it started as, for the list of changes")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cost_test_builds")
+    organisation = models.ForeignKey(
+        "accounts.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="cost_test_builds",
+        help_text="set when it is shared with the organization",
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.BUILDING)
+    problems = OrderedJSONField(default=dict, blank=True, help_text="the latest check: {step: [message, ...]}")
+    checked_by = models.CharField(max_length=60, blank=True, help_text="the engine release that checked it (blank: the engine is not here)")
+    offered_at = models.DateTimeField(null=True, blank=True)
+    offered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    offer_note = models.TextField(blank=True)
+    declined_at = models.DateTimeField(null=True, blank=True)
+    declined_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    declined_reason = models.TextField(blank=True)
+    pack = models.ForeignKey(PackVersion, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", help_text="once registered")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        d = self.data or {}
+        return f"{d.get('id') or 'New set'} {d.get('version') or ''}".strip()
+
+    @property
+    def label(self) -> str:
+        return str((self.data or {}).get("label") or "")
+
+    @property
+    def open_problems(self) -> int:
+        return sum(len(v) for v in (self.problems or {}).values())

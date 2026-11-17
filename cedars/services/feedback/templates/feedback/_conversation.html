@@ -1,0 +1,13 @@
+{% comment %}A request's conversation, oldest first: the message, then each reply. `staff` shows the staff's own notes and names; `own` false (an administrator of the sender's organization reading) names the sender.{% endcomment %}
+<ol class="conversation" id="conversation">
+  <li class="card">
+    <h3>{% if staff %}{% if fb.user %}{{ fb.user|person_name }}{% else %}Someone signed out{% endif %}{% elif own == False %}{{ fb.user|person_name }}{% else %}You{% endif %} wrote <span class="small muted">{{ fb.created_at|datetime_words }}</span></h3>
+    <p class="prewrap">{{ fb.message }}</p>
+  </li>
+  {% for r in conversation %}
+  <li class="card">
+    <h3>{% if r.kind == "answer" %}The CPUC answered{% elif r.kind == "question" %}The CPUC asked{% elif r.kind == "note" %}Staff note (not shown to the sender){% elif staff or own == False %}{{ r.author|person_name }} replied{% else %}You replied{% endif %}{% if staff and r.kind != "reply" %} <span class="small muted">{{ r.author|person_name }}</span>{% endif %} <span class="small muted">{{ r.created_at|datetime_words }}</span></h3>
+    <p class="prewrap">{{ r.body }}</p>
+  </li>
+  {% endfor %}
+</ol>

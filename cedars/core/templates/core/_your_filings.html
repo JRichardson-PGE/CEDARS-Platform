@@ -1,0 +1,23 @@
+{% comment %}Your filings (UI review 3, U5): the organization the person acts for, first on the Filings page, with each filing's status
+   and the one thing to do (submissions/status.py own_filings). The board below repeats its row among every PA's.{% endcomment %}
+{% if board.own and not board.own_shut %}
+<section aria-labelledby="your-filings" class="your-filings">
+  <h2 id="your-filings" tabindex="-1">{{ board.own.organisation.code }}'s filings</h2>
+  {% if own_filings %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="your-filings">
+  <table class="list">
+    <caption class="sr-only">{{ board.own.organisation.code }}'s budgets, claims and monthly reports most recently due and next due, with what to do on each</caption>
+    <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+    <tbody>
+    {% for col, cell in own_filings %}<tr>
+      <th scope="row">{% if col.url %}<a href="{{ col.url }}">{{ col.words }}</a>{% else %}{{ col.words }}{% endif %}<br><span class="small muted">{{ col.when }}</span></th>
+      <td class="due"><time datetime="{{ col.deadline.due_at|date:'c' }}">{{ col.deadline.due_at|date_words }}</time><small>{{ col.deadline.due_at|due_words }}</small></td>
+      <td><span class="status {{ cell.status|status_tone }}">{{ cell.status }}</span>{% if cell.detail %}<br><span class="small">{{ cell.detail|capfirst }}</span>{% endif %}</td>
+      <td>{% if cell.action %}<a href="{{ cell.link }}">{{ cell.action }}<span class="sr-only">: {{ col.words }}</span></a>{% endif %}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">{{ board.own.organisation.code }} has nothing to file on the filings shown.</p>{% endif %}
+</section>
+{% endif %}

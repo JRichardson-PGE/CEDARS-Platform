@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block title %}This test run is not open here{% endblock %}
+{% block content %}
+<div class="page-title"><h1>This test run is not open in this browser</h1>{% page_help "testing/not_yours" %}</div>
+<p>A test run opens for the tester it is assigned to. If it is yours:</p>
+<ul id="ways">
+  <li>Sign in as yourself and open the script from <a href="{% url 'core:queue' %}">My queue</a> or <a href="{% url 'testing:mine' %}">My testing</a>. That leaves the run open in this browser while you use the test accounts.</li>
+  <li>Or paste your run link, which is on the script's page when you are signed in as yourself.</li>
+</ul>
+<p>A link stops working when you replace it, when the script is withdrawn from you, or in a browser that has cleared its cookies.</p>
+{% endblock %}

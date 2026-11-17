@@ -1,0 +1,313 @@
+{% extends "core/base.html" %}
+{% load ui %}
+{% block title %}{{ p.prg_id }}{% if v %} · {{ v.name }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>{% page_help "programs/program" %}</div>
+  <div class="actions">
+    {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
+    {% if can_add_document %}<a class="button" id="add-document" href="{{ add_document }}">Add a document</a>{% endif %}
+    {% if signed_in %}
+    <form method="post" action="{% url 'notifications:follow_program' %}" class="inline-form">{% csrf_token %}
+      <input type="hidden" name="prg_id" value="{{ p.prg_id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      {% if following %}<input type="hidden" name="action" value="unfollow"><button type="submit">Stop following<span class="sr-only"> {{ p.prg_id }}</span></button>
+      {% else %}<input type="hidden" name="action" value="follow"><button type="submit">Follow this program</button>{% endif %}
+    </form>
+    {% else %}<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in to follow this program</a>
+    {% if add_document %}<a id="add-document" href="{% url 'account_login' %}?next={{ add_document|urlencode }}">Sign in to add a document</a>{% endif %}{% endif %}
+  </div>
+</div>
+{% if sw %}<div class="card" role="note" id="follows-note"><p><strong>{{ p.prg_id }} is {{ p.administrator.name }}'s part of the statewide program <a href="{% url 'programs:program' sw.prg_id %}">{{ sw.prg_id }}</a>.</strong> Since {{ p.follows_from|date_words }} its definition is {{ sw.prg_id }}'s: a change to {{ sw.prg_id }} reaches it the same day, and {{ pa }} does not change it here{% if sw.lead %} ({{ sw.lead.code }}, the lead PA, changes {{ sw.prg_id }}){% endif %}. It shows {{ sw.prg_id }}'s documents and evaluations; its filings and reports below are its own.</p></div>{% endif %}
+{% if following %}<p>You follow this program: you hear when a filing that includes it is published or corrected, when a fund shift moves its funds, when its details change and when a document about it is published, as you chose on your <a href="{% url 'notifications:settings' %}">notification settings</a>.</p>{% endif %}
+{% for r in pending %}<p>A change from {{ r.effective|date_words }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
+<nav class="page-sections" id="program-sections" aria-label="On this page">
+  <ul>
+    <li><a href="#def-h">Definition</a></li>
+    <li><a href="#ver-h">Versions</a></li>
+    <li><a href="#alloc-h">Statewide allocation</a></li>
+    <li><a href="#bud-h">Budget filings</a></li>
+    <li><a href="#shift-h">Fund shifts</a></li>
+    <li><a href="#claim-h">Claims</a></li>
+    <li><a href="#mon-h">Monthly reports</a></li>
+    <li><a href="#eval-h">Evaluations</a></li>
+    <li><a href="#doc-h">Documents</a></li>
+  </ul>
+</nav>
+
+<section aria-labelledby="def-h">
+<h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date_words }}</span>{% endif %}</h2>
+{% if v %}
+<dl class="facts">
+  <dt><a href="{{ about.administrator }}">Program administrator</a></dt><dd>{% if p.statewide %}Statewide (SW), led by {% if p.lead %}{{ p.lead.name }} ({{ p.lead.code }}){% else %}no lead PA recorded yet{% endif %}{% else %}{{ p.administrator.name }} ({{ pa }}){% endif %}</dd>
+  <dt><a href="{{ about.status }}">Status</a></dt><dd>{{ status }}</dd>
+  {% if v.commercial_name %}<dt><a href="{{ about.commercial_name }}">Commercial name</a></dt><dd>{{ v.commercial_name }}</dd>{% endif %}
+  <dt><a href="{{ about.segment }}">Segment</a></dt><dd>{{ segment|default:"Not given" }}</dd>
+  <dt><a href="{{ about.primary_sector }}">Primary sector</a></dt><dd>{{ v.primary_sector|default:"Not given" }}</dd>
+  <dt><a href="{{ about.sectors }}">Budget share by sector</a></dt><dd>{% for name, share in v.sectors.items %}{{ name }} {% widthratio share 1 100 %}%{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
+  <dt><a href="{{ about.implementer }}">Implementer</a></dt><dd>{{ v.implementer|default:"Not given" }}</dd>
+  {% if v.category %}<dt><a href="{{ about.category }}">Category</a></dt><dd>{{ v.category }}</dd>{% endif %}
+  {% if v.implementation_contractor %}<dt><a href="{{ about.implementation_contractor }}">Implementation contractor</a></dt><dd>{{ v.implementation_contractor }}</dd>{% endif %}
+  <dt><a href="{{ about.start_year }}">Years</a></dt><dd>{{ v.start_year|default:"Not given" }} to {{ v.end_year|default:"open" }}</dd>
+  {% if flags %}<dt><a href="{{ about.flags }}">Delivery</a></dt><dd>{{ flags|join:", " }}</dd>{% endif %}
+  {% if v.statewide_program %}<dt><a href="{{ about.statewide_program }}">Statewide program it delivers</a></dt><dd>{{ v.statewide_program }}</dd>{% endif %}
+  {% if v.parent_program %}<dt><a href="{{ about.parent_program }}">Parent program</a></dt><dd>{{ v.parent_program }}</dd>{% endif %}
+  {% if v.exclude_from_budget or v.exclude_from_ce or v.exclude_from_statewide %}<dt><a href="{{ about.exclude_from_budget }}">Excluded from</a></dt><dd>{% if v.exclude_from_budget %}budget {% endif %}{% if v.exclude_from_ce %}cost-effectiveness {% endif %}{% if v.exclude_from_statewide %}statewide{% endif %}</dd>{% endif %}
+  {% if v.website %}<dt><a href="{{ about.website }}">Website</a></dt><dd><a href="{{ v.website }}">{{ v.website }}</a></dd>{% endif %}
+</dl>
+<p class="small">Each field's name links to what it means, how it is filled in and its valid values: see <a href="{% url 'programs:fields' %}">Program fields</a>.</p>
+{% if placeholders %}<p><span class="status warn">Placeholder plan</span> {% if placeholders|length == 1 %}The implementation plan <a href="{{ placeholders.0.url }}">{{ placeholders.0.title }}</a> is a placeholder: the full plan is still to come.{% else %}{{ placeholders|length }} implementation plans are placeholders: the full plans are still to come ({% for r in placeholders %}<a href="{{ r.url }}">{{ r.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}).{% endif %}</p>{% endif %}
+{% if upcoming %}<p>A change is already entered to start on {{ upcoming.0.valid_from|date_words }}; see the versions below.</p>{% endif %}
+{% else %}<p>This program has no attributes recorded yet.</p>{% endif %}
+</section>
+
+<section aria-labelledby="ver-h">
+<h2 id="ver-h">Versions</h2>
+<p class="small muted">Each change starts a new version on its effective date; earlier versions are kept as they were. A value a version held
+wrongly is corrected in place, and the version says when.{% if can_correct %} To correct one, use its Correct link.{% endif %}</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions table">
+<table class="list">
+  <caption class="sr-only">Versions of {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">{% if signed_in %}Entered by{% else %}Entered{% endif %}</th>{% if can_correct %}<th scope="col">Correct</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for ver, changes in history %}
+  <tr>
+    <th scope="row" class="nowrap">{{ ver.valid_from|date_words }}</th>
+    <td class="nowrap">{{ ver.valid_to|date_words|default:"open" }}</td>
+    <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field }}: {{ old }} to {{ new }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
+    <td>{{ ver.reason }}</td>
+    <td class="small">{% if signed_in %}{{ ver.created_by|person|default:"imported" }}<br>{% endif %}{{ ver.created_at|date_words }}{% if ver.corrected_at %}<br>Corrected {{ ver.corrected_at|date_words }}{% if signed_in and ver.corrected_by %} by {{ ver.corrected_by|person }}{% endif %}{% endif %}</td>
+    {% if can_correct %}<td><a href="{% url 'programs:correct' p.prg_id ver.pk %}">Correct<span class="sr-only"> the version from {{ ver.valid_from|date_words }}</span></a></td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="alloc-h">
+<h2 id="alloc-h">Statewide allocation</h2>
+{% if allocation %}
+<p class="small muted">{% if sw %}The factors of {{ sw.prg_id }}, the statewide program {{ p.prg_id }} is part of,{% else %}The program's factors{% endif %} in every allocation version that has it. Filings, claims and runs record the version they used.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Statewide allocation factors">
+<table class="list">
+  <caption class="sr-only">Weighted allocation factors of {{ p.prg_id }} by version and year</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Year</th><th scope="col">Electric share</th>{% for pa in allocation_pas %}<th scope="col">{{ pa }} weighted</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row, shares in allocation %}
+  <tr>
+    <th scope="row">{{ row.version.label }}</th>
+    <td><span class="status {{ row.version.status|status_tone }}">{{ row.version.get_status_display }}</span></td>
+    <td>{{ row.year }}</td>
+    <td>{{ row.percent_electric }}</td>
+    {% for s in shares %}<td>{{ s.weighted|default:"" }}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>{% if sw %}No allocation version has factors for {{ sw.prg_id }} yet.{% elif p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
+{% if p.statewide %}
+<h3 id="lead-h">Lead PA</h3>
+<p>{% if p.lead %}{{ p.lead.name }} ({{ p.lead.code }}) leads this program: it alone files its claims, in the statewide claims filed before the PAs' own, and its budget. The funding PAs see their shares once it confirms.{% else %}No lead PA is recorded, so nobody can file this program's claims or budget yet. Any program administrator's administrators can record one.{% endif %}{% if p.lead %} Only {{ p.lead.code }} can change its lead.{% endif %}</p>
+{% if lead_form %}
+<form method="post" action="{% url 'programs:lead' p.prg_id %}" class="stack form-narrow" id="lead-form" novalidate>{% csrf_token %}
+  {% for field in lead_form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Save the lead PA</button>
+</form>
+{% endif %}
+<h3 id="ids-h">Each PA's ID of this program</h3>
+{% if subprograms %}
+<p>The program is allocated to each funding PA under the PA's code in front of its PrgID. An ID that follows it takes its definition from this page: a change here reaches every one of them, and their PAs do not change them. All of them show this program's documents.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Each PA's ID of this program">
+<table class="list">
+  <caption class="sr-only">PA IDs of {{ p.prg_id }}</caption>
+  <thead><tr><th scope="col">PrgID</th><th scope="col">PA</th><th scope="col">Definition</th></tr></thead>
+  <tbody>
+  {% for s in subprograms %}
+  <tr>
+    <th scope="row"><a href="{% url 'programs:program' s.p.prg_id %}">{{ s.p.prg_id }}</a></th>
+    <td>{{ s.pa }}</td>
+    <td>{% if s.follows %}Follows this program since {{ s.since|date_words }}{% else %}Its own: not linked yet{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small muted">Each ID's page keeps its own filings and reports.</p>
+{% else %}<p>No PA's ID of this program is in the registry.</p>{% endif %}
+{% endif %}
+</section>
+
+<section aria-labelledby="rec-h">
+<h2 id="rec-h">Filings, reports and documents</h2>
+<p>Everything on record about this program, each linked to its record.{% if not signed_in %} You see what is published. Opening a filing needs you to <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">sign in</a>; once signed in, a PA's own staff and CPUC staff also see filings not yet published and fund shifts.{% endif %}</p>
+<form method="get" class="filters" aria-label="Choose a program year">
+  <label>Program year <select name="year"><option value="">Every year</option>{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
+  <button type="submit">Apply</button>
+</form>
+{% if year %}<p>Showing program year {{ year }} only. <a href="{% url 'programs:program' p.prg_id %}">Show every year</a></p>{% endif %}
+
+<section aria-labelledby="bud-h">
+<h3 id="bud-h">Budget filings</h3>
+{% if records.budgets is None %}<p>Budget filings are not part of this site.</p>
+{% elif budget_groups %}
+<p class="small muted">The program's filed budget in each version of each filing: program costs plus its measures' rebates and incentives, nominal dollars, with the priced total system benefit (TSB) and TRC ratio. Every version is kept; the standing one is the latest published.</p>
+{% for g in budget_groups %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget filings for the {{ g.cycle|cycle_label }} cycle">
+<table class="list">
+  <caption>{{ g.cycle|cycle_label }} cycle</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">PA</th><th scope="col">Status</th>{% for y in g.years %}<th scope="col" class="num">{{ y }}</th>{% endfor %}<th scope="col" class="num">Total</th><th scope="col" class="num">TSB</th><th scope="col" class="num">TRC</th></tr></thead>
+  <tbody>
+  {% for r in g.rows %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    {% for c in r.cells %}<td class="num">{{ c }}</td>{% endfor %}
+    <td class="num">{{ r.shown.total }}</td>
+    <td class="num">{{ r.shown.tsb|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.trc|default:"Not priced" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endfor %}
+{% else %}<p>No {% if not signed_in %}published {% endif %}budget filing has this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="shift-h">
+<h3 id="shift-h">Fund shifts</h3>
+{% if records.fund_shifts is None %}<p>Fund shifts are not part of this site.</p>
+{% elif not signed_in %}<p>Fund shifts are shown to the PAs involved and CPUC staff once signed in. The operating budget they lead to is on the dashboards.</p>
+{% elif records.fund_shifts %}
+<p class="small muted">Shifts that move money into this program (positive) or out of it (negative), by program year. A shift changes the operating budget once it is in effect; the filed budget never changes.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Fund shifts table">
+<table class="list">
+  <caption class="sr-only">Fund shifts with lines on {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">Shift</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col">Date</th><th scope="col">Lines on this program</th><th scope="col" class="num">Net</th></tr></thead>
+  <tbody>
+  {% for r in records.fund_shifts %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">{{ r.cycle|cycle_label }} cycle</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="nowrap">{{ r.when|date_words }}</td>
+    <td><ul class="grants">{% for pa, y, amount in r.shown.lines %}<li>{{ y }}: {{ amount }}{% if pa != r.organisation %} ({{ pa }}'s portion){% endif %}</li>{% endfor %}</ul></td>
+    <td class="num">{{ r.shown.net }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No fund shift you can see moves this program's money{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="claim-h">
+<h3 id="claim-h">Claims</h3>
+{% if records.claims is None %}<p>Claims are not part of this site.</p>
+{% elif records.claims %}
+<p class="small muted">Each confirmation is the year to date: the first quarter's claims, then each later quarter adds to them, and the annual claim is the final year. Expenditures are program costs plus rebates and incentives; savings and TSB are the priced first-year net values.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Claims table">
+<table class="list">
+  <caption class="sr-only">Claims confirmations that include {{ p.prg_id }}, newest year first</caption>
+  <thead><tr><th scope="col">Confirmation</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Claims</th><th scope="col" class="num">Expenditures</th><th scope="col" class="num">First-year net kWh</th><th scope="col" class="num">First-year net therms</th><th scope="col" class="num">TSB</th></tr></thead>
+  <tbody>
+  {% for r in records.claims %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}{% if r.outside_totals %}; statewide unallocated, outside every total{% endif %}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="num">{{ r.records }}</td>
+    <td class="num">{{ r.shown.expenditures }}</td>
+    <td class="num">{{ r.shown.net_kwh|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.net_therm|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.tsb|default:"Not priced" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}claims include this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="mon-h">
+<h3 id="mon-h">Monthly reports</h3>
+{% if records.monthly is None %}<p>Monthly reports are not part of this site.</p>
+{% elif records.monthly %}
+<p class="small muted">Year-to-date spend (program costs plus paid incentives, the measures' rebates and incentives), paid incentives, and incentives committed to be paid in the future (not spend, and not comparable with paid incentives), as each month's report gives them. Monthly figures are not validated; the claims are.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Monthly reports table">
+<table class="list">
+  <caption class="sr-only">Monthly reports that include {{ p.prg_id }}, newest month first</caption>
+  <thead><tr><th scope="col">Report</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Spend, year to date</th><th scope="col" class="num">Paid incentives, year to date (part of spend)</th><th scope="col" class="num">Committed incentives, year to date (to be paid later)</th></tr></thead>
+  <tbody>
+  {% for r in records.monthly %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="num">{{ r.shown.ytd|default:"Not reported" }}</td>
+    <td class="num">{{ r.shown.paid|default:"Not reported" }}</td>
+    <td class="num">{{ r.shown.committed|default:"Not reported" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}monthly report includes this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="eval-h">
+<h3 id="eval-h">Evaluations</h3>
+{% if evaluations %}
+<p class="small muted">Evaluation studies that cover this program, in whole or in part, and the program years each covers.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Evaluations table">
+<table class="list">
+  <caption class="sr-only">Evaluation studies covering {{ p.prg_id }}, newest program years first</caption>
+  <thead><tr><th scope="col">Study</th><th scope="col">Program years</th><th scope="col">Covers</th><th scope="col">Lead</th><th scope="col">Status</th><th scope="col">Latest deliverable</th></tr></thead>
+  <tbody>
+  {% for e in evaluations %}
+  <tr>
+    <th scope="row"><a href="{{ e.url }}">{{ e.study_id }}</a><br><span class="small">{{ e.title }}</span></th>
+    <td class="nowrap">{{ e.years }}</td>
+    <td>{% if e.whole %}The whole program{% else %}Part of the program{% endif %}{% if e.note %}<br><span class="small">{{ e.note }}</span>{% endif %}</td>
+    <td>{{ e.lead }}</td>
+    <td>{% if e.status %}<span class="status {{ e.status|status_tone }}">{{ e.status }}</span>{% else %}<span class="muted">Not given</span>{% endif %}</td>
+    <td>{% if e.deliverable %}<a href="{{ e.deliverable.url }}">{{ e.deliverable.title }}</a> <span class="small">({{ e.deliverable.stage }})</span>{% else %}None published yet{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No evaluation study in the register covers this program{% if year %} in {{ year }}{% endif %} yet.</p>{% endif %}
+</section>
+
+<section aria-labelledby="doc-h">
+<h3 id="doc-h">Documents</h3>
+{% if records.documents is None %}<p>The document library is not part of this site.</p>
+{% elif records.documents %}
+<p class="small muted">Documents that name this program{% if p.statewide or sw %} or any PA's ID of the statewide program{% endif %}: implementation plans and other program files, PA documents and EM&amp;V documents. An implementation plan marked Placeholder stands in for a plan still to come; the full plan replaces it as a new version.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Documents table">
+<table class="list">
+  <caption class="sr-only">Documents naming {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">Document</th><th scope="col">Collection</th><th scope="col">Type</th><th scope="col">Program years</th><th scope="col">Filed by</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for r in records.documents %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a></th>
+    <td>{{ r.collection }}</td>
+    <td>{{ r.type }}</td>
+    <td class="nowrap">{{ r.years|default:"Not given" }}</td>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date_words }}</span>{% endif %}{% if r.placeholder %}<br><span class="status warn">Placeholder</span> <span class="small">the full plan is still to come</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}document names this program{% if year %} for {{ year }}{% endif %}.</p>{% endif %}
+</section>
+</section>
+{% endblock %}

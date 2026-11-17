@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}
+{% block title %}My testing{% endblock %}
+{% block content %}
+<div class="page-title"><h1>My testing</h1>{% page_help "testing/mine" %}</div>
+<p>The test scripts assigned to you. Open one to step through its tests; each result is saved when you give it, so you can stop and come back.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Scripts assigned to you">
+<table class="list" id="my-testing">
+  <caption class="sr-only">Scripts assigned to you, open rounds first</caption>
+  <thead><tr><th scope="col">Script</th><th scope="col">Round of testing</th><th scope="col">Due</th><th scope="col">Done</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for row in rows %}{% with a=row.a p=row.progress %}
+  <tr>
+    <th scope="row"><a href="{% url 'testing:run' a.pk %}">{{ a.script }}</a></th>
+    <td>{{ a.campaign.name }}</td>
+    <td>{% if a.campaign.ends_on %}{{ a.campaign.ends_on|date_words }}{% else %}<span class="muted">No date</span>{% endif %}</td>
+    <td class="nowrap">{{ p.done }} of {{ p.total }}</td>
+    <td>{% if not a.campaign.is_open %}<span class="status ok">Round closed</span>{% elif p.left %}<span class="status info">{{ p.left }} left</span>{% else %}<span class="status ok">All done</span>{% endif %}</td>
+  </tr>
+  {% endwith %}{% empty %}<tr><td colspan="5">Nothing is assigned to you. A test lead assigns scripts to your account.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

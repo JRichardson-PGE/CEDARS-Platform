@@ -1,0 +1,172 @@
+{% extends "core/base.html" %}
+{% load work_tags %}
+{% block title %}Release {{ plan.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'work:backlog' %}">Work items</a></li><li><a href="{% url 'work:releases' %}">Release plans</a></li></ol></nav>
+<div class="page-title"><h1>Release {{ plan.name }}</h1>{% page_help "work/release" %}</div>
+<dl class="facts">
+  <dt>Status</dt><dd><span class="status {{ plan.status|plan_class }}">{{ plan.get_status_display }}</span>{% if plan.status == "released" %} {{ plan.released_on|date_words }}. The CPUC's go was given by {{ plan.released_by|person }}.{% elif plan.status == "approved" %} {{ plan.approved_at|date_words }} by {{ plan.approved_by|person }}{% elif plan.status == "proposed" %} Proposed {{ plan.proposed_at|date_words }} by {{ plan.proposed_by|person }}{% endif %}</dd>
+  {% if plan.status == "approved" and plan.held_reason %}<dt>Does not go yet</dt><dd class="prewrap" id="held">{{ plan.held_reason }} <span class="small">({{ plan.held_at|date_words }}, {{ plan.held_by|person }})</span></dd>{% endif %}
+  <dt>Expected</dt><dd>{% if plan.expected_on %}{{ plan.expected_on|date_words }}{% else %}Not set{% endif %}</dd>
+  <dt>What it is for</dt><dd class="prewrap">{{ plan.note|default:"Not written yet" }}</dd>
+  {% if plan.status == "draft" and plan.sent_back_reason %}<dt>Not approved as proposed</dt><dd class="prewrap" id="sent-back">{{ plan.sent_back_reason }}</dd>{% endif %}
+</dl>
+<section aria-labelledby="items-h" id="plan-items">
+  <h2 id="items-h">Work items planned for it</h2>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Work items planned for release {{ plan.name }}">
+  <table class="list">
+    <caption class="sr-only">Work items planned for release {{ plan.name }}</caption>
+    <thead><tr><th scope="col">Work item</th><th scope="col">Kind</th><th scope="col">Size</th>{% if plan.status == "approved" %}<th scope="col">Built</th>{% endif %}{% if can_manage and plan.status != "released" %}<th scope="col">Take out</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for it in items %}
+    <tr>
+      <th scope="row"><a href="{% url 'work:item' it.pk %}">{{ it.number }}: {{ it.title }}</a></th>
+      <td>{{ it.get_kind_display }}</td>
+      <td>{{ it.get_size_display }}</td>
+      {% if plan.status == "approved" %}<td>{% if it.built_at %}Built {{ it.built_at|date_words }}{% if not it.built_by_id %} (its issue closed){% endif %}{% else %}Not yet{% endif %}{% if can_manage %}
+        <form method="post" action="{% url 'work:release_act' plan.pk %}" class="inline-form">{% csrf_token %}
+        <input type="hidden" name="item" value="{{ it.pk }}">
+        {% if it.built_at %}<button type="submit" name="do" value="not_built" aria-label="{{ it.number }} is not built after all">Not built after all</button>{% else %}<button type="submit" name="do" value="built" aria-label="Mark {{ it.number }} built">Mark built</button>{% endif %}</form>{% endif %}</td>{% endif %}
+      {% if can_manage and plan.status != "released" %}<td><form method="post" action="{% url 'work:release_act' plan.pk %}" class="inline-form">{% csrf_token %}
+        <input type="hidden" name="do" value="remove"><input type="hidden" name="item" value="{{ it.pk }}">
+        <button type="submit" aria-label="Take {{ it.number }} out of release {{ plan.name }}">Take out</button></form></td>{% endif %}
+    </tr>
+    {% empty %}<tr><td colspan="5">Nothing is planned for this release yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if plan.status == "approved" and can_manage and not can_approve %}<p class="small muted">The plan is approved. Adding or taking out a work item sends it back for the CPUC's approval.</p>{% endif %}
+</section>
+{% if testing and items %}
+<section aria-labelledby="testing-h" id="acceptance-testing">
+  <h2 id="testing-h">Acceptance testing</h2>
+  {% if testing.round %}
+  <p id="testing-round">Round of testing: {% if can_test %}<a href="{% url 'testing:campaign' testing.round.pk %}">{{ testing.round.name }}</a>{% else %}{{ testing.round.name }}{% endif %} ({% if testing.round.is_open %}open{% else %}closed{% endif %}, scripts version {{ testing.version.label }}).{% if can_test %} <a href="{% url 'testing:results' testing.round.pk %}">Every result of the round</a>{% endif %}</p>
+  <p id="testing-summary">Of the {{ testing.in_scripts }} acceptance test{{ testing.in_scripts|pluralize }} in the test scripts: {{ testing.passed }} passed, {{ testing.failing }} failed or blocked, {{ testing.no_result }} with no result yet.{% if testing.by_hand %} {{ testing.by_hand }} {{ testing.by_hand|pluralize:"is,are" }} not in the test scripts and {{ testing.by_hand|pluralize:"is,are" }} checked by hand.{% endif %}</p>
+  {% elif testing.version %}
+  <p id="testing-summary">No round of testing has been opened for this release. {{ testing.in_scripts }} of its {{ testing.total }} acceptance test{{ testing.total|pluralize }} {{ testing.in_scripts|pluralize:"is,are" }} in the test scripts (version {{ testing.version.label }}){% if testing.by_hand %}; the other{{ testing.by_hand|pluralize }} {{ testing.by_hand|pluralize:"is,are" }} checked by hand{% endif %}.</p>
+  {% else %}
+  <p id="testing-summary">No test scripts are loaded on this site, so its acceptance tests are checked by hand.</p>
+  {% endif %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Acceptance tests of release {{ plan.name }}">
+  <table class="list" id="testing-table">
+    <caption class="sr-only">Acceptance tests of release {{ plan.name }} and how they were answered</caption>
+    <thead><tr><th scope="col">Acceptance test</th><th scope="col">Work item</th><th scope="col">In the test scripts</th><th scope="col">Result</th></tr></thead>
+    <tbody>
+    {% for row in testing.rows %}
+    <tr>
+      <th scope="row">{{ row.test.title }}</th>
+      <td><a href="{% url 'work:item' row.item.pk %}#tests">{{ row.item.number }}</a></td>
+      <td>{% if row.case %}{{ row.case.test_id }}, script {{ row.case.script.code }}{% elif row.test.library_id %}{{ row.test.library_id }} is not in the test scripts{% else %}No{% endif %}</td>
+      <td>{% if row.state == "by_hand" %}Checked by hand{% elif not testing.round %}Not tested yet{% elif row.state == "failing" %}<span class="status warn">Failed or blocked</span> {{ row.failing }} of {{ row.answers }} result{{ row.answers|pluralize }}{% elif row.state == "passed" %}<span class="status ok">Passed</span> {{ row.passes }} result{{ row.passes|pluralize }}{% else %}<span class="status info">No result yet</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if can_test and plan.status == "approved" %}
+  {% if round_blocked %}
+  <p class="small muted" id="round-blocked">{{ round_blocked }}</p>
+  {% else %}
+  <details id="open-round"{% if round_form.errors %} open{% endif %}>
+    <summary>Open a round of testing for this release</summary>
+    <p>The round uses the test scripts as last loaded (version {{ testing.version.label }}). Its note names the scripts to assign: {% for s in testing.scripts %}{{ s.code }}{% if not forloop.last %}, {% endif %}{% endfor %}. You assign them to testers on the round's page, which opens next.</p>
+    <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+      <input type="hidden" name="do" value="round">
+      {{ round_form.non_field_errors }}
+      {% for field in round_form %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit">Open the round of testing</button></div>
+    </form>
+  </details>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+{% if plan.status == "approved" %}
+<section class="card" aria-labelledby="decide-h" id="decision">
+  <h2 id="decide-h">Go or no-go</h2>
+  {% if testing.round and not unbuilt and items %}<p id="decision-testing">{% if testing.failing %}<strong>Acceptance testing: {{ testing.failing }} acceptance test{{ testing.failing|pluralize }} failed or {{ testing.failing|pluralize:"is,are" }} blocked</strong> in {{ testing.round.name }}{% if testing.no_result %}, and {{ testing.no_result }} {{ testing.no_result|pluralize:"has,have" }} no result yet{% endif %}.{% elif testing.no_result %}Acceptance testing: {{ testing.no_result }} acceptance test{{ testing.no_result|pluralize }} {{ testing.no_result|pluralize:"has,have" }} no result yet in {{ testing.round.name }}.{% else %}Acceptance testing: every acceptance test in the test scripts passed in {{ testing.round.name }}.{% endif %} The decision is the CPUC's either way.</p>{% endif %}
+  {% if unbuilt %}
+  <p>The CPUC decides whether the release goes once every work item is built. Still to build: {% for it in unbuilt %}{{ it.number }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  {% elif not items %}
+  <p>The release holds no work item.</p>
+  {% elif can_approve %}
+  <p>Every work item is built. Go records the release as out: its work items become Done, they leave Known problems and Upcoming changes, and the people waiting on them are told. It is not undone.</p>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="go">
+    {{ go_form.non_field_errors }}
+    {% for field in go_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Go: the release is out</button></div>
+  </form>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="no_go">
+    {{ hold_form.non_field_errors }}
+    {% for field in hold_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">No-go: it does not go yet</button></div>
+  </form>
+  {% else %}
+  <p>Every work item is built. The CPUC's approvers have been told and decide whether the release goes.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% if plan.status == "proposed" and can_approve %}
+<section class="card" aria-labelledby="approve-h">
+  <h2 id="approve-h">Approve the plan</h2>
+  <p>Approving records that the CPUC agrees to these work items for release {{ plan.name }}.</p>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="approve">
+    <div class="actions"><button type="submit" class="primary">Approve the plan</button></div>
+  </form>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="send_back">
+    {{ back_form.non_field_errors }}
+    {% for field in back_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Do not approve: send it back</button></div>
+  </form>
+</section>
+{% endif %}
+{% if can_manage and plan.status != "released" %}
+<section class="card" aria-labelledby="add-h">
+  <h2 id="add-h">Plan a work item for it</h2>
+  {% if ready %}
+  <p>From the backlog, in its order. Only work items that are ready are listed.</p>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="add">
+    {{ add_form.non_field_errors }}
+    {% for field in add_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Plan it for this release</button></div>
+  </form>
+  {% else %}
+  <p>No work item in the backlog is ready for a release.</p>
+  {% endif %}
+  {% if not_ready %}
+  <h3 id="not-ready-h">In the backlog, not ready yet</h3>
+  <ul id="not-ready">
+    {% for it in not_ready %}<li><a href="{% url 'work:item' it.pk %}">{{ it.number }}: {{ it.title }}</a> still needs {{ it.lacking|join:", " }}.</li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% if plan.status == "draft" %}
+<section class="card" aria-labelledby="propose-h">
+  <h2 id="propose-h">Propose the plan</h2>
+  <p>{% if can_approve %}You also approve release plans, so it is approved in the same step.{% else %}The CPUC's approvers are told and find it in My queue. It is the plan once one of them approves it.{% endif %}</p>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}">{% csrf_token %}
+    <input type="hidden" name="do" value="propose">
+    <div class="actions"><button type="submit" class="primary">{% if can_approve %}Propose and approve the plan{% else %}Propose the plan{% endif %}</button></div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% if plan.status != "released" %}{% if can_manage or can_approve %}
+<section class="card" aria-labelledby="details-h">
+  <h2 id="details-h">Change the name, date or note</h2>
+  <form method="post" action="{% url 'work:release_act' plan.pk %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="do" value="details">
+    {{ details_form.non_field_errors }}
+    {% for field in details_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Save</button></div>
+  </form>
+</section>
+{% endif %}{% endif %}
+{% endblock %}

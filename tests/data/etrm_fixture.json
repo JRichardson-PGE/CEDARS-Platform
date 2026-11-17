@@ -1,0 +1,213 @@
+{
+ "packages": [
+  {
+   "measure_version_id": "SWLG999-01-draft",
+   "statewide_id": "SWLG999",
+   "name": "LED Troffers, Commercial",
+   "pa_lead": "PGE",
+   "start_date": "2027-01-01",
+   "permutations": [
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 50.123456789,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*Ex*rDXGF*Msr-LED*Std-Fluor"
+    },
+    {
+     "sector": "Com",
+     "bldg_type": "Any",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "Any",
+     "bldg_loc": "Any",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 40.0,
+     "uec_kwh_base1": 90.0,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "Any*Ex*Any*Msr-LED*Std-Fluor"
+    },
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "New",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NC",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 50.123456789,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*New*rDXGF*Msr-LED*Std-Fluor"
+    }
+   ]
+  },
+  {
+   "measure_version_id": "SWHC998-02-draft",
+   "statewide_id": "SWHC998",
+   "name": "Heat Pump Replacing AC, Residential",
+   "pa_lead": "SCE",
+   "start_date": "2027-01-01",
+   "permutations": [
+    {
+     "sector": "Res",
+     "bldg_type": "SFm",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "HVAC",
+     "tech_type": "HeatPump",
+     "measure_tech_id": "Msr-HP",
+     "standard_tech_id": "Std-HP",
+     "pre_existing_tech_id": "Pre-AC",
+     "norm_unit": "Each",
+     "measure_application_type": "AR",
+     "elec_target_sector": "Res",
+     "uec_kwh_meas": 2000.0,
+     "uec_kwh_base1": 3000.0,
+     "uec_kwh_base2": 2500.0,
+     "electric_impact_profile_id": "SFm*Ex*rDXGF*Msr-HP*Pre-AC"
+    }
+   ]
+  },
+  {
+   "measure_version_id": "SWWH997-01-draft",
+   "name": "Zero UEC",
+   "pa_lead": "PGE",
+   "start_date": "2027-01-01",
+   "permutations": [
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 0,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*Ex*rDXGF*Msr-LED*Std-Fluor"
+    }
+   ]
+  },
+  {
+   "measure_version_id": "SWWH996-01-draft",
+   "name": "No permutations",
+   "pa_lead": "PGE",
+   "start_date": "2027-06-01",
+   "permutations": []
+  },
+  {
+   "measure_version_id": "SWWH995-01-draft",
+   "name": "Bad text",
+   "pa_lead": "SDGE",
+   "start_date": "2028-01-01",
+   "permutations": [
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED\u2013Troffer",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 50.123456789,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*Ex*rDXGF*Msr-LED*Std-Fluor"
+    }
+   ]
+  },
+  {
+   "measure_version_id": "SWWH994-03-draft",
+   "name": "Starts before 2027",
+   "pa_lead": "PGE",
+   "start_date": "2026-01-01",
+   "permutations": [
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 50.123456789,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*Ex*rDXGF*Msr-LED*Std-Fluor"
+    }
+   ]
+  },
+  {
+   "measure_version_id": "SWWH993-03",
+   "name": "Published, not a draft",
+   "pa_lead": "PGE",
+   "start_date": "2027-01-01",
+   "permutations": [
+    {
+     "sector": "Com",
+     "bldg_type": "OfL",
+     "bldg_vint": "Ex",
+     "bldg_hvac": "rDXGF",
+     "bldg_loc": "CZ12",
+     "tech_group": "Lighting",
+     "tech_type": "LED",
+     "measure_tech_id": "Msr-LED",
+     "standard_tech_id": "Std-Fluor",
+     "pre_existing_tech_id": "",
+     "norm_unit": "Each",
+     "measure_application_type": "NR",
+     "elec_target_sector": "",
+     "uec_kwh_meas": 50.123456789,
+     "uec_kwh_base1": 100.5,
+     "uec_kwh_base2": null,
+     "electric_impact_profile_id": "OfL*Ex*rDXGF*Msr-LED*Std-Fluor"
+    }
+   ]
+  }
+ ]
+}

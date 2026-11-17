@@ -1,0 +1,30 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Tests: {{ build }}</h1>{% page_help "refdata/builder/tests" %}</div>{% endblock %}
+{% block step %}
+<p>Each test is a ratio, <code>&lt;T&gt;Ben / &lt;T&gt;Cost</code>, written as its formula: <code>adder(X)</code> is added to the benefits and
+<code>share x ProgramCosts</code> is the test's share of the program costs.</p>
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+<h2>The set's tests</h2>
+{% if tests %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Tests">
+<table class="list">
+  <caption class="sr-only">The set's tests in order, with each one's pricing, formula and variants</caption>
+  <thead><tr><th scope="col">Test</th><th scope="col">Pricing</th><th scope="col">Formula</th><th scope="col">Variants</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for tid, t, f, ps in tests %}<tr>
+    <th scope="row">{{ tid }}: {{ t.label }}{% if t.headline %} (headline){% endif %}{% include "refdata/builder/_row_problems.html" %}</th><td>{{ t.pricing }}</td>
+    <td><code class="formula">{{ f }}</code></td>
+    <td>{{ t.variants|join:", "|default:"none" }}</td>
+    {% if can_change %}<td><a href="{% url 'refdata:build_test' build.pk tid %}">Change<span class="sr-only"> {{ tid }}</span></a>
+      <form method="post" class="inline-form">{% csrf_token %}
+        {% if not forloop.first %}<button type="submit" name="up" value="{{ tid }}">Up<span class="sr-only"> {{ tid }}</span></button>{% endif %}
+        {% if not forloop.last %}<button type="submit" name="down" value="{{ tid }}">Down<span class="sr-only"> {{ tid }}</span></button>{% endif %}
+        <button type="submit" name="remove" value="{{ tid }}">Remove<span class="sr-only"> {{ tid }}</span></button></form></td>{% endif %}
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet. A set needs at least one test.</p>{% endif %}
+{% if can_change %}<p><a class="button" href="{% url 'refdata:build_test_new' build.pk %}">Add a test</a></p>{% endif %}
+<p><a href="{% url 'refdata:build_step' build.pk 'review' %}">Go on to Review</a></p>
+{% endblock %}

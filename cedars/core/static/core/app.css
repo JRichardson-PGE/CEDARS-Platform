@@ -1,0 +1,1211 @@
+/* CEDARS platform stylesheet. One file, four parts: tokens, base, components, utilities.
+   Colour tokens are checked for WCAG 2.2 AA in both schemes (ratios in the comments beside them: text 4.5:1 on --bg and --surface, borders
+   and the focus ring 3:1). A new colour is checked with a contrast calculator before it is used (docs/ACCESSIBILITY.md).
+   Existing class names are kept so every template takes the new look without a change; new pages use the same classes. */
+
+/* ---------- Fonts (vendored, SIL Open Font License; see fonts/OFL.txt). Same-origin only: the CSP allows no font host. ---------- */
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/public-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: italic; font-weight: 400; font-display: swap; src: url("fonts/public-sans-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/public-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/public-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/public-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
+/* ---------- Tokens ---------- */
+:root {
+  /* Surfaces and text. fg 15.3:1 on bg; fg-2 7.0:1; fg-3 5.0:1 (small labels). */
+  --bg: #f4f6f8; --surface: #ffffff; --surface-2: #eaeef2; --fg: #1b1f24; --fg-2: #4b5560; --fg-3: #5f6b78; --line: #d6dce3; --line-2: #e6eaee;
+  /* Interaction. primary 7.7:1 on bg, white on primary 8.3:1; link 8.9:1; focus 3.6:1 on bg and 3.9:1 on surface; control border 4.0:1. */
+  --primary: #1c4f8a; --primary-fg: #ffffff; --primary-hover: #163f70; --link: #1a4480; --focus: #c26b00; --control: #6f7a86;
+  /* State. Each text colour 6:1 or better on bg, surface and its own tint. */
+  /* Charts (3:1 on surface and bg, 1.4.11). Claims solid; forecast hatched with an outline, so the series differ by pattern too: claims 8.3:1, forecast 5.5:1. */
+  --chart-claims: #1c4f8a; --chart-forecast: #0f766e;
+  --ok: #1f6a30; --ok-bg: #e6f3e8; --warn: #8a4600; --warn-bg: #fdf1e2; --bad: #a3171b; --bad-bg: #fbe9e9; --info: #0b5b79; --info-bg: #e4f3f8;
+  /* Older names, kept for templates and scripts that use them. */
+  --muted: var(--fg-2); --card: var(--surface); --accent: var(--primary); --accent-fg: var(--primary-fg);
+  /* Type and shape. */
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 4px; --r-lg: 6px; --gutter: 1.25rem;
+  color-scheme: light dark;
+  font-family: var(--sans); font-size: 16px; line-height: 1.5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* fg 15.5:1 on bg; fg-2 9.8:1; fg-3 7.1:1; link 8.8:1; white on primary 5:1, primary 3.2:1 on surface; focus 10.5:1; control 6.2:1. */
+    --bg: #0f1418; --surface: #171d23; --surface-2: #1f2730; --fg: #e7ebef; --fg-2: #b4bec8; --fg-3: #95a1ae; --line: #2c353f; --line-2: #222a32;
+    --primary: #2d6bb6; --primary-fg: #ffffff; --primary-hover: #3b7fd0; --link: #8ab4f8; --focus: #ffb547; --control: #8a96a3;
+    --chart-claims: #5b9be0; --chart-forecast: #2dd4bf;   /* 5.8:1 and 9.1:1 on surface */
+    --ok: #7fd18f; --ok-bg: #16301c; --warn: #f0b36b; --warn-bg: #3a2a12; --bad: #ff8a86; --bad-bg: #3d1a1b; --info: #7cc9e6; --info-bg: #12303b;
+  }
+}
+@media (min-width: 1024px) { :root { --gutter: 1.5rem; } }
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); min-height: 100vh; display: flex; flex-direction: column; }
+a { color: var(--link); text-underline-offset: .15em; }
+a:hover { text-decoration-thickness: 2px; }
+::placeholder { color: var(--fg-3); opacity: 1; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+h1 { font-size: 1.75rem; line-height: 1.2; font-weight: 600; letter-spacing: -.01em; margin: 0 0 .5rem; }
+h2 { font-size: 1.25rem; line-height: 1.25; font-weight: 600; margin: 2rem 0 .6rem; }
+h3 { font-size: 1.05rem; line-height: 1.3; font-weight: 600; margin: 1.4rem 0 .4rem; }
+h1, h2, h3 { overflow-wrap: anywhere; text-wrap: balance; }   /* long IDs with no spaces (SW_NC_NonRes_electric) wrap at 320 px (1.4.10) */
+h1 + p, h2 + p { margin-top: 0; }
+p { margin: .5rem 0 .9rem; }
+main h1 + p, main .page-title + p { max-width: 64ch; color: var(--fg-2); margin-top: 0; }   /* a page's description reads at a measure, in the secondary colour */
+code, pre, kbd, .mono, input.key { font-family: var(--mono); }
+code { font-size: .88em; overflow-wrap: anywhere; background: var(--surface-2); padding: .05em .3em; border-radius: 3px; }
+#input-templates a { overflow-wrap: anywhere; }   /* long template file names wrap at 320 px (1.4.10) */
+pre { white-space: pre-wrap; word-break: break-word; font-size: .82rem; margin: .3rem 0; }
+pre code { background: none; padding: 0; }
+table.changes { margin-top: .4rem; }
+td.change-cell { min-width: 26rem; }   /* the audit log's before-and-after table: room for a hash on one or two lines */
+table.changes pre { margin: 0; }
+mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word in a search extract: 15:1 in both schemes */
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: .5rem; top: -4rem; background: var(--surface); color: var(--link); padding: .5rem .9rem; border: 2px solid var(--primary);
+        border-radius: var(--r); z-index: 20; font-weight: 600; }
+.skip:focus { top: .5rem; }
+
+/* ---------- App shell: identity bar, header with grouped navigation, utility cluster, footer ---------- */
+.gov { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; padding: .3rem var(--gutter); font-size: .8rem; color: var(--fg-2);
+       background: var(--surface); border-bottom: 1px solid var(--line); }
+.gov strong { color: var(--fg); font-weight: 600; }
+.gov > p { margin: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.gov > .env-banner { display: block; margin: 0; margin-left: auto; padding: .1rem .6rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-weight: 600; font-size: .78rem; }
+.top { display: flex; align-items: center; gap: 1.25rem; padding: 0 var(--gutter); min-height: 56px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.05rem; text-decoration: none; color: var(--fg); letter-spacing: .01em; padding: .6rem 0; }
+/* The cedar mark: white on primary, 8.3:1 light and 5:1 dark (the same pair as primary buttons); system colours in forced-colours mode. */
+.brand .logo { width: 28px; height: 28px; flex: none; display: block; }
+.brand .logo-bg { fill: var(--primary); }
+.brand .logo-tree { fill: var(--primary-fg); }
+@media (forced-colors: active) { .brand .logo-bg { fill: CanvasText; } .brand .logo-tree { fill: Canvas; } }
+/* The header stays in view while the page scrolls (Jake, 2026-10-31), where there is room for it: at least 861 px wide (above the Menu-button
+   layout) and 480 px tall. Below that (phones, 400% zoom, a short window) it scrolls away with the page, so it never takes most of the screen
+   (reflow, 1.4.10). scroll-padding keeps whatever takes the focus or is linked to clear of it (focus not obscured, 2.4.11); app.js sets
+   --header-h to the header's real height, which grows when the navigation wraps. */
+@media (min-width: 861px) and (min-height: 480px) {
+  html { scroll-padding-top: calc(var(--header-h, 6rem) + .75rem); }
+  body > header { position: sticky; top: 0; z-index: 10; }
+  /* A header whose navigation wraps to a second row (a narrow window, a long organization code, a large unread count) is too tall to
+     keep in view: it scrolls away with the page instead (app.js marks it; UAT 2 U02). */
+  html.header-wrapped { scroll-padding-top: 0; }
+  html.header-wrapped body > header { position: static; }
+}
+.menu-btn { display: none; margin-left: auto; }
+.top nav { display: flex; gap: .15rem; align-self: stretch; align-items: stretch; }
+.top nav > a, .top nav .nav-head, .top nav summary { display: flex; align-items: center; gap: .3rem; padding: 0 .75rem; color: var(--fg); text-decoration: none; font-weight: 500;
+  border-bottom: 3px solid transparent; border-top: 3px solid transparent; cursor: pointer; min-height: 56px; white-space: nowrap; }
+.top nav > a:hover, .top nav .nav-head:hover, .top nav summary:hover { color: var(--link); }
+.top nav > a[aria-current], .top nav .nav-menu.current > .nav-head, .top nav .nav-menu.current > details > summary { color: var(--link); border-bottom-color: var(--primary); }   /* current shown by border and colour, and aria */
+.top nav summary { list-style: none; }
+.top nav summary::-webkit-details-marker { display: none; }
+.top nav summary::after { content: ""; width: .45em; height: .45em; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-.15em) rotate(45deg); flex: none; }
+.top nav details[open] > summary::after { transform: translateY(.1em) rotate(225deg); }
+.top nav details { position: relative; }
+/* A menu: its heading is a link to the menu's own page and the arrow beside it opens the dropdown (24 px wide at least, 2.5.8). The two
+   share the current-page border, and the dropdown hangs under the heading. */
+.top nav .nav-menu { position: relative; display: flex; align-items: stretch; }
+.top nav .nav-menu > details { position: static; display: flex; }
+.top nav .nav-menu > .nav-head { padding-right: .15rem; }
+.top nav .nav-head + details > summary { padding-left: .2rem; padding-right: .5rem; min-width: 24px; justify-content: center; }
+.top nav details > ul .nav-more { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line-2); }
+.top nav details > ul .nav-more a { font-weight: 600; color: var(--link); }
+.top nav details > ul { position: absolute; left: 0; top: 100%; z-index: 15; margin: 0; padding: .4rem; list-style: none; min-width: 14rem; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+.top nav details > ul a { display: block; padding: .5rem .7rem; border-radius: var(--r); color: var(--fg); text-decoration: none; min-height: 24px; }
+.top nav details > ul a:hover { background: var(--surface-2); }
+.top nav details > ul a[aria-current] { font-weight: 600; color: var(--link); background: var(--surface-2); }
+.who { --who-gap: .6rem; margin-left: auto; display: flex; gap: var(--who-gap); align-items: center; font-size: .9rem; padding: .5rem 0; flex-wrap: wrap; }
+.who form { margin: 0; }
+.who .link { color: var(--fg-2); }
+/* The person's plain controls (My queue, Help, Account, Sign out) each have a target of their own, 32 px tall, with a rule between
+   neighbors, so the cluster reads as separate controls rather than one line of words (UI review 3). The rule is decoration. */
+.who .util { display: inline-flex; align-items: center; min-height: 32px; }
+.who a.util, .who .util .link { padding: 0 .5rem; border-radius: var(--r); color: var(--fg); text-decoration: none; font-weight: 500; min-height: 32px; font-size: inherit; }
+.who a.util:hover, .who .util .link:hover { color: var(--link); text-decoration: underline; }
+.who a.util[aria-current] { color: var(--link); text-decoration: underline; text-underline-offset: .25em; }
+.who .util + .util { border-left: 1px solid var(--line); margin-left: calc(-1 * var(--who-gap)); }   /* the rule sits midway between the two */
+.bell.bell-compact { display: none; }   /* shown only on a narrow screen, below */
+.bell-icon { display: block; fill: currentColor; flex: none; }
+.org-switch { display: flex; gap: .4rem; align-items: center; }
+.org-switch label { flex-direction: row; font-size: .85rem; color: var(--fg-2); }
+.org-switch select { padding: .25rem .4rem; min-height: 32px; }
+.org-badge { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: 999px; padding: .15rem .3rem .15rem .65rem; background: var(--bg); color: var(--fg-2); font-size: .82rem; }
+.org-badge b { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; padding: .08rem .45rem; font-weight: 700; letter-spacing: .02em; }
+.bell { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; min-height: 32px; font-size: .85rem; }
+.bell[aria-current="page"], .bell:hover { color: var(--link); border-color: var(--control); }
+.bell .count { background: var(--bad); color: var(--bg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }   /* 7.2:1 light, 8.1:1 dark (white on the dark scheme's red was 2.2:1) */
+/* My queue's count of items waiting (navigation review, D1): the primary pair, as buttons use it, so it reads as work rather than an alert. */
+.queue-link { display: inline-flex; align-items: center; gap: .3rem; }
+.queue-link .count { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
+/* A menu's groups (Administration's four): a small heading over each group's links. */
+.top nav .nav-group { margin: 0; }
+.top nav .nav-group + .nav-group, .top nav li:not(.nav-group) + .nav-group { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line-2); }
+.top nav .nav-group-title { display: block; padding: .25rem .7rem; font-size: .78rem; font-weight: 600; color: var(--fg-2); text-transform: none; }
+.top nav .nav-group > ul { list-style: none; margin: 0; padding: 0; }
+main { flex: 1; width: 100%; }
+main:focus { outline: none; }
+.page { margin: 0 auto; padding: 1.25rem var(--gutter) 2.5rem; min-width: 0; }   /* the full window width, like the header: wide tables scroll only when they outgrow it */
+/* Prose keeps a readable measure however wide the page is (tables, charts, filters and card grids take the full width) */
+main.page :is(p:not(.alert, .coming-changes, .tour-offer, .notices, .card, .actions), .helptext, ul:not([class]), ol:not([class])) { max-width: 80ch; }   /* boxes (alerts, notices) span the page */
+main.page :is(td, th, caption, li, .empty, .tile, nav, header) :is(p, .helptext) { max-width: none; }
+main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem var(--gutter); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+@media (max-width: 480px) { .narrow { margin: 1rem auto; border: 0; background: none; } }
+.foot { margin-top: auto; border-top: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font-size: .82rem; padding: 1.1rem var(--gutter); display: flex; gap: .5rem 1.5rem; flex-wrap: wrap; justify-content: space-between; }
+.foot a { color: var(--fg-2); }
+.foot ul.links { display: flex; gap: .3rem 1rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.foot ul.links li { margin: 0; }
+
+/* Site search in the identity bar (core/search.py): right-aligned, full width on a phone. 28 px tall controls (2.5.8), the control colour for
+   the borders (3:1, 1.4.11). */
+.site-search { margin-left: auto; }
+.site-search form { display: flex; gap: .3rem; align-items: stretch; margin: 0; }
+.site-search input[type=search] { width: 16rem; max-width: 100%; min-height: 28px; padding: .15rem .5rem; font-size: .85rem; }
+.site-search button { min-height: 28px; padding: .15rem .7rem; font-size: .82rem; }
+@media (max-width: 860px) { .site-search { margin-left: 0; width: 100%; } .site-search input[type=search] { flex: 1; width: auto; min-width: 0; } }
+/* The results page: one section per part, each hit a link with one line under it. */
+.search-hits { list-style: none; margin: 0; padding: 0; }
+.search-hits li { padding: .55rem 0; border-bottom: 1px solid var(--line-2); overflow-wrap: anywhere; }
+.search-hits li p { margin: .15rem 0 0; color: var(--fg-2); font-size: .92rem; max-width: 80ch; }
+.hit-kind { display: inline-block; font-size: .78rem; font-weight: 600; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 .5rem; margin-right: .3rem; }
+.count-note { font-weight: 400; color: var(--fg-2); font-size: .9rem; }
+/* Mid widths (861-1700 px): tighter navigation and account cluster, so the header with every menu stays on one row from 1280 px for a
+   member of one organization, whatever its code's length and the unread count (shown as 99+ above 99). The "Acting for" words of the
+   badge are kept for screen readers only. At the full spacing that header needs about 1,470 px and a member of several organizations'
+   (with the Acting for switcher) about 1,650 px, so the tighter spacing runs to 1700 px (UAT 2 U02). A header that still wraps scrolls
+   away with the page (header-wrapped). */
+@media (min-width: 861px) and (max-width: 1700px) {
+  .org-badge .label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .org-badge { padding-left: .3rem; }
+  .top { gap: .5rem; }
+  .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
+  .top nav .nav-menu > .nav-head { padding-right: .1rem; }
+  .top nav .nav-head + details > summary { padding: 0 .3rem 0 .1rem; }
+  .who { --who-gap: .3rem; font-size: .85rem; }
+  .who a.util, .who .util .link { padding: 0 .3rem; }
+  .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
+}
+/* Below 1600 px the header's seven menus (navigation review, D1) need tighter still: smaller gaps, gutters and summary arrows, and a
+   menu with a short label shows it (Portfolio dashboard reads Dashboard; its accessible name stays the full label, 2.5.3). */
+.nav-short { display: none; }
+@media (min-width: 861px) and (max-width: 1600px) {
+  .nav-long { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav-short { display: inline; }
+  :root { --gutter: 1rem; }
+  .top { gap: .35rem; }
+  .top nav { gap: 0; }
+  .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .28rem; font-size: .875rem; gap: .2rem; }
+  .top nav .nav-menu > .nav-head { padding-right: 0; }
+  .top nav .nav-head + details > summary { padding: 0 .2rem 0 0; }
+  .who { --who-gap: .2rem; font-size: .82rem; }
+  .who a.util, .who .util .link { padding: 0 .1rem; }   /* the rules between them keep them apart */
+  .org-switch { gap: .25rem; }
+  .org-badge, .bell { padding-left: .4rem; padding-right: .4rem; }
+}
+/* Narrow screens: the header collapses to brand + Menu; the navigation stacks and the menus open inline. Without scripts the list is simply shown. */
+@media (max-width: 860px) {
+  .top { gap: .75rem; }
+  /* The top row is the brand, the notification count and Menu; the navigation and then the person's controls fold behind Menu (UI review
+     3), so a phone's header is the identity bar, the search and one row, and the page's heading starts near the top of the screen. */
+  .bell.bell-compact { display: inline-flex; order: 2; margin-left: auto; min-height: 36px; padding: .2rem .6rem; }
+  .menu-btn { display: inline-block; order: 3; }
+  .bell-compact + .menu-btn { margin-left: 0; }
+  .top nav { order: 4; flex-direction: column; width: 100%; gap: 0; padding-bottom: .5rem; border-top: 1px solid var(--line-2); }
+  .who { order: 5; margin-left: 0; width: 100%; padding: .4rem 0 .6rem; border-top: 1px solid var(--line-2); }
+  .who .bell { display: none; }   /* the top row's count is the way to Notifications */
+  .who:not(#header-person) { order: 3; }   /* signed out: Help and Sign in stay in view */
+  /* folded behind Menu, the person's controls stack as the navigation does: one 44 px row each, no rules between them */
+  #header-person { flex-direction: column; align-items: stretch; gap: 0; }
+  #header-person > :is(.org-badge, .org-switch) { align-self: flex-start; margin: .2rem .5rem .4rem; }
+  #header-person .util { min-height: 44px; border-left: 3px solid transparent; margin-left: 0; }   /* lined up with the navigation's rows */
+  #header-person a.util, #header-person .util .link { padding: 0 .5rem; width: 100%; font-size: 1rem; text-align: left; }
+  .js .top .who.collapsed { display: none; }
+  .top nav > a, .top nav .nav-head, .top nav summary { min-height: 44px; padding: 0 .5rem; border-bottom: 0; border-top: 0; border-left: 3px solid transparent; }
+  .top nav > a[aria-current], .top nav .nav-menu.current > .nav-head { border-left-color: var(--primary); }
+  /* a menu stacks: its heading's link across the row, the arrow at the row's end, the dropdown opening under them */
+  .top nav .nav-menu { display: block; }
+  .top nav .nav-menu > .nav-head { padding-right: 3.25rem; }
+  .top nav .nav-menu > details { display: block; position: static; }
+  .top nav .nav-head + details > summary { position: absolute; top: 0; right: 0; width: 44px; padding: 0; border-left: 0; justify-content: center; }
+  .top nav details > ul { position: static; box-shadow: none; border: 0; border-left: 3px solid var(--line); border-radius: 0; margin: 0 0 .4rem .5rem; padding: 0 0 0 .4rem; min-width: 0; }
+  .js .top nav.collapsed { display: none; }
+}
+@media (max-width: 480px) { .top { gap: .5rem; } .bell.bell-compact { padding: .2rem .45rem; } }   /* 320 px: brand, count and Menu on one row */
+
+/* ---------- Page header, actions, buttons ---------- */
+.head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.head-row > h1, .head-row > h2, .head-row > .page-title > h1 { margin-bottom: .25rem; }
+.head-row > p { margin: .25rem 0; }
+.actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .4rem 0; }
+.actions form { margin: 0; }
+button, .button { font: inherit; font-weight: 500; font-size: .92rem; line-height: 1.2; padding: .5rem .9rem; border: 1px solid var(--control); border-radius: var(--r);
+  background: var(--surface); color: var(--fg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; min-height: 36px; }
+button:hover, .button:hover { border-color: var(--primary); color: var(--link); }
+button[aria-disabled="true"] { opacity: .55; cursor: default; }   /* never disable the focused control: aria-disabled keeps the focus */
+.primary, button.primary, .button.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.primary:hover, button.primary:hover, .button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--primary-fg); }
+button.link { background: none; border: none; color: var(--link); padding: 0; min-height: 24px; font-weight: 400; font-size: inherit; text-decoration: underline; text-underline-offset: .15em; }
+button.link:hover { text-decoration-thickness: 2px; }
+.danger, button.danger { color: var(--bad); border-color: var(--bad); }
+
+/* ---------- Breadcrumbs: the page's parents, above its heading (DESIGN.md) ---------- */
+.crumbs { display: flex; flex-wrap: wrap; list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .86rem; }
+.crumbs li { display: flex; align-items: center; min-height: 24px; }
+.crumbs li + li::before { content: "\203A"; content: "\203A" / ""; padding: 0 .45rem; color: var(--fg-2); }
+.crumbs a { display: inline-flex; align-items: center; min-height: 24px; }
+
+/* ---------- Sub-navigation (a module's sections) as a tab strip ---------- */
+.subnav { display: flex; gap: 0; flex-wrap: wrap; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line); font-size: .95rem; }
+.subnav a { padding: .55rem .6rem; text-decoration: none; color: var(--fg-2); border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 500; min-height: 24px; }
+.subnav a:hover { color: var(--link); }
+.subnav a[aria-current] { color: var(--link); border-bottom-color: var(--primary); font-weight: 600; }   /* current section shown by more than colour */
+
+/* ---------- Cards, tiles, facts ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1rem 1.15rem; margin: 1rem 0; }
+.card[role="note"] { width: fit-content; max-width: 100%; box-sizing: border-box; }   /* a note box hugs its text, which keeps the 80-character measure */
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0 1rem; }   /* side by side when they fit, else stacked (320 px) */
+ul.cards { list-style: none; margin: 0; padding: 0; }
+dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; margin: .75rem 0 1.25rem; }
+dl.tiles .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .65rem .9rem; }
+dl.tiles dt { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-3); font-weight: 600; }
+dl.tiles dd { margin: 0; font-size: clamp(1.05rem, .6rem + 1vw, 1.35rem); font-weight: 600; white-space: nowrap; overflow-x: auto; font-variant-numeric: tabular-nums; }   /* a number never breaks mid-way; a very long one scrolls inside its tile */
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.25rem; }
+dl.facts dt { font-weight: 600; color: var(--fg-2); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 480px) { dl.facts { grid-template-columns: 1fr; } dl.facts dd { margin-bottom: .5rem; } }
+.stack { display: flex; flex-direction: column; gap: .8rem; }
+
+/* ---------- Tables ---------- */
+table.list { border-collapse: separate; border-spacing: 0; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: .94rem; }
+table.list th, table.list td { border-bottom: 1px solid var(--line-2); padding: .55rem .8rem; text-align: left; vertical-align: top; }
+table.list thead th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-3); font-weight: 600; background: var(--bg); white-space: nowrap; }
+table.list thead th:first-child { border-top-left-radius: var(--r-lg); } table.list thead th:last-child { border-top-right-radius: var(--r-lg); }
+table.list tbody th { font-weight: 500; }
+table.list tbody tr:last-child > * { border-bottom: 0; }
+table.list tbody tr:hover > * { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+table.list tfoot td, table.list tfoot th { background: var(--bg); font-weight: 600; border-bottom: 0; }
+table.list tbody td[colspan] { color: var(--fg-2); padding: 1.4rem .8rem; text-align: center; }   /* "No programs match." reads as an empty state */
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.data thead th a { color: inherit; display: inline-block; min-height: 24px; }   /* sort links: 24 px targets (2.5.8) */
+.hscroll { overflow-x: auto; position: relative; margin: .25rem 0 1rem; }   /* wide tables scroll inside their box at 320 px (1.4.10); relative so .sr-only text inside stays inside */
+.hscroll:focus-visible { outline: 3px solid var(--focus); }
+
+/* ---------- ReCET's own documents under Help (core/engine_docs.py) ---------- */
+.engine-doc { min-width: 0; }   /* its prose keeps the page's measure; its tables and code take the width */
+.engine-doc :is(h2, h3, h4, h5, h6) { scroll-margin-top: 5rem; }   /* an anchor lands below the sticky header */
+.engine-doc table { border-collapse: collapse; background: var(--surface); font-size: .9rem; }
+.engine-doc th, .engine-doc td { border: 1px solid var(--line); padding: .35rem .6rem; text-align: left; vertical-align: top; }
+.engine-doc thead th { background: var(--surface-2); }
+.engine-doc pre { margin: 0; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
+.doc-toc { margin: 1rem 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 0 1rem; }
+.doc-toc > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
+.doc-toc li { margin: .3rem 0; }
+.doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+#input-templates li { overflow-wrap: anywhere; }   /* template file names (template_electric_8760_profiles.csv) wrap at 320 px */
+.engine-doc { overflow-wrap: break-word; }
+.engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
+.engine-doc figure.diagram { margin: .75rem 0 .25rem; padding: .75rem; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r-lg); }   /* the drawing's own colors are for a light page, in both schemes */
+.engine-doc figure.diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.engine-doc details.diagram-text { margin: 0 0 1rem; }
+.engine-doc details.diagram-text > summary { cursor: pointer; padding: .25rem 0; }   /* keeps its disclosure triangle; 24 px tall (2.5.8) */
+
+.pager { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; margin: .9rem 0; font-size: .92rem; color: var(--fg-2); }
+.pager a { padding: .3rem .2rem; min-height: 24px; display: inline-block; }
+.pager.pager-above { margin: .4rem 0 .6rem; }   /* the same pager drawn above a long list (core/tables.py) and again below it */
+/* A long list's sortable heading (ui/sort_th.html): a link in the link color with an arrow; the sorted one carries aria-sort and a filled
+   arrow, the others a neutral one so a sighted reader sees they sort too. 24 px targets (2.5.8). */
+table.list thead th a.sort { color: var(--link); display: inline-flex; align-items: center; gap: .3rem; min-height: 24px; text-decoration: underline; text-underline-offset: .15em; }
+table.list thead th a.sort:hover { text-decoration-thickness: 2px; }
+table.list thead th.num a.sort { justify-content: flex-end; }
+table.list thead th .sort-mark { font-size: .9em; line-height: 1; }
+table.list thead th:not([aria-sort]) .sort-mark { color: var(--fg-2); }
+.status { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; padding: .1rem .55rem .1rem .45rem; border-radius: 999px; white-space: nowrap;
+  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--line); }
+.status::before { content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: var(--fg-3); flex: none; }
+.status.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; } .status.ok::before { background: var(--ok); }
+.status.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; } .status.warn::before { background: var(--warn); }
+.status.bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; } .status.bad::before { background: var(--bad); }
+.status.info { background: var(--info-bg); color: var(--info); border-color: transparent; } .status.info::before { background: var(--info); }
+
+/* ---------- Messages and alerts ---------- */
+.messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+.messages li { background: var(--ok-bg); color: var(--fg); border: 1px solid transparent; border-left: 4px solid var(--ok); border-radius: var(--r); padding: .6rem .9rem; margin-bottom: .5rem; }
+.messages li.msg-error { background: var(--bad-bg); border-left-color: var(--bad); }
+.messages li.msg-warning { background: var(--warn-bg); border-left-color: var(--warn); }
+.messages li.msg-info { background: var(--info-bg); border-left-color: var(--info); }
+.ask-access { background: var(--info-bg); border-left: 4px solid var(--info); border-radius: var(--r); padding: .6rem .9rem; margin: .5rem 0 1rem; }   /* an account with no organization (D1) */
+.before-upload { font-size: .92rem; margin: .25rem 0 .75rem; padding: .45rem .75rem; border-left: 3px solid var(--line); background: var(--surface-2); border-radius: var(--r); }   /* D3 */
+.alert { background: var(--bad-bg); border-left: 4px solid var(--bad); border-radius: var(--r); padding: .6rem .9rem; margin: .5rem 0 1rem; }
+.hold-notice { border: 1px solid var(--line); border-left: 4px solid var(--warn); background: var(--warn-bg); border-radius: var(--r); padding: .6rem .9rem; margin: 0 0 1rem; }   /* D7: a held publication, named in its heading */
+.hold-notice h2 { font-size: 1.05rem; margin: 0 0 .3rem; }
+ul.notices { list-style: none; padding: 0; margin: 0 0 1rem; }
+ul.notices li { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem .9rem; margin-bottom: .5rem; background: var(--surface); }
+ul.notices li.unread { border-left: 4px solid var(--primary); }   /* also marked "New" in text */
+ul.notices li p { margin: .2rem 0; overflow-wrap: anywhere; }
+
+/* ---------- Forms, filters ---------- */
+label { display: flex; flex-direction: column; gap: .3rem; font-size: .88rem; font-weight: 600; color: var(--fg-2); }
+label > input, label > select, label > textarea { font-weight: 400; color: var(--fg); }
+.key-name { margin: 0; font-size: .88rem; font-weight: 600; color: var(--fg-2); }   /* a field's name shown without a control (a value chosen for you) */
+input:not([type]), input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input[type=date], input[type=url], select, textarea {
+  font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg); min-height: 36px; max-width: 100%; }
+input[type=file] { min-height: 24px; max-width: 100%; font: inherit; font-size: .95rem; color: var(--fg); }   /* 2.5.8: targets at least 24 x 24 px */
+input[type=file]::file-selector-button { font: inherit; font-size: .9rem; min-height: 28px; padding: .25rem .7rem; margin-right: .6rem; border: 1px solid var(--control);
+  border-radius: var(--r); background: var(--surface); color: var(--fg); cursor: pointer; }   /* the browser's own button is about 20 px tall */
+input[type=file]::file-selector-button:hover { background: var(--surface-2); }
+input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; flex: none; margin: 0; accent-color: var(--primary); }   /* 2.5.8; flex: none keeps the box 24 px beside a long label in a flex row */
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; }
+select { max-width: 100%; }
+summary { min-height: 24px; box-sizing: border-box; }   /* 2.5.8: a disclosure's summary is a target (the inline ones measured 22 px) */
+.field { display: flex; flex-direction: column; gap: .3rem; min-width: 0; max-width: 100%; }   /* a flex or grid item shrinks below its select's width at 320 px (1.4.10) */
+.field .check { display: flex; gap: .5rem; align-items: center; font-weight: 400; color: var(--fg); }
+.field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); font-size: .9rem; }
+.helptext { font-size: .85rem; color: var(--fg-2); font-weight: 400; }
+/* A field's hint behind an "i" button beside its label (New run; django/forms/field.html with help_as_info, core/_info_button.html). The hint is
+   a native popover: app.js places it under its button; without the script the browser centers it. 24 px target (2.5.8), 3:1 border (1.4.11). */
+.label-row { display: flex; align-items: center; gap: .4rem; }   /* the button stays beside a label that wraps */
+.label-row > label { display: inline-flex; flex: 0 1 auto; min-width: 0; }
+.field .label-row > .check { display: flex; }
+button.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-height: 24px; padding: 0;
+  border: 1px solid var(--control); border-radius: 50%; background: var(--surface); color: var(--link); font-family: Georgia, "Times New Roman", serif;
+  font-style: italic; font-weight: 700; font-size: .9rem; line-height: 1; flex: none; margin-block: -3px; }   /* keeps a label row as tall as a plain label */
+button.info-btn:hover, button.info-btn[aria-expanded="true"] { border-color: var(--link); background: var(--bg); }
+.info-pop { margin: 0; inset: auto; position: fixed; max-width: min(28rem, calc(100vw - 2rem)); padding: .6rem .8rem; border: 1px solid var(--control);
+  border-radius: var(--r); background: var(--surface); color: var(--fg); box-shadow: 0 4px 16px rgb(0 0 0 / .18); }
+.info-pop:not([data-placed]) { inset: 0; margin: auto; height: fit-content; }   /* no script: the browser's own centered place */
+main.page .info-pop .helptext { font-size: .9rem; color: var(--fg); margin: 0; max-width: none; }
+fieldset { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; min-width: 0; margin: 0 0 .5rem; background: var(--surface); }   /* min-content wide by default, which overflows at 320 px */
+legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
+.form-narrow { max-width: 40rem; }
+.form-narrow:has(fieldset.column-choice .picker) { max-width: 64rem; }   /* the two lists need more room than one column of fields */
+/* A long form that uses the window (New run): each section's fields flow into as many columns as fit, in reading order, left to right
+   (1.3.2: the visual order is the DOM order). A .field-cell keeps fields that go together in one column (a box and the option it turns
+   on). At 320 px every grid is one column (min(100%, ...): 1.4.10). Small sections share a row in .fieldset-row. */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: .9rem 1.25rem; align-items: start; }
+.field-grid > *, .field-cell { min-width: 0; }
+.field-cell { display: flex; flex-direction: column; gap: .7rem; }
+.field-grid :is(select, input:not([type=checkbox], [type=radio], [type=file]), textarea) { width: 100%; box-sizing: border-box; }
+.fieldset-row { display: flex; flex-wrap: wrap; gap: .8rem 1rem; align-items: stretch; }
+.fieldset-row > fieldset { flex: 1 1 min(100%, 20rem); margin: 0; }
+.fieldset-row > fieldset.grow { flex: 3 1 min(100%, 40rem); }   /* the larger section: two or three columns of its own beside a small one */
+.wide-form > fieldset { margin: 0; }
+/* New run's Advanced options: the sections most runs leave alone, folded into one native disclosure (Jake, 2026-11-06). Its summary keeps
+   the browser's own triangle and reads as a section heading; 44 px tall, so it is an easy target. */
+.advanced-options { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0 1rem; background: var(--surface); }
+.advanced-options > summary { cursor: pointer; min-height: 44px; display: list-item; padding: .65rem 0; font-weight: 600; }
+.advanced-options > summary .small { font-weight: 400; }
+.advanced-options[open] { padding-bottom: 1rem; }
+.advanced-options > .stack > fieldset { margin: 0; }
+/* New run's text uses the page's width (Jake, 2026-11-06: Start the run in view at 1920 x 1080 when the page opens), and its two help
+   disclosures share a row until one is opened. */
+main.page .wide-text :is(p:not(.alert, .coming-changes, .tour-offer, .notices, .card, .actions), .helptext, ul:not([class]), ol:not([class])) { max-width: none; }
+.disclosure-row { display: flex; flex-wrap: wrap; gap: .25rem 2.5rem; align-items: flex-start; }
+.disclosure-row > details { flex: 0 1 auto; min-width: 0; }
+.disclosure-row > details[open] { flex-basis: 100%; }
+.inline-form { display: inline; margin: 0; }
+.filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }
+.filters select { max-width: 100%; }
+.filters > fieldset { margin: 0; background: none; }
+/* Filing calendar: filing-type and due-date chips are links (one select, no script, the view in the URL); the chosen ones are filled,
+   with a check mark and aria-current, never color alone. */
+.calendar-filters { flex-direction: column; align-items: stretch; gap: .8rem; }
+.calendar-filters > form { min-width: 0; max-width: 100%; }
+.chip-group { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; }
+.chip-group .helptext { flex-basis: 100%; margin: 0; }
+.chip-label { font-weight: 600; font-size: .92rem; min-width: 7.5rem; }
+ul.toggle-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+ul.toggle-chips a { display: inline-flex; align-items: center; min-height: 32px; padding: .2rem .85rem; border: 1px solid var(--control); border-radius: 999px; background: var(--surface); color: var(--link); text-decoration: none; font-size: .92rem; }
+ul.toggle-chips a:hover { text-decoration: underline; }
+ul.toggle-chips a > span[aria-hidden], .chip-label > span[aria-hidden] { margin-right: .3rem; }
+ul.toggle-chips a[aria-current] { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
+.custom-range { align-items: center; }
+.custom-range label { flex-direction: row; align-items: center; gap: .4rem; }
+.custom-range input[type=date] { max-width: 100%; }
+p.showing { margin: 0 0 .6rem; }
+/* Filing calendar, month view (the default): a server-drawn grid, a table with Sunday first. A deadline's module is in words, with a
+   left rule as well (budgets teal, claims blue, monthly amber; never color alone); today is marked "Today" and aria-current. Below
+   720px the grid becomes a list of the days with something due (and today), each with its weekday. */
+.view-switch { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: 0 0 .8rem; }
+.month-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; margin: .8rem 0 .6rem; }
+.month-head h2 { margin: 0; }
+.month-nav { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.month-nav a { display: inline-flex; align-items: center; min-height: 24px; }
+.month-jump { align-items: center; gap: .4rem; }
+.month-jump label { flex-direction: row; align-items: center; gap: .4rem; }
+.month-jump input[type=month] { max-width: 11rem; }
+.month-jump .helptext { margin: 0; }
+table.month-grid { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); margin-bottom: 1rem; }
+.month-grid th { padding: .35rem; font-size: .85rem; color: var(--fg-2); text-align: left; border-bottom: 1px solid var(--line); }
+.month-grid td { vertical-align: top; height: 6.5rem; padding: .3rem; border: 1px solid var(--line); overflow-wrap: anywhere; }
+.month-grid td.other-month { background: var(--surface-2); }
+.month-grid td.other-month .day { color: var(--fg-3); font-weight: 400; }
+.month-grid td.today { box-shadow: inset 0 0 0 2px var(--primary); }
+.month-grid .day { display: block; font-weight: 600; font-size: .9rem; }
+.month-grid .dow { display: none; }
+.today-label { font-size: .75rem; font-weight: 700; color: var(--primary-fg); background: var(--primary); border-radius: 999px; padding: 0 .45rem; }
+ul.due-list { list-style: none; margin: .25rem 0 0; padding: 0; display: grid; gap: .35rem; }
+ul.due-list li { border-left: 4px solid var(--fg-3); padding: .1rem 0 .1rem .4rem; font-size: .85rem; line-height: 1.3; }
+ul.due-list li.mod-budgets { border-left-color: var(--chart-forecast); }
+ul.due-list li.mod-claims { border-left-color: var(--chart-claims); }
+ul.due-list li.mod-monthly { border-left-color: var(--warn); }
+ul.due-list li.retired { border-left-style: dashed; }
+ul.due-list .mod, ul.due-list .period { display: block; color: var(--fg-2); font-size: .78rem; }
+ul.due-list a { display: inline-flex; align-items: center; min-height: 24px; }
+@media (max-width: 720px) {
+  table.month-grid, .month-grid tbody, .month-grid tr, .month-grid td { display: block; width: 100%; }
+  table.month-grid { border: 1px solid var(--line); }
+  .month-grid thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .month-grid td { height: auto; border: 0; border-bottom: 1px solid var(--line); }
+  .month-grid td:not(.has-due):not(.today) { display: none; }
+  .month-grid .dow { display: inline; }
+}
+/* Filing calendar, year view: twelve small months. A date with deadlines is filled with its filing types' colors (one band each) and
+   carries each type's mark (budgets a square, claims a circle, monthly reports a triangle), so the type is not told by color alone.
+   The date's number is var(--surface) on every fill: light scheme 5.4:1 or better (white on the dark fills), dark scheme 5.8:1 or
+   better (the dark surface on the light fills). Its tooltip opens on hover and on keyboard focus, below the week's row, and stays
+   while the pointer is over it (1.4.13); Escape hides it (app.js). */
+.year-key h3 { font-size: .95rem; margin: 0 0 .3rem; }
+.cal-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; padding: 0; margin: 0 0 .35rem; font-size: .9rem; }
+.cal-legend li { display: inline-flex; align-items: center; gap: .45rem; }
+.yswatch { position: relative; display: inline-block; flex: none; width: 1.1rem; height: 1.1rem; border-radius: 3px; background: var(--fg-3); }
+.yswatch.today-swatch { background: transparent; box-shadow: inset 0 0 0 2px var(--primary); }
+.t-budgets { --tc: var(--chart-forecast); } .t-claims { --tc: var(--chart-claims); } .t-monthly { --tc: var(--warn); }
+.yswatch[class*="t-"], .fills .f { background: var(--tc, var(--fg-3)); }
+.mk { position: absolute; left: 50%; top: 50%; width: .45rem; height: .45rem; transform: translate(-50%, -50%); background: var(--surface); }
+.t-claims > .mk { border-radius: 50%; }
+.t-monthly > .mk { width: .55rem; height: .5rem; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.year-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: 1rem 1.25rem; margin: .75rem 0 1rem; }
+.ymonth { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: .5rem .6rem .6rem; min-width: 0; }
+.ymonth h3 { font-size: 1rem; margin: 0 0 .3rem; display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.ymonth h3 a { display: inline-flex; align-items: center; min-height: 24px; }
+.ycount { font-size: .8rem; font-weight: 400; color: var(--fg-2); }
+table.mini-month { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 2px; }
+.mini-month th { font-size: .75rem; font-weight: 600; color: var(--fg-2); text-align: center; padding: 0 0 .15rem; }
+.mini-month tr { position: relative; }
+.mini-month td { position: static; height: 2rem; padding: 0; text-align: center; vertical-align: middle; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.mini-month td.today { box-shadow: inset 0 0 0 2px var(--primary); border-radius: 3px; font-weight: 700; }
+.mini-month td.today .yday { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+a.yday { position: relative; display: flex; align-items: flex-start; justify-content: center; width: 100%; height: 2rem; min-width: 24px;
+  border-radius: 3px; overflow: hidden; color: var(--surface); font-weight: 700; text-decoration: none; }
+a.yday .n { position: relative; line-height: 1.35rem; }
+a.yday .fills { position: absolute; inset: 0; display: flex; }
+a.yday .f { position: relative; flex: 1; }
+a.yday .f > .mk { top: auto; bottom: .1rem; transform: translateX(-50%); width: .4rem; height: .4rem; }
+a.yday .t-monthly > .mk { width: .5rem; height: .45rem; }
+a.yday:hover .n { text-decoration: underline; }
+.ytip { display: none; position: absolute; z-index: 30; left: 0; right: 0; top: 100%; padding: .5rem .65rem; text-align: left;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--control); border-radius: var(--r); box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  font-size: .85rem; font-weight: 400; line-height: 1.35; }
+.ytip > strong { display: block; margin-bottom: .25rem; }
+.ytip .tip-row { display: flex; gap: .45rem; align-items: flex-start; margin-top: .3rem; }
+.ytip .tip-row .yswatch { margin-top: .1rem; }
+.ycell:hover .ytip, .ycell:focus-within .ytip { display: block; }
+.ycell.tip-off .ytip { display: none; }
+/* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
+.other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
+.other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }
+.other-filters > summary .count { color: var(--fg-2); font-weight: 400; }
+/* The Programs catalog's filters on one row at desktop widths: the PA picker beside the other fields, its list opening over the page,
+   and Other filters inline until it is opened (then it takes the row below, with Apply after it). */
+.catalog-filters fieldset.pa-picker { flex: 0 1 20rem; margin: 0; }
+/* The list opens over the page only where there is room beside it; on a narrow screen it stays in the flow so nothing scrolls sideways. */
+@media (min-width: 48rem) {
+  .catalog-filters .pa-menu { position: relative; }
+  .catalog-filters .pa-panel { position: absolute; z-index: 5; left: 0; top: 100%; min-width: 100%; width: max-content; max-width: min(34rem, calc(100vw - 4rem)); box-shadow: 0 6px 18px rgb(0 0 0 / .18); }
+}
+.catalog-filters .other-filters:not([open]) { flex-basis: auto; border-top: 0; padding-top: 0; }
+.catalog-filters .other-filters:not([open]) > summary { padding: .45rem 0; }
+.other-body { display: flex; flex-direction: column; gap: .75rem; align-items: stretch; padding: .6rem 0 .2rem; }
+.other-body > .helptext { max-width: 60ch; margin: 0; }
+.other-pick { display: flex; gap: .6rem 1rem; align-items: flex-end; flex-wrap: wrap; }
+.other-pick > label { flex: 0 1 22rem; min-width: 0; }
+.other-pick select { width: 100%; }   /* a select is as wide as its longest option unless told otherwise (1.4.10 at 320 px) */
+.other-body > button { align-self: flex-start; }
+.other-field { display: flex; flex-direction: column; gap: .3rem; max-width: 100%; }
+.other-field fieldset { margin: 0; background: none; }
+.other-field .checks { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.other-field .row-form label { width: 9rem; max-width: 100%; }
+.other-field .helptext { margin: 0; max-width: 60ch; }
+.row-form { display: flex; gap: .8rem; align-items: flex-end; flex-wrap: wrap; }
+.row-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .6rem 1rem; }
+.row-fields label { overflow-wrap: anywhere; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .3rem 1rem; }
+fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of boxes in the same group (Notification settings) */
+.checks label, label.inline, label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }   /* a box and its words on one line */
+label.inline { display: inline-flex; margin-right: .8rem; }
+.column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
+/* Ask for access (UI review 3, U6): a role or permission, its box and name on one line, what it is for below, lined up with the name */
+.request-access .option { display: grid; grid-template-columns: auto 1fr; column-gap: .5rem; align-items: center; margin: .35rem 0; }
+.request-access .option > label { font-weight: 600; color: var(--fg); }
+.request-access .option > p { grid-column: 2; margin: .1rem 0 0; }
+.request-access details.request-singles > summary { cursor: pointer; padding: .35rem 0; min-height: 24px; }
+.request-to a { margin-left: .5rem; }
+.column-group { margin: .3rem 0; }
+/* Compact tick lists (core/_tick_list.html; UI review 3): a closed disclosure that names what is chosen, the chosen values first, a
+   narrowing box on a long list. In the page's flow, so it covers nothing and reflows at 320 px. */
+details.tick-list { margin: .3rem 0; max-width: 100%; }
+details.tick-list > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; min-height: 36px;
+  padding: .4rem .7rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg);
+  list-style: none; }
+details.tick-list[open] > summary { border-radius: var(--r) var(--r) 0 0; }
+details.tick-list > summary::-webkit-details-marker { display: none; }
+details.tick-list > summary::after { content: ""; align-self: center; margin-left: auto; width: .5rem; height: .5rem; flex: none;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); }   /* open or closed, by shape */
+details.tick-list[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.tick-legend { font-weight: 600; }
+.tick-summary { color: var(--fg-2); font-size: .9rem; overflow-wrap: anywhere; }
+fieldset.tick-panel { margin: 0; padding: .6rem .7rem; border: 1px solid var(--control); border-top: 0; border-radius: 0 0 var(--r) var(--r);
+  background: var(--surface); min-width: 0; }
+.tick-narrow { max-width: 22rem; margin-bottom: .5rem; }
+.tick-narrow[hidden] { display: none; }
+ul.tick-options { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: .2rem 1rem; }
+ul.tick-options li[hidden] { display: none; }
+ul.tick-options label.check { min-height: 24px; overflow-wrap: anywhere; }
+/* A form in short numbered steps (File a document; UI review 3): each step a block under its heading, the number in a circle beside it
+   and in the heading's text, so it is read as well as seen. */
+.form-steps .form-step { display: flex; flex-direction: column; gap: .8rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.form-step > h2 { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0; font-size: 1.15rem; }
+.form-step > p { margin: 0; }
+.step-n { display: inline-grid; place-items: center; flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid var(--control); border-radius: 50%;
+  font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The document library (UI review 3): the list first; key dates and what is open for comment beside it on a wide screen, after it on a
+   narrow one (the order in the page is the list, then the side). */
+.library-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1.5rem; align-items: start; }
+@media (min-width: 75rem) { .library-layout { grid-template-columns: minmax(0, 1fr) 20rem; } }
+.library-side .card:first-child { margin-top: 0; }
+/* The two-list column picker (core/field_picker.js): output templates, Results and Compare's Choose columns, record downloads, builder streams, scan settings; ReCET's Templates page laid out on these tokens */
+.picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: start; }
+.picker[hidden] { display: none; }
+.picker-side { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.picker-side label { font-weight: 600; }
+.picker select[multiple] { width: 100%; height: 24rem; font-family: var(--mono); font-size: .85rem; padding: .2rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg); }
+.picker select[multiple] optgroup { font-family: var(--sans); font-style: normal; color: var(--fg-2); }
+.picker select[multiple] option { color: var(--fg); padding: .1rem .3rem; overflow-wrap: anywhere; white-space: normal; }
+.picker-moves { display: flex; flex-direction: column; gap: .4rem; padding-top: 7.5rem; }
+.picker-moves button { min-height: 24px; }
+.picker-keys, .picker-def { grid-column: 1 / -1; margin: 0; }
+.picker-def { min-height: 2.6em; font-size: .9rem; border: 1px solid var(--line); border-radius: var(--r-lg); padding: .45rem .6rem; background: var(--surface); overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .picker { grid-template-columns: minmax(0, 1fr); }
+  .picker-moves { flex-direction: row; flex-wrap: wrap; padding-top: 0; }
+  .picker select[multiple] { height: 14rem; }
+}
+details.inline { display: inline-block; }
+details.inline > summary { font-weight: normal; color: var(--link); min-height: 24px; line-height: 24px; cursor: pointer; }   /* 2.5.8: two side by side in a cell */
+details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
+/* A <p> per field (Django's own rendering, the sign-in page, a few hand-written forms): label, field and help text stacked, so a link in the
+   help text never sits beside the field it describes (2.5.8 found it crowding the password box). Only a paragraph that holds a label or a
+   control is a field; a prose paragraph inside the form stays prose (UI review 2 found "Programs catalog" links on a line of their own). */
+form.stack > p:has(> label, > input, > select, > textarea) { display: flex; flex-direction: column; gap: .3rem; margin: 0; }
+form.stack > p > label { color: var(--fg-2); }
+form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: .5rem; }
+input.key { width: 100%; }
+
+/* ---------- Edit inputs: problem cells carry a mark and words (never colour alone); columns that change no result are in italics ---------- */
+th.no-effect { font-style: italic; font-weight: normal; }
+td.cell-error, td.cell-warning { outline: 2px solid var(--bad); outline-offset: -2px; }
+td.cell-info { outline: 1px dashed var(--control); outline-offset: -2px; }
+.mark { font-weight: 700; }
+ul.issues { margin: .3rem 0; padding-left: 1.1rem; }
+.issue-error, .issue-warning { color: var(--bad); }
+pre.log { max-height: 28rem; overflow: auto; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
+
+/* ---------- Comments, bars, grants and other content blocks ---------- */
+article.comment { border-top: 1px solid var(--line); padding: .7rem 0; }
+article.comment h3 { margin: 0 0 .2rem; font-size: 1rem; }
+.response { border-left: 3px solid var(--control); padding-left: .8rem; margin: .4rem 0 .4rem 1rem; }
+.grants { margin: 0; padding-left: 1.1rem; }
+.grants li { margin: .15rem 0; }
+ul.links li { margin: .3rem 0; }   /* a list of links, one per line: 24 px apart (2.5.8) */
+ul.bars { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
+ul.bars li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr max-content; gap: .6rem; align-items: center; }
+.bar-name { overflow-wrap: anywhere; }
+.bar-track { display: block; width: 100%; background: var(--surface-2); border-radius: 3px; height: .9rem; }   /* an SVG: its bar's width is an attribute, never an inline style (the CSP forbids those) */
+.bar { fill: var(--primary); }
+.bar.negative { fill: var(--bad); fill-opacity: .55; }   /* and "(negative)" in text */
+/* Engine releases: a row for each calculation and the ACCs it has (calculations/_release_fields.html) */
+fieldset.calc-rows { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.calc-rows > legend { font-weight: 600; padding: 0; }
+fieldset.calc-row { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .5rem 1rem .75rem; margin: .6rem 0 0; min-width: 0; }
+fieldset.calc-row > legend { font-weight: 600; padding: 0 .3rem; }
+fieldset.calc-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }   /* name and other years side by side when there is room */
+fieldset.calc-row > .field:has(fieldset) { grid-column: 1 / -1; order: 2; }   /* the ACC ticks below them, full width */
+fieldset.calc-row div[id^="id_accs_"] { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }   /* the ACC ticks on one line, wrapping */
+fieldset.calc-row div[id^="id_accs_"] label { display: inline-flex; align-items: center; gap: .3rem; min-height: 24px; }
+
+/* Impact profiles: a shape's share of the year by month as columns beside the table of its percentages (impact_profiles/_month_chart.html) */
+.month-shape { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
+.month-shape > .hscroll { flex: 1 1 24rem; min-width: 0; }
+svg.month-chart { max-width: 100%; height: auto; flex: none; }
+svg.month-chart .month-axis { stroke: var(--line); stroke-width: 1; }
+svg.month-chart .month-label { fill: var(--fg-2); font-size: 11px; }
+svg.month-chart.small { vertical-align: middle; }
+@media (max-width: 480px) { ul.bars li { grid-template-columns: 1fr max-content; } .bar-track { grid-column: 1 / -1; grid-row: 2; } }
+
+/* ---------- Due-date cell, identifiers, collapsed sections, empty states ---------- */
+td.due { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.due small { display: block; font-size: .78rem; color: var(--fg-2); }
+.id { font-family: var(--mono); font-size: .9em; }
+details.section { margin: 1.25rem 0 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+details.section > summary { display: flex; align-items: baseline; gap: .5rem 1rem; flex-wrap: wrap; padding: .7rem 1rem; cursor: pointer; list-style: none; min-height: 44px; }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::before { content: ""; width: .5em; height: .5em; border: solid var(--fg-2); border-width: 0 2px 2px 0; transform: rotate(-45deg); align-self: center; flex: none; }
+details.section[open] > summary::before { transform: rotate(45deg); }
+details.section > summary h2 { margin: 0; font-size: 1.1rem; }
+details.section > summary .count { color: var(--fg-2); font-size: .9rem; }
+details.section > .section-body { padding: 0 1rem 1rem; }
+details.section > .section-body > .hscroll { margin-top: .25rem; }
+section.cycle { margin-bottom: .5rem; }
+.empty { text-align: center; padding: 2.25rem 1rem; color: var(--fg-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); margin: 1rem 0; }
+.empty p { margin: .25rem auto; max-width: 48ch; }
+.empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
+.empty .button { margin-top: .75rem; }
+
+/* ---------- Filing pages (submissions/_filing_*.html, UI review 3): the step line, the outcome card, findings by rule ---------- */
+/* The step line: five steps in a row (wrapping at 320 px), each a pill with its number or a check; the current one bold with a filled
+   marker and aria-current="step", done ones with a check and "(done)" for screen readers, so the state is never shown by color alone. */
+ol.steps { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: .75rem 0 .35rem; padding: 0; }
+ol.steps li { display: flex; align-items: center; gap: .45rem; min-height: 32px; padding: .2rem .75rem .2rem .25rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--fg-2); }
+ol.steps .step-mark { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 1px solid var(--control); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+ol.steps li.done .step-mark { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+ol.steps li.current { color: var(--fg); font-weight: 600; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+ol.steps li.current .step-mark { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.step-now { margin: .25rem 0 1rem; }
+.card.outcome { border-left: 4px solid var(--primary); }   /* the filing's outcome and its one next action, first on the page */
+.card.outcome .tiles { margin-bottom: .75rem; }
+details.inline-form { margin: .75rem 0 0; }
+details.inline-form > summary { color: var(--link); cursor: pointer; min-height: 24px; line-height: 24px; width: fit-content; }
+details.inline-form > form { margin-top: .5rem; }
+ul.finding-records { list-style: none; margin: 0; padding: 0; }
+ul.finding-records li { margin: 0 0 .2rem; }
+table.findings-by-rule td:last-child { min-width: 16rem; }
+
+/* ---------- Correcting records ---------- */
+/* A record's page (submissions/record.html): its fields in the wide grid, grouped as the data dictionary groups them; the Save bar stays
+   in view at the bottom of the window where there is room for it (at least 480 px tall), and scroll-padding keeps a focused field clear
+   of it (focus not obscured, 2.4.11). Below that height it is an ordinary row at the end of the form (reflow, 1.4.10). */
+.find-field { margin: 1rem 0; max-width: 32rem; }
+.inline-control { display: flex; gap: .5rem; align-items: stretch; }
+.inline-control > input { flex: 1 1 auto; min-width: 0; }
+.record-form fieldset + fieldset { margin-top: .25rem; }
+#fields-found { border-color: var(--bad); }
+ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
+@media (min-height: 480px) {
+  html:has(.save-bar) { scroll-padding-bottom: 5.5rem; }
+  .save-bar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: .75rem 0; margin-bottom: 0; }
+}
+
+/* Notification settings (UI review 3, U15): each group of events a table of radio buttons, one column per way of hearing about it */
+.notification-settings { max-width: 56rem; }
+.notification-settings .event-group { margin-top: 1rem; }
+.notification-settings .event-group-all select { width: 100%; max-width: 22rem; }
+table.choice-grid th.choice, table.choice-grid td.choice { text-align: center; width: 7.5rem; }
+table.choice-grid th.choice { white-space: normal; }
+table.choice-grid tbody th[scope=row] { font-weight: 400; }
+@media (max-width: 30rem) {   /* a phone: the three columns narrow and their headings wrap, so the table fits without scrolling sideways */
+  table.choice-grid th, table.choice-grid td { padding-left: .3rem; padding-right: .3rem; }
+  table.choice-grid th.choice, table.choice-grid td.choice { width: 3.4rem; letter-spacing: 0; white-space: normal; }
+}
+
+/* ---------- Utilities ---------- */
+.muted { color: var(--fg-2); }
+.small { font-size: .86rem; }
+.nowrap { white-space: nowrap; }
+.prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }   /* a comment keeps its line breaks and never widens the page */
+ol.comments { list-style: none; padding: 0; margin: 0; }
+
+/* ---------- Dashboards (cedars/modules/data): controls, applied-filter chips, server-rendered bar charts ---------- */
+.dash-controls fieldset { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+.dash-controls legend { font-weight: 600; font-size: .9rem; padding: 0 .25rem; }
+.dash-controls label.check, .dash-filters label.check { display: inline-flex; flex-direction: row; gap: .4rem; align-items: center; font-weight: 400; min-height: 24px; }
+.dash-filters { flex-basis: 100%; }
+.filters-more { flex-basis: 100%; }
+.dash-filters summary { cursor: pointer; font-weight: 600; min-height: 24px; }
+.dash-filters fieldset { margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+/* The PA picker (core/_pa_picker.html): a closed <details> that names what it keeps; open, a tree of All PAs > PA types > PAs, then
+   statewide programs. In the page's flow (it pushes what follows down), so nothing is covered and it reflows at 320 px. */
+fieldset.pa-picker { flex-basis: 100%; border: 0; padding: 0; margin: .25rem 0; min-width: 0; display: block; }
+fieldset.pa-picker > legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .2rem; }
+.pa-menu { max-width: 34rem; }
+.pa-menu > summary { cursor: pointer; display: flex; align-items: center; gap: .5rem; min-height: 36px; padding: .3rem .7rem;
+  border: 1px solid var(--control); border-radius: var(--r, 6px); background: var(--surface); color: var(--fg); list-style: none; }
+.pa-menu > summary::-webkit-details-marker { display: none; }
+.pa-menu > summary::after { content: ""; margin-left: auto; width: .5rem; height: .5rem; border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); flex: none; }
+.pa-menu[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.pa-panel { border: 1px solid var(--control); border-top: 0; border-radius: 0 0 var(--r, 6px) var(--r, 6px); background: var(--surface);
+  padding: .5rem .7rem .6rem; max-height: 26rem; overflow-y: auto; }
+.pa-panel .helptext { margin: 0 0 .4rem; }
+ul.pa-tree, ul.pa-children { list-style: none; margin: 0; padding: 0; }
+ul.pa-children { padding-left: 1.9rem; }
+ul.pa-children ul.pa-children { padding-left: 2.6rem; }
+.pa-row { display: flex; align-items: center; gap: .25rem; }
+.pa-picker label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; gap: .1rem .4rem; align-items: center; font-weight: 400;
+  min-height: 24px; color: var(--fg); }
+.pa-picker label.pa-head { font-weight: 600; }
+.pa-picker label.pa-head .muted { font-weight: 400; }
+li.pa-statewide { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line); }
+.pa-twisty { width: 24px; height: 24px; min-height: 24px; padding: 0; margin: 0; flex: none; display: inline-flex; align-items: center;
+  justify-content: center; background: transparent; color: var(--fg); border: 1px solid var(--control); border-radius: 4px; }
+.pa-twisty[hidden] { display: none; }
+.pa-twisty::before { content: ""; width: .4rem; height: .4rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); }
+.pa-twisty[aria-expanded="true"]::before { transform: rotate(45deg) translate(-1px, -1px); }
+/* Without the script the show/hide buttons stay hidden; a row without one lines up with those that have one once it runs. */
+.js-pa .pa-row > label:first-child { margin-left: calc(24px + .25rem); }
+/* Pickers (core/pickers.py, core/_program_picker.html; UI review 3): the chosen ones as ticked boxes, then a box that narrows a list as
+   you type. The box is sized for what it holds (a PrgID and part of a name), not the window. */
+fieldset.picker { border: 0; padding: 0; margin: .25rem 0; min-width: 0; background: none; display: flex; flex-direction: column; gap: .3rem; max-width: 34rem; }
+fieldset.picker > legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .2rem; }
+fieldset.picker > legend .muted { font-weight: 400; }
+ul.picker-chosen { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem .5rem; }
+ul.picker-chosen[hidden] { display: none; }
+ul.picker-chosen li { border: 1px solid var(--control); border-radius: var(--r, 6px); background: var(--surface); padding: .1rem .5rem; }
+ul.picker-chosen label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .1rem .4rem;
+  font-weight: 400; min-height: 24px; }
+input.picker-input { width: 100%; max-width: 22rem; }   /* a percentage, so the box never widens its container at 320 px (1.4.10) */
+/* Fund shift lines (budgets/_shift_lines_table.html): what is wrong with a line, said beside it as it is typed (in words, with a mark
+   that is not color alone: the row's left rule and the words). */
+table.shift-lines input.shift-prg { min-width: 12rem; }
+.row-problem { display: block; color: var(--bad); font-size: .86rem; max-width: 28rem; }
+.row-problem:empty { display: none; }
+table.shift-lines tr.has-problem > th { box-shadow: inset 4px 0 0 var(--bad); }
+details.paste-lines { margin: .5rem 0; max-width: 40rem; }
+details.paste-lines > summary { cursor: pointer; font-weight: 600; }
+ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
+ul.downloads { padding-left: 1.2rem; }
+ul.record-downloads li { margin-bottom: .5rem; }
+form.inline-download { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .25rem .5rem .25rem 0; }
+form.inline-download label { flex-direction: row; align-items: center; }
+table.list.records thead th { text-transform: none; letter-spacing: 0; }   /* canonical field names keep their case */
+table.records td { white-space: nowrap; }
+fieldset.column-picker { flex-basis: 100%; min-width: 0; }
+fieldset.column-picker > .picker, fieldset.column-picker > [data-without-picker], fieldset.column-picker > p { flex-basis: 100%; min-width: 0; }
+.column-picker details { margin: .2rem 0; min-width: 0; }   /* a flex item: without this its min-content width (the longest field name) pushes past 320 px */
+.column-picker summary { cursor: pointer; min-height: 24px; }
+ul.column-list { list-style: none; padding: 0 0 0 1.2rem; margin: .3rem 0 .6rem; columns: 22rem 2; }
+@media (max-width: 480px) { ul.column-list { columns: auto 1; } }   /* one column at phone width: Chromium lays two 22rem columns out past the viewport (1.4.10) */
+ul.column-list li { break-inside: avoid; padding: .15rem 0; overflow-wrap: anywhere; }
+ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: center; min-height: 24px; }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; margin: 0 0 1rem; }
+.chart-legend { list-style: none; display: flex; gap: 1.25rem; flex-wrap: wrap; padding: 0; margin: 0 0 .5rem; font-size: .9rem; }
+.chart-legend li { display: inline-flex; align-items: center; gap: .4rem; }
+.chart-defs { position: absolute; }
+.chart-rows { list-style: none; padding: 0; margin: 0; }
+.chart-rows li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr; gap: .25rem .75rem; align-items: center; padding: .3rem 0; border-top: 1px solid var(--line-2); }
+.chart-rows li:first-child { border-top: 0; }
+.chart-label { font-size: .9rem; overflow-wrap: anywhere; }
+.chart-bars { display: block; overflow: visible; }
+.bar-claims { fill: var(--chart-claims); }
+.bar-forecast { fill: url(#hatch); stroke: var(--chart-forecast); stroke-width: 1.5; }
+.hatch-bg { fill: var(--surface); }
+.hatch-line { stroke: var(--chart-forecast); stroke-width: 3; }
+.zero { stroke: var(--fg); stroke-width: 1; }
+@media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
+.goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */
+/* Chart values (data/dashboard.js): the row under the pointer or with the focus shows its values beside its bars. They stay while the
+   pointer rests on them (they sit inside the row) and Escape hides them (1.4.13). Without the script they are only the table below. */
+.chart-rows li { position: relative; }
+.chart-rows li[tabindex] { cursor: default; border-radius: var(--r); }
+.chart-rows li[tabindex]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.chart-rows li.chart-active { background: var(--surface-2); }
+.chart-tip.shown { position: absolute; top: calc(100% - .2rem); z-index: 5; display: flex; flex-direction: column; gap: .15rem; min-width: 12rem;
+  max-width: min(22rem, 100%); padding: .5rem .7rem; background: var(--surface); color: var(--fg); border: 1px solid var(--control);
+  border-radius: var(--r); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); font-size: .88rem; line-height: 1.35; }
+.chart-tip .tip-label { font-weight: 600; overflow-wrap: anywhere; }
+.chart-tip .tip-row { display: flex; align-items: center; gap: .4rem; font-variant-numeric: tabular-nums; }
+.chart-tip .tip-row svg { flex: none; }
+.chart-tip .tip-row.hot { font-weight: 700; }
+/* Sections that fold away (Filters and view, each chart, each table): the shared details.section, its heading a step smaller under a block's h2 */
+details.dash-part { margin: .75rem 0 0; }
+details.dash-part > summary h3 { margin: 0; font-size: 1rem; }
+details.dash-part > .section-body > .chart { margin-bottom: 0; border: 0; padding: .25rem 0 0; }
+details.dash-part > .section-body .dash-controls { margin: 0; }
+
+/* ---------- Front page (data/front.html): the introduction, the program cycle's cards, Help ---------- */
+.front-intro { margin-bottom: 1.5rem; }
+main.page .front-intro .lede { font-size: 1.12rem; color: var(--fg); max-width: none; }   /* two sentences: across the page, two or three lines at 1920 px */
+ul.front-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: .5rem 2rem; list-style: none; margin: .25rem 0 1rem; padding: 0; }   /* the intro's three points side by side when they fit, stacked on a phone; each at a readable measure */
+ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(--line); max-width: 70ch; }
+.tour-offer { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; background: var(--info-bg); border-left: 4px solid var(--info);
+  border-radius: var(--r); padding: .55rem .9rem; margin: 1rem 0 0; }
+.tour-offer button.link { margin-left: auto; }
+
+/* ---------- Release notes, limits and the FAQ (cedars/services/releases, core/help/faq.html) ---------- */
+.coming-changes { background: var(--info-bg); border-left: 4px solid var(--info); border-radius: var(--r); padding: .5rem .9rem; margin: 0 0 1rem; }   /* text and links on --info-bg as .tour-offer: fg and link over 7:1 in both schemes */
+/* A bar's Put away button sits at its end (on a phone, under its text); a link-styled button, 24 px tall at least, in the link color. */
+.coming-changes { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; }
+.coming-changes > p { margin: 0; flex: 1 1 20rem; max-width: none; }
+.coming-changes .put-away { margin: 0 0 0 auto; }
+.coming-changes .put-away .link { min-height: 24px; color: var(--link); text-decoration: underline; white-space: nowrap; }
+.release-list { list-style: none; padding: 0; margin: 0; }
+.release-list li { border-bottom: 1px solid var(--line-2); padding: .25rem 0 .75rem; }
+.release-list h3 { margin-top: .75rem; }
+.faq { border-top: 1px solid var(--line-2); margin-top: 1rem; max-width: 72ch; }
+.faq .example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem 1rem; margin: .5rem 0 .75rem; }
+.faq .example table caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
+/* The whole FAQ: each answer folded under its question (a native <details>; app.js opens the one a link to it names) */
+details.faq { margin-top: 0; }
+details.faq > summary { display: flex; align-items: baseline; gap: .5rem; padding: .55rem 0; cursor: pointer; list-style: none; min-height: 24px; }
+details.faq > summary::-webkit-details-marker { display: none; }
+details.faq > summary::before { content: ""; width: .5em; height: .5em; border: solid var(--fg-2); border-width: 0 2px 2px 0; transform: rotate(-45deg); flex: none; align-self: center; }
+details.faq[open] > summary::before { transform: rotate(45deg); }
+details.faq > summary h3 { margin: 0; font-size: 1rem; }
+details.faq > summary:hover h3 { color: var(--link); }
+details.faq > .faq-answer { padding: 0 0 .5rem 1.1rem; }
+/* Portfolio trends (data/front.py, Jake 2026-11-11): metric and PA-type switches, a tile per metric, then four charts drawn on the
+   server as SVG. Colours: the chosen series --chart-claims (8.3:1 light, 5.8:1 dark on the surface); the second series of the indexed
+   chart --chart-second, dashed as well so the two differ by more than colour (5.0:1 light, 8.0:1 dark). Text in the charts uses the
+   text tokens, never a series colour. */
+:root { --chart-second: #b45309; }
+@media (prefers-color-scheme: dark) { :root { --chart-second: #f0a04b; } }
+.front-trends > .head-row { align-items: baseline; }
+.trend-controls { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: flex-end; margin: .5rem 0 .75rem; }
+.trend-controls .seg { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.seg-label { font-size: .86rem; color: var(--fg-2); }
+ul.seg-nav { display: flex; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; border: 1px solid var(--control); border-radius: var(--r); overflow: hidden; }
+ul.seg-nav li { margin: 0; border-left: 1px solid var(--control); }
+ul.seg-nav li:first-child { border-left: 0; }
+ul.seg-nav a { display: block; padding: .45rem .85rem; min-height: 24px; color: var(--fg); text-decoration: none; font-size: .92rem; font-weight: 500; }
+ul.seg-nav a:hover { text-decoration: underline; }
+ul.seg-nav a[aria-current] { background: var(--primary); color: var(--primary-fg); }
+ul.seg-nav a:focus-visible { outline-offset: -3px; }
+.trend-year { display: flex; gap: .5rem; align-items: center; margin: 0; }
+.trend-year label { font-size: .86rem; color: var(--fg-2); }
+.trend-year select { font: inherit; padding: .4rem .5rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg); }
+ul.trend-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; list-style: none; margin: 0 0 1rem; padding: 0; }
+.trend-tile { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .65rem .85rem .45rem; min-width: 0; }
+.trend-tile:hover { border-color: var(--control); }
+.trend-tile.on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.trend-tile > a { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--link); text-decoration: none; }
+.trend-tile > a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-lg); }   /* the tile is the target */
+.trend-tile > a:hover { text-decoration: underline; }
+.trend-tile > a:focus-visible { outline: none; }
+.trend-tile > a:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
+.trend-tile .n { font-size: 1.5rem; font-weight: 700; line-height: 1.15; margin: .15rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.trend-tile .u { font-size: .8rem; font-weight: 500; color: var(--fg-2); }
+.chg { font-size: .86rem; font-weight: 500; margin: .1rem 0 0; min-height: 1.3em; }
+.chg.up { color: var(--ok); } .chg.down { color: var(--bad); } .chg.same, .chg.none { color: var(--fg-2); }
+svg.spark { display: block; width: 100%; height: 44px; margin-top: .25rem; }
+svg.spark .area { fill: var(--chart-claims); fill-opacity: .14; }
+svg.spark .line { fill: none; stroke: var(--chart-claims); stroke-width: 2; }
+svg.spark circle { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-bottom: 1rem; }
+@media (min-width: 64rem) {
+  .trend-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .trend-grid > .trend-panel:nth-child(3) { grid-column: 1 / 2; }
+}
+.trend-panel { position: relative; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .9rem 1.1rem; min-width: 0; }
+.trend-panel h3 { margin: 0 0 .15rem; }
+.trend-panel .sub { margin: 0 0 .6rem; font-size: .86rem; color: var(--fg-2); max-width: 70ch; }
+.trend-panel .more { font-size: .88rem; margin: .5rem 0 0; }
+ul.pa-links { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; padding: 0; }
+ul.trend-legend { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; list-style: none; padding: 0; margin: 0 0 .4rem; font-size: .88rem; }
+.trend-plot { position: relative; }
+.trend-plot:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--r); }
+.trend-plot.recent { display: none; }
+@media (max-width: 40rem) { .trend-plot.has-recent { display: none; } .trend-plot.recent { display: block; } }
+svg.trend-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.trend-svg text { fill: var(--fg-2); font: 12px var(--sans); }
+.trend-svg text.val { fill: var(--fg); font-weight: 600; }
+.trend-svg text.label { fill: var(--fg); }
+.trend-svg .grid { stroke: var(--line-2); }
+.trend-svg .axis { stroke: var(--control); }
+.trend-svg .band { fill: var(--surface-2); }
+.trend-svg .ref { stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.trend-svg .col { fill: var(--chart-claims); }
+.trend-svg .col.chosen { fill: var(--primary-hover); }
+.trend-svg .col.negative { fill: var(--bad); fill-opacity: .6; }
+.trend-svg .col.partial { fill-opacity: .35; stroke: var(--chart-claims); stroke-width: 2; stroke-dasharray: 4 3; }  /* a year not complete yet */
+svg.spark circle.partial { fill: var(--surface); stroke: var(--chart-claims); }
+.trend-svg .chg { font-size: 12px; font-weight: 600; }
+.trend-svg .chg.up { fill: var(--ok); } .trend-svg .chg.down { fill: var(--bad); } .trend-svg .chg.same { fill: var(--fg-2); }
+.trend-svg .hit { fill: transparent; }
+.trend-svg .pt.active .hit { fill: var(--fg); fill-opacity: .06; }
+.line-a { fill: none; stroke: var(--chart-claims); stroke-width: 2.5; }
+.line-b { fill: none; stroke: var(--chart-second); stroke-width: 2.5; stroke-dasharray: 7 4; }
+.trend-svg .dot-a { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+.trend-svg .dot-b { fill: var(--chart-second); stroke: var(--surface); stroke-width: 2; }
+.trend-svg .span { stroke: var(--control); stroke-width: 3; }
+.trend-svg .dot-start { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
+.trend-svg .dot-end { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+@media (forced-colors: active) { .trend-svg .col, .trend-svg .dot-end, .trend-svg .dot-a { fill: Highlight; } .line-a { stroke: Highlight; } .line-b { stroke: CanvasText; } }
+.trend-tip { position: absolute; z-index: 5; top: 0; background: var(--surface); color: var(--fg); border: 1px solid var(--control); border-radius: var(--r);
+  padding: .4rem .6rem; font-size: .86rem; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); max-width: min(22rem, 100%); pointer-events: auto; margin: 0; }
+.trend-hint { font-size: .82rem; color: var(--fg-2); margin: .25rem 0 0; }
+details.trend-table { margin-top: .5rem; font-size: .9rem; }
+details.trend-table summary { cursor: pointer; color: var(--link); min-height: 24px; }
+details.trend-table table { margin-top: .4rem; }
+ul.front-notes { margin: 0 0 1rem; padding-left: 1.1rem; font-size: .85rem; color: var(--fg-2); }
+ul.front-notes li { margin: .1rem 0; }
+.front-help .card h3 { margin-top: 0; }
+.front-help .cards { gap: 0 1rem; }
+.guide { max-width: 75ch; }
+.guide li { margin: .3rem 0; }
+dl.glossary { margin: .5rem 0 1.25rem; }
+dl.glossary dt { font-weight: 600; margin-top: .9rem; }
+dl.glossary dd { margin: .2rem 0 0 1.25rem; }
+@media (max-width: 480px) { dl.glossary dd { margin-left: 0; } }
+ol.tour-list { padding-left: 1.4rem; max-width: 75ch; }
+ol.tour-list h2, ol.tour-list h3 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
+
+/* ---------- The guided tour (core/tour.js): a modal dialog beside the part of the page a step describes ---------- */
+/* The step's part keeps the page's own colors with a focus-colored outline, and the rest of the page is dimmed behind it by a wide shadow.
+   The backdrop itself is clear, so the part shows through the spotlight below; in forced-colors mode the shadow drops and the outline stays. */
+dialog.tour { position: fixed; inset: auto 1rem 1rem auto; margin: 0; width: min(26rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto;
+  background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1rem 1.15rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+dialog.tour.tour-top { inset: 1rem 1rem auto auto; }
+dialog.tour::backdrop { background: transparent; }
+dialog.tour h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+dialog.tour h2:focus { outline: none; }
+dialog.tour h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+dialog.tour .tour-count { display: block; font-size: .78rem; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; }
+dialog.tour p { margin: .3rem 0 .7rem; }
+.tour-actions { margin: .5rem 0 0; }
+.tour-actions [data-tour-close] { margin-left: auto; }
+/* The spotlight (one box laid over the step's part, so no scrolling box around the part cuts it off and the sticky header is dimmed too):
+   a focus-colored outline round the part, a ring of the page's surface inside it, and a wide shadow dimming the rest of the page. It sits
+   under the tour dialog (which is in the top layer) and never takes a click. */
+.tour-spot { position: fixed; z-index: 30; pointer-events: none; border-radius: var(--r); outline: 3px solid var(--focus); outline-offset: 0;
+  box-shadow: inset 0 0 0 2px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+.tour-spot[hidden] { display: none; }
+@media (max-width: 480px) { dialog.tour, dialog.tour.tour-top { inset: auto .5rem .5rem .5rem; width: auto; } dialog.tour.tour-top { inset: .5rem .5rem auto .5rem; } }
+
+/* ---------- Page help (cedars/core/page_help.py): the (?) beside each page's heading and the guide it opens ---------- */
+.page-title { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+.page-title > h1 { min-width: 0; }
+/* A 28 px circle (2.5.8), its border 3:1 on the page (--control) in both schemes; the "?" is the link color, named "Help with this page". */
+.page-help { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  border: 1px solid var(--control); background: var(--surface); color: var(--link); font-weight: 700; font-size: 1rem; line-height: 1;
+  text-decoration: none; position: relative; top: -.2rem; }
+.page-help:hover { background: var(--surface-2); text-decoration: none; }
+dialog.page-help-dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; margin: auto;
+  background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1.1rem 1.3rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+dialog.page-help-dialog::backdrop { background: rgba(15, 20, 24, .55); }
+dialog.page-help-dialog h2 { margin: 0 0 .6rem; font-size: 1.25rem; }
+dialog.page-help-dialog h2:focus { outline: none; }
+dialog.page-help-dialog h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+dialog.page-help-dialog h3 { font-size: 1rem; margin: 1rem 0 .3rem; }
+dialog.page-help-dialog .tour-count { display: block; font-size: .78rem; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; }
+dialog.page-help-dialog p, dialog.page-help-dialog li { max-width: 70ch; }
+dialog.page-help-dialog ul.links { margin-bottom: 0; }
+.measure { max-width: 75ch; }
+ul.links.columns { columns: 18rem; column-gap: 2rem; }
+ul.links.columns li { break-inside: avoid; }
+
+/* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
+   schemes with a white margin (the quiet zone scanners need). */
+.qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }
+/* UI review 3, U6: the key shown whole (selectable, wrapping on a phone) with its copy button beside it; the code field six digits
+   wide, not the column's width */
+.totp-form .label { font-size: .88rem; font-weight: 600; color: var(--fg-2); }
+.totp-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: 0; }
+.totp-key { font-size: 1.05rem; letter-spacing: .06em; padding: .35rem .55rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+  overflow-wrap: anywhere; user-select: all; }
+.totp-form input.otp, .otp-field input { align-self: flex-start; width: 10ch; font-size: 1.15rem; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+/* Where a new account is in its set-up: three numbered steps, the current one marked in words and with aria-current */
+.set-up-steps ol { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .95rem; }
+.set-up-steps li { display: inline-flex; align-items: center; gap: .45rem; color: var(--fg-2); }
+.set-up-steps .n { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1px solid var(--control); font-weight: 600; font-size: .85rem; }
+.set-up-steps li.now { color: var(--fg); font-weight: 600; }
+.set-up-steps li.now .n { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.set-up-steps li.done .n { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.set-up-steps .state { font-weight: 400; color: var(--fg-2); }
+/* Recovery codes: the codes in two columns, each whole; printed, only the codes and their sentence */
+.recovery-codes { font-family: var(--mono, ui-monospace, monospace); font-size: 1.05rem; columns: 2 10ch; max-width: 26rem; padding: .75rem 1rem; margin: 0;
+  list-style: none; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.recovery-codes li { margin: 0 0 .3rem; letter-spacing: .05em; break-inside: avoid; }
+@media print {
+  body:has(.recovery-codes) :is(header, footer, .page-help, .actions, .set-up-steps, .messages, .banner, nav) { display: none !important; }
+}
+
+/* Cost-test builder: the test page's formula bar (refdata/builder_formula.js) */
+.formula-bar { position: relative; }
+textarea.formula, code.formula { font-family: var(--mono); }
+textarea.formula { width: 100%; font-size: .92rem; line-height: 1.5; }
+.formula-suggest { position: absolute; z-index: 5; left: 0; right: 0; max-width: 40rem; margin: .1rem 0 0; padding: .2rem 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--control); border-radius: var(--r); box-shadow: 0 4px 12px rgb(0 0 0 / .15); }
+.formula-suggest li { padding: .3rem .6rem; min-height: 24px; font-family: var(--mono); font-size: .85rem; cursor: pointer; }
+.formula-suggest li[aria-selected="true"] { background: var(--info-bg); color: var(--fg); outline: 2px solid var(--info); outline-offset: -2px; }
+.formula-check { border-left: 4px solid var(--fg-3); padding: .3rem .6rem; margin: .4rem 0 0; background: var(--surface-2); }
+.formula-check.ok { border-left-color: var(--ok); } .formula-check.warn { border-left-color: var(--warn); } .formula-check.bad { border-left-color: var(--bad); }
+.formula-check.ok::before { content: "OK. "; font-weight: 600; } .formula-check.warn::before { content: "Check: "; font-weight: 600; }
+.formula-check.bad::before { content: "Not yet: "; font-weight: 600; }
+/* Cost-test builder: step 3's streams as a table (UI review 3). The pricings sit on one line in their cell; the wording opens under its
+   "Change the wording" disclosure, wide enough for its definition box; a row's problems sit under the stream's name. */
+.stream-table fieldset { border: 0; padding: 0; margin: 0; background: none; }
+.inline-checks { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+.inline-checks label { min-height: 24px; }
+.stream-table th[scope="row"] { min-width: 12rem; max-width: 26rem; }
+.stream-facts { display: block; font-weight: 400; margin: .2rem 0 0 calc(24px + .45rem); }
+.stream-table th[scope="row"] .errorlist, table.list th[scope="row"] .errorlist { font-weight: 400; margin-top: .3rem; }
+.stream-table td.wording { min-width: 12rem; }
+.stream-table td.wording details[open] { min-width: min(24rem, 70vw); }
+.stream-table td.wording p { margin: 0 0 .2rem; }
+.streams-left-out > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: list-item; padding: .65rem 0; }
+.discard-set { margin-top: 1rem; }
+.test-grid th[scope="row"] { white-space: nowrap; }
+.test-grid tr.meta th, .test-grid tr.meta td { background: var(--surface-2); }
+.role { display: inline-block; font-weight: 600; padding: 0 .4rem; border-radius: 3px; border-left: 4px solid; }
+.role-benefit { color: var(--ok); background: var(--ok-bg); } .role-benefit::before { content: "+ "; }
+.role-adder { color: var(--info); background: var(--info-bg); } .role-adder::before { content: "+ "; }
+.role-cost { color: var(--bad); background: var(--bad-bg); } .role-cost::before { content: "\2212  "; }
+ul.formulas { list-style: none; padding: 0; } ul.formulas li { margin: .35rem 0; }
+
+/* ---------- A header menu's own page (core/_section.html, Jake 2026-11-06): its pages side by side, a sentence under each ---------- */
+.section-pages { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: .75rem 1.25rem; }
+.section-pages li { margin: 0; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.section-pages li > a { font-weight: 600; display: inline-block; min-height: 24px; }
+.section-pages li > p { margin: .25rem 0 0; color: var(--fg-2); font-size: .92rem; }
+/* Where each PA's filings stand: a module's two columns grouped under its name */
+table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom: 1px solid var(--line); }
+table.filing-status td { min-width: 7.5rem; }
+table.filing-status td a { text-decoration: none; }
+table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* UI review 3, U5: a status that opens the filing looks like a link (a bordered badge with an arrow); the board wraps its headings so
+   it fits 1440 px; the reader's own organization's row is marked */
+table.filing-status td a.status-link .status { border: 1px solid currentColor; }
+table.filing-status td a.status-link .status::after { content: "\203A" / ""; font-weight: 700; margin-left: .1rem; }
+table.filing-status thead th { white-space: normal; text-transform: none; letter-spacing: 0; font-size: .82rem; min-width: 7rem; }
+table.filing-status td { min-width: 0; }
+table.filing-status tbody tr.own > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary); }
+
+/* ---------- Your work (core/_your_work.html; UI review 3, U5): the person's own work, one card per part ---------- */
+.your-work { margin: 1.25rem 0 1.75rem; }
+.your-work-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem 1.25rem; }
+.your-work-part { margin: 0; display: flex; flex-direction: column; }
+.your-work-part h3 { margin: 0 0 .5rem; font-size: 1.02rem; }
+.your-work-lines { list-style: none; margin: 0; padding: 0; }
+.your-work-lines li { margin: 0; padding: .45rem 0; border-top: 1px solid var(--line-2); display: grid; grid-template-columns: 1fr auto; column-gap: .75rem; }
+.your-work-lines li:first-child { border-top: 0; padding-top: 0; }
+.your-work-lines p { margin: 0; grid-column: 1; }
+.your-work-lines .what { font-weight: 500; overflow-wrap: anywhere; }
+.your-work-lines .what a { display: inline-block; min-height: 24px; }
+.your-work-lines .act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.your-work-lines .act a { display: inline-flex; align-items: center; min-height: 24px; font-weight: 600; white-space: nowrap; }
+.your-work-part .more { margin: auto 0 0; padding-top: .6rem; }
+.your-work-part .more a { display: inline-block; min-height: 24px; }
+.your-filings { margin-bottom: 1.5rem; }
+/* Claims and Monthly reports: the next one to file stands out (a badge says so in words) */
+table.list tbody tr.next-to-file > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.list tbody tr.next-to-file > th { box-shadow: inset 4px 0 0 var(--primary); }
+/* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
+table.list.factors colgroup.pa-alt { background: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }   /* every other PA's three columns shaded, so a row reads across by PA */
+.factor-filters { flex-direction: column; align-items: stretch; gap: .8rem; }
+.factor-filters > form { align-items: flex-end; }
+table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
+table.list.factors .pa-first { border-left: 1px solid var(--line); }
+table.list.factors tbody td.pa-first[colspan] { padding: .55rem .8rem; text-align: right; }
+table.list.factors tbody th { min-width: 13rem; }
+table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padding-right: .5rem; text-align: right; }
+/* Walk through a measure: the numbered steps, each piece of arithmetic with whether it agrees with the engine's output */
+.walk-steps ol { list-style: none; margin: 0 0 .5rem; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem .5rem; }
+.walk-steps li a { display: inline-flex; align-items: center; gap: .35rem; min-height: 24px; padding: .2rem .55rem; border: 1px solid var(--control); border-radius: 999px; text-decoration: none; font-size: .9rem; }
+.walk-steps li a[aria-current] { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
+.walk-steps .walk-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.walk-calcs { list-style: none; margin: .75rem 0; padding: 0; }
+.walk-calc { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .75rem; margin: 0 0 .5rem; border-left: 4px solid var(--line); background: var(--surface-2); border-radius: var(--r); }
+.walk-calc-label { font-weight: 600; }
+.walk-calc-expr { overflow-wrap: anywhere; }
+.walk-test { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: .5rem; }
+.walk-test h4 { margin: .5rem 0 .25rem; font-size: 1rem; }
+.walk-notes { margin-top: .75rem; }
+.walk-pager { justify-content: space-between; flex-wrap: wrap; }
+/* The walkthrough's charts (calculations/_walk_chart.html): two series colors, 3:1 or better on the surface in both schemes and told apart
+   with color-vision deficiencies (validated as a pair: light 24.7, dark 26.8 delta E); text in the text colors, never the series color.
+   Below 30rem wide the chart scrolls sideways in its region rather than shrinking its text. */
+:root { --viz-1: #2a78d6; --viz-2: #eb6834; }
+@media (prefers-color-scheme: dark) { :root { --viz-1: #3987e5; --viz-2: #d95926; } }
+.walk-chart { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.walk-chart-title { font-weight: 600; margin: 0 0 .4rem; }
+.walk-chart-plot { margin: 0; }
+.walk-chart-plot svg { display: block; width: 100%; min-width: 30rem; max-width: 46rem; height: auto; overflow: visible; }
+.walk-chart svg .grid { stroke: var(--line-2); stroke-width: 1; }
+.walk-chart svg .axis { stroke: var(--control); stroke-width: 1; }
+.walk-chart svg .tick { fill: var(--fg-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.walk-chart svg .end { fill: var(--fg); font-size: 12px; font-weight: 600; }
+.walk-chart .s1 { fill: var(--viz-1); }
+.walk-chart .s2 { fill: var(--viz-2); }
+.walk-chart svg .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.walk-chart svg .line.s1 { stroke: var(--viz-1); }
+.walk-chart svg .line.s2 { stroke: var(--viz-2); }
+.walk-chart svg .dot { stroke: var(--surface); stroke-width: 2; }
+/* Each year's tooltip (calculations/walkthrough.js): the band under the pointer or picked with the arrow keys is shaded, a line chart's
+   points in it are marked, and its values show beside it. The hit areas sit on top of the marks, see-through. */
+.walk-chart-box { position: relative; }
+.walk-chart svg .band { fill: transparent; }
+.walk-chart svg .band.on { fill: var(--surface-2); }
+.walk-chart svg .hit { fill: transparent; }
+.walk-chart svg .pts { display: none; }
+.walk-chart svg .pts.on { display: inline; }
+.walk-tip.shown { position: absolute; z-index: 5; display: flex; flex-direction: column; gap: .15rem; width: max-content;
+  max-width: min(20rem, 100%); padding: .5rem .7rem; background: var(--surface); color: var(--fg); border: 1px solid var(--control);
+  border-radius: var(--r); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); font-size: .88rem; line-height: 1.35; }
+.walk-tip .tip-label { font-weight: 600; }
+.walk-tip .tip-row { display: flex; align-items: center; gap: .4rem; font-variant-numeric: tabular-nums; }
+.walk-tip .tip-row svg { flex: none; }
+.walk-chart-hint { margin: 0 0 .3rem; }
+.walk-chart-data { margin-top: .4rem; }
+.walk-chart-data summary { min-height: 24px; cursor: pointer; }
+@media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } .walk-chart svg .band.on { fill: Highlight; fill-opacity: .25; } }
+
+/* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
+.who-opens { color: var(--fg-2); }
+
+/* Add a rule (rules/rule_form.html): the kind chosen first shows only its part (core/pickers.js, radios marked data-reveal); without
+   scripts both parts show, each with a note saying which kind reads it. The second to the fifth condition fold under More conditions. */
+.js .no-script-note { display: none; }
+.more-conditions { border-top: 0; padding-top: 0; }
+.more-conditions > .stack { padding-top: .6rem; }
+
+/* A data pack's Discard the draft (refdata/detail.html): folded apart from Publish, with its own reason */
+details.discard { margin-top: 1rem; }
+details.discard > summary { cursor: pointer; color: var(--link); font-weight: 600; min-height: 24px; line-height: 24px; width: max-content; max-width: 100%; }
+details.discard > p { margin: .5rem 0; }
+
+/* An organization's pages (UI review 3, U7): Give access (one person, several roles or permissions, one reason) and the recertification
+   grouped by member, with one Certify form whose buttons sit in the rows. */
+.give-access fieldset.give-what { border: 0; padding: 0; margin: .5rem 0; min-width: 0; }
+.give-access fieldset.give-what > legend { font-weight: 600; padding: 0; }
+form.certify-all { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: .75rem 0; }
+table.recert tr.group th { background: var(--surface-2); font-weight: 600; }
+table.recert tr.group th button { margin-left: .75rem; }
+table.recert td button { margin-right: .5rem; }
+
+/* A set-up page's parts, linked at its top (submissions/_setup_sections.html); its rarely used actions (cancel or restore one filing,
+   remove the set-up) fold away under .setup-fold */
+.setup-sections { margin: .75rem 0 1rem; }
+.setup-sections > p { margin: 0 0 .25rem; }
+.setup-sections ul, .page-sections ul { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
+.setup-sections a, .page-sections a { display: inline-block; min-height: 24px; line-height: 24px; }
+/* "On this page": a long page's sections linked under its heading (the program page) */
+.page-sections { margin: .5rem 0 1rem; padding: .4rem 0; border-bottom: 1px solid var(--line); }
+.setup-fold { margin-top: 1rem; }
+.setup-fold > h3 { margin-top: .75rem; }
+
+/* Testing (services/testing): a test's steps, each with room for a note beside it (below it on a narrow page), and the run link. */
+ol.test-steps { padding-left: 1.6rem; margin: .5rem 0 1rem; max-width: none; }
+ol.test-steps > li { padding: .55rem 0 .65rem .25rem; border-top: 1px solid var(--line-2); }
+ol.test-steps > li:first-child { border-top: 0; }
+ol.test-steps > li::marker { font-weight: 600; }
+ol.test-steps .step-words { overflow-wrap: anywhere; max-width: 80ch; }
+ol.test-steps .step-note { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin-top: .35rem; font-size: .88rem; }
+ol.test-steps .step-note input { flex: 1 1 16rem; max-width: 36rem; min-width: 0; }
+input.wide-input { width: min(100%, 44rem); box-sizing: border-box; }
+dl.facts progress { display: block; width: min(100%, 24rem); margin-top: .3rem; }
+ol.conversation { list-style: none; padding: 0; margin: .5rem 0 1rem; max-width: 80ch; }
+ol.conversation > li { margin: 0 0 .7rem; }
+ol.conversation h3 { margin-top: 0; font-size: 1rem; }
+ul.suggestions { padding-left: 1.2rem; } ul.suggestions li { margin: .5rem 0; }

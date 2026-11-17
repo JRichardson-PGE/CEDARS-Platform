@@ -1,0 +1,59 @@
+{% extends "core/base.html" %}
+{% block title %}Examples: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_examples" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-examples">Example files filers download with the version, checked by the same checks a filing gets, as {{ pa }}'s filing for
+{{ year }}. The version cannot be published while an example has a rejected record. Each example follows the draft's fields: a new field
+is filled the generated way, a removed one dropped, a renamed one moved. An example holds no personal information.</p>
+<section aria-labelledby="generate-h" class="card">
+  <h2 id="generate-h">{% if has_generated %}Write the generated example again{% else %}Generate an example{% endif %}</h2>
+  <p>CEDARS writes one record per table from the fields: each field's example value or default, else (a required field) a value of its
+  type, a code from its value list, and IDs with {{ pa }}'s prefix that link the tables. {% if has_generated %}Its records replace the
+  generated example's, edits included.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:generate_examples' v.specification.code v.slug %}" class="row-form">{% csrf_token %}
+    {{ generate_form.reason.as_field_group }}
+    <button type="submit">{% if has_generated %}Write it again{% else %}Generate the example{% endif %}</button>
+  </form>
+</section>
+{% for x in sets %}{% with e=x.e r=x.e.report %}
+<section aria-labelledby="example-{{ e.slug }}" class="spec-example">
+  <h2 id="example-{{ e.slug }}">{{ e.name }}</h2>
+  <p>{{ e.about }}</p>
+  <p class="example-status">{% if x.rejects %}<span class="status bad">Fails</span> {{ x.rejects }} rejected finding{{ x.rejects|pluralize }}.{% else %}<span class="status ok">Passes</span> No rejected record.{% endif %}
+    {{ x.records }} record{{ x.records|pluralize }}: {% for t, rows in e.rows.items %}{{ t }} {{ rows|length }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Download it as a <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'xlsx' %}">workbook<span class="sr-only"> ({{ e.name }})</span></a>
+    or a <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'zip' %}">.zip of delimited files<span class="sr-only"> ({{ e.name }})</span></a>.</p>
+  {% for n in r.notes %}<p class="alert" role="alert">{{ n }}</p>{% endfor %}
+  <h3 id="failing-{{ e.slug }}">What it fails</h3>
+  {% if r.failing %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ e.name }}: what it fails">
+  <table class="list">
+    <caption class="sr-only">{{ e.name }}: the findings of its check</caption>
+    <thead><tr><th scope="col">Table</th><th scope="col">Line</th><th scope="col">Field</th><th scope="col">Check or rule</th><th scope="col">Severity</th><th scope="col">Why</th></tr></thead>
+    <tbody>{% for f in r.failing %}<tr><td>{{ f.table }}</td><td>{{ f.row }}</td><td>{{ f.field }}</td><td>{% if f.rule_id == "FIELD" %}The field{% else %}{{ f.rule_id }}{% endif %}</td>
+      <td>{% if f.severity == "reject" %}Rejects the record{% else %}Warning{% endif %}</td><td>{{ f.message }}{% if f.fix %} {{ f.fix }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>Nothing: every record passes.</p>{% endif %}
+  <h3 id="not-shown-{{ e.slug }}">Rules it does not demonstrate</h3>
+  {% if r.not_shown %}<p>The condition of these rules is not met by any record, so the example does not show them at work. Add a record
+  that meets it, or another example set.</p>
+  <ul class="compact">{% for n in r.not_shown %}<li>{{ n.rule_id }} ({{ n.table }}): {{ n.message }}</li>{% endfor %}</ul>
+  {% else %}<p>None: every conditional rule applies to a record{% if not v.rule_set %}, and the version has no rules{% endif %}.</p>{% endif %}
+  <h3 id="reference-{{ e.slug }}">Checks that need real reference data</h3>
+  <p>These need what only a real filing has (the program registry, eTRM, the year so far), so an example cannot pass them and they do not
+  count against it.</p>
+  <ul class="compact">{% for c in r.reference %}<li>{{ c.rule_id }}: {{ c.finds }}{% if c.met %} <span class="small">(found in the example)</span>{% endif %}</li>{% empty %}<li>None.</li>{% endfor %}</ul>
+  <details id="file-{{ e.slug }}"><summary>Load {{ e.name }} from its file</summary>
+    {% url 'specifications:version' v.specification.code v.slug as spec_url %}{% before_upload template=spec_url template_label="the version's page and template" %}
+    <form method="post" action="{% url 'specifications:example_file' v.specification.code v.slug e.slug %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+      {{ x.form.file.as_field_group }}{{ x.form.reason.as_field_group }}
+      <div class="actions"><button type="submit">Load the file</button></div>
+    </form>
+  </details>
+</section>
+{% endwith %}{% empty %}<p>No example sets yet.</p>
+{% endfor %}
+{% endblock %}

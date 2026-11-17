@@ -1,0 +1,16 @@
+{% pager page query=query label="Code pages" anchor=anchor where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ codes_label|default:"Codes" }}">
+<table class="list">
+  <caption class="sr-only">Codes{% if editable %} in the draft{% endif %}</caption>
+  <thead><tr><th scope="col">Code</th><th scope="col">Description</th><th scope="col">Accepted for claim years</th>{% if editable %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for c in page %}
+  <tr><th scope="row">{{ c.code }}{% if editable and c.new %} <span class="small">(new in this draft)</span>{% endif %}</th><td>{{ c.description }}</td>
+    <td>{% if c.start_year and c.end_year %}{{ c.start_year }} to {{ c.end_year }}{% elif c.start_year %}From {{ c.start_year }}{% elif c.end_year %}Up to {{ c.end_year }}{% else %}Every year{% endif %}{% if c.end_year %} (retired after {{ c.end_year }}){% endif %}</td>
+    {% if editable %}<td><a href="{% url 'dictionary:code' vl.name c.pk %}">Change<span class="sr-only"> {{ c.code }}</span></a></td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="{% if editable %}4{% else %}3{% endif %}">No codes match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page query=query label="Code pages" anchor=anchor where="below" %}

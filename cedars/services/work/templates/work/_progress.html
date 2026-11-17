@@ -1,0 +1,1 @@
+{% if progress.key == "scheduled" %}Planned for release {{ progress.plan.name }}{% if progress.plan.expected_on %}, expected {{ progress.plan.expected_on|date_words }}{% endif %}{% elif progress.key == "done" %}Released in release {{ progress.plan.name }} on {{ progress.plan.released_on|date_words }}{% else %}{{ progress.words }}{% endif %}

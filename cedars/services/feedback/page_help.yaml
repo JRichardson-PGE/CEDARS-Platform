@@ -1,0 +1,190 @@
+# Help for each page (cedars/core/page_help.py): the Feedback link on every page, and the CPUC's list of what was sent.
+
+feedback/form:
+  title: Getting help and sending feedback
+  guide:
+    - Ask the CPUC's CEDARS team a question, report something that does not work, or say what would make CEDARS better. Say which
+      of these it is and write your message. It goes with the page you came from and, when you are signed in, your name and the
+      organization you act for, so nobody has to ask you where you were.
+    - The form shows the help of the page you came from. Before a question is sent, it also lists the user guides, pages' help and
+      frequently asked questions that share words with what you wrote, in case one answers it. Nothing is sent until you choose
+      Send again.
+    - An accessibility barrier (something you cannot use, for example with a keyboard or a screen reader) and a security concern
+      are treated as urgent. A security concern is read only by the CPUC's system administrators.
+    - When you act for an organization, its administrators can read your questions, problems and accessibility barriers, so they
+      can help. Tick the box to keep one from them. They never read ideas, comments or security concerns.
+    - Signed in, you follow what you sent on My requests, and you are told when the team answers or asks you something. Signed out,
+      the message is sent without your name and cannot be answered.
+    - Leave out personal information such as customers' names, addresses or account numbers.
+  how:
+    - Choose what it is, write your message and Send; you go back to the page you came from.
+    - Check for answers first lists what in Help matches your message without sending it.
+  see: getting-started
+  tour:
+    - target: "#about-page"
+      title: About that page
+      text: The help of the page you came from, and its user guide.
+      optional: true
+    - target: "#known-for-page"
+      title: Known problems on that page
+      text: Problems already reported on the page you came from. Open one to say it affects you too.
+      optional: true
+    - target: "#request-form"
+      title: Your message
+      text: Say what it is and write it. The page you came from goes with it.
+    - target: "#matches"
+      title: These may answer it
+      text: Parts of Help that share words with your message. It is sent only when you choose Send.
+      optional: true
+
+feedback/mine:
+  title: My requests
+  guide:
+    - Everything you sent from a page's Feedback link while signed in, and where each stands. Received means the team has it. Being
+      looked at means someone is working on it. Waiting for you means the team asked you a question. Answered means they replied.
+      Closed means it is finished.
+    - A request waiting for you is first in the list and in My queue. You are told of each answer and question on your
+      Notifications page, and by email unless you turned that off.
+    - An organization's administrators also have a link to the requests its members sent.
+  how:
+    - Open a request to read the replies, answer a question or add something.
+  see: getting-started
+  tour:
+    - target: "#organization-link"
+      title: Your organization's requests
+      text: For its administrators, what its members asked and reported.
+      optional: true
+    - target: "#my-requests"
+      title: Your requests
+      text: When you sent each, what it was, the page it came from and where it stands.
+
+feedback/organization:
+  title: Requests from my organization's members
+  guide:
+    - For an organization's administrators. The questions, problems and accessibility barriers that people sent to the CPUC's
+      CEDARS team while acting for your organization, with who sent each and where it stands, the most recently active first.
+    - You can read each request and the CPUC's answers, so you can help your members and see what troubles them. Only the sender
+      and the CPUC add to a request. Ideas, comments, security concerns and anything a sender chose to keep from you are not listed.
+  how:
+    - Open a request to read it and its replies.
+  see: getting-started
+  tour:
+    - target: "#organization-requests"
+      title: The requests
+      text: When, what, from whom, from which page, and where each stands.
+
+feedback/request:
+  title: One of my requests
+  guide:
+    - One request you sent, with the page it came from and every message since, oldest first. The page says who can
+      read it. That is you and the CPUC's CEDARS team, and for a question, a problem or an accessibility barrier you did not keep private,
+      the administrators of the organization you acted for. A security concern is read only by you and the CPUC's system
+      administrators.
+    - An administrator reading a member's request sees the same page without the reply and settle forms.
+    - When answering it takes a fix or an improvement, the team joins your request to that work. What is being done then says
+      where the work stands. That is being considered, to be done, planned for a release, or not planned with the reason.
+    - While it is open you can add to it or answer the team's question, and it goes back to the team. When you have what you need,
+      say it is settled and it closes.
+  how:
+    - Write a reply and Send.
+    - This is settled closes the request.
+  see: getting-started
+  tour:
+    - target: main dl.facts
+      title: Where it stands
+      text: The status and the page it came from.
+    - target: "#request-progress"
+      title: What is being done
+      text: Where the fix or improvement your request asks for stands.
+      optional: true
+    - target: "#conversation"
+      title: Messages
+      text: What you wrote, and each answer, question and reply since.
+    - target: "#read-only"
+      title: Reading only
+      text: An organization's administrator reads a member's request. Only its sender and the CPUC add to it.
+      optional: true
+    - target: "#reply-h"
+      title: Reply
+      text: Answer the team's question or add something.
+      optional: true
+    - target: "#settle-h"
+      title: Settled
+      text: Close the request when you have what you need.
+      optional: true
+    - target: "#closed-note"
+      title: Closed
+      text: A closed request takes no more replies. Send a new one from the page it is about.
+      optional: true
+
+feedback/inbox:
+  title: Feedback
+  guide:
+    - For the CPUC's system administrators and support desk. Every question, problem, accessibility barrier, idea and comment sent
+      from a page's Feedback link, and for system administrators every security concern, with who sent it
+      (or that they were signed out) and the page. Each one is also on your Notifications page when it arrives, and those waiting on
+      the CPUC are in your My queue.
+    - A test finding is a failed or blocked result from a round of testing, sent from the tester. It says the test, what
+      happened and what was expected, and is answered like any other request.
+    - To answer lists the requests waiting on the CPUC (Received and Being looked at). The urgent ones (accessibility barriers
+      and security concerns) come first, then the longest-waiting. Waiting for the
+      sender means the CPUC asked a question; Answered means the CPUC replied and the sender has not said it is settled.
+  how:
+    - Choose a status and a kind, then Apply.
+    - Open a request to read it whole, answer it, ask its sender a question, keep a note or close it.
+  see: administering
+  tour:
+    - target: main form.filters
+      title: Which requests
+      text: Those waiting on the CPUC by default.
+    - target: main table.list
+      title: The requests
+      text: When, what kind, from whom, from which page, and where each stands.
+
+feedback/detail:
+  title: A request
+  guide:
+    - >-
+      One request: who sent it and for which organization, the page it came from, the site's version and environment when it was
+      sent, and every message since. Signed-in senders read your answers and questions on My requests and are told of each one.
+      Read by says who else can read it. The administrators of the sender's organization read its questions, problems and
+      accessibility barriers unless the sender kept one private, and a security concern is for system administrators only.
+    - An answer leaves the request Answered until the sender replies or says it is settled. A question makes it wait for the
+      sender, in their My queue. A note is for the CPUC's staff only. Every step is in the audit log.
+  how:
+    - Mark as being looked at shows the sender and the other staff that someone has it.
+    - Answer, or ask the sender a question. A request sent signed out cannot be replied to.
+    - Make or join a work item when answering it takes a fix or an improvement.
+    - Close it with a note on what was done, or reopen a closed one with a reason.
+  see: administering
+  tour:
+    - target: main dl.facts
+      title: Where it came from
+      text: The sender, the page, the site's version and where it stands.
+    - target: "#conversation"
+      title: Messages
+      text: What they wrote, and each answer, question, reply and staff note since.
+    - target: "#request-work"
+      title: Work item
+      text: The work item this request is joined to, or the way to join it to one.
+      optional: true
+    - target: "#answer-h"
+      title: Answer
+      text: The sender is told and reads it on My requests.
+      optional: true
+    - target: "#ask-h"
+      title: Ask a question
+      text: The request waits for the sender until they reply.
+      optional: true
+    - target: "#note-h"
+      title: Keep a note
+      text: For staff only.
+      optional: true
+    - target: "#close-h"
+      title: Close it
+      text: Note what was done.
+      optional: true
+    - target: "#reopen-h"
+      title: Reopen it
+      text: Back among the received ones, with a reason.
+      optional: true

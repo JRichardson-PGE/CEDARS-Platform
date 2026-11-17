@@ -1,0 +1,84 @@
+/* Edit inputs as a spreadsheet (edit_grid.js): ReCET's own grid rules (recet/web/static/app.css) on the platform's tokens. Loaded after
+   the vendor sheet (tabulator_simple), so these replace its fixed white and grey, which put light text on white in dark mode.
+   Contrast (both schemes): calc-fg on calc 8.1:1 / 10.4:1, noeff-fg on noeff 9.0:1 / 10.1:1; issue outlines use --bad / --warn (3:1+). */
+:root {
+  --calc: #e7f6ea; --calc-fg: #14532d; --noeff: #e8f0fb; --noeff-fg: #1e3a8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --calc: #183a24; --calc-fg: #bbf7d0; --noeff: #1b2a44; --noeff-fg: #bfdbfe; }
+}
+
+.editor { margin: 0 0 1.5rem; }
+.grid-status { display: flex; gap: .3rem 1.2rem; flex-wrap: wrap; align-items: baseline; }
+.grid-status p { margin: .2rem 0; }
+.issue-line { font-weight: 600; }
+.issue-line.bad { color: var(--bad); }
+.issue-line.warn { color: var(--warn); }
+.issue-line.ok { color: var(--ok); }
+.save-status.bad { color: var(--bad); }
+.save-status.ok { color: var(--ok); }
+.grid-issues > summary { padding: .2rem 0; }
+.grid-issues ul.issues { max-height: 12rem; overflow: auto; font-size: .9rem; }
+.grid-issues li.issue-error { color: var(--bad); }
+.grid-issues li.issue-warning { color: var(--warn); }
+.grid-issues li.issue-info { color: var(--fg-2); }
+.grid-tabs { display: flex; gap: 0; flex-wrap: wrap; margin: .8rem 0 0; border-bottom: 1px solid var(--line); }
+.grid-tabs [role=tab] { border: 1px solid transparent; border-bottom: 3px solid transparent; border-radius: var(--r) var(--r) 0 0; background: transparent; color: var(--fg-2); margin-bottom: -1px; }
+.grid-tabs [role=tab][aria-selected=true] { color: var(--link); border-bottom-color: var(--primary); font-weight: 600; }   /* the current table shown by more than color */
+.grid-tabs .count { font-weight: 400; color: var(--fg-2); }
+.editor-bar { display: flex; gap: .5rem 1rem; flex-wrap: wrap; align-items: center; margin: .6rem 0; }
+.editor-bar .actions { margin: 0; }
+.editor-bar .field.inline { flex-direction: row; align-items: center; gap: .45rem; }
+.editor-bar .field.inline input[type=text] { width: 16rem; max-width: 100%; }
+.editor-bar span.inline { display: inline-flex; align-items: center; gap: .45rem; }
+.grid-confirm { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; padding: .5rem .7rem; border: 1px solid var(--bad); border-radius: var(--r); background: var(--bad-bg); margin: .4rem 0; }
+/* two lines, always: a longer description scrolls inside it, so moving between cells never pushes the grid down */
+.help-line { font-size: .88rem; color: var(--fg-2); height: 2.8em; overflow-y: auto; margin: .3rem 0; }
+.grid-keys ul { margin: .3rem 0; padding-left: 1.1rem; }
+
+.grid { border: 1px solid var(--line); border-radius: var(--r); font-size: .85rem; }
+.grid.tabulator, .grid.tabulator .tabulator-tableholder, .grid.tabulator .tabulator-tableholder .tabulator-table { background: var(--surface); color: var(--fg); }
+.grid.tabulator .tabulator-header { background: var(--surface); color: var(--fg); border-bottom: 1px solid var(--line); }
+.grid.tabulator .tabulator-header .tabulator-col { background: var(--surface); color: var(--fg); border-right-color: var(--line); }
+.grid.tabulator .tabulator-header .tabulator-col.calc { background: var(--calc); color: var(--calc-fg); }
+.grid.tabulator .tabulator-header .tabulator-col.noeff { background: var(--noeff); color: var(--noeff-fg); }
+.grid.tabulator .tabulator-header .tabulator-col.noeff .tabulator-col-title { font-style: italic; }
+.grid.tabulator .tabulator-header .tabulator-col.tabulator-range-highlight { box-shadow: inset 0 -3px 0 var(--primary); }
+.grid.tabulator .tabulator-header .tabulator-col.tabulator-range-selected { background: var(--primary); color: var(--primary-fg); }
+.grid.tabulator .tabulator-header .tabulator-col.flash { background: var(--primary); color: var(--primary-fg); }
+.grid.tabulator .tabulator-row, .grid.tabulator .tabulator-row.tabulator-row-even { background: var(--surface); color: var(--fg); }
+.grid.tabulator .tabulator-row:hover { background: var(--surface); }
+.grid.tabulator .tabulator-row { border-bottom-color: var(--line); }
+.grid.tabulator .tabulator-row .tabulator-cell { border-right-color: var(--line); }
+.grid.tabulator .tabulator-header .tabulator-frozen.tabulator-frozen-left,
+.grid.tabulator .tabulator-row .tabulator-cell.tabulator-frozen.tabulator-frozen-left { border-right-color: var(--control); }
+.grid.tabulator .tabulator-row .tabulator-cell.tabulator-row-header { background: var(--bg); color: var(--fg-2); border-right-color: var(--line); border-bottom-color: var(--line); }
+.grid.tabulator .tabulator-row.tabulator-range-highlight .tabulator-cell.tabulator-range-row-header { background: var(--surface-2); color: var(--fg); }
+.grid.tabulator .tabulator-row.tabulator-range-selected .tabulator-cell.tabulator-range-row-header { background: var(--primary); color: var(--primary-fg); }
+.grid.tabulator .tabulator-row .tabulator-cell.tabulator-range-selected:not(.tabulator-range-only-cell-selected):not(.tabulator-range-row-header) { background: color-mix(in srgb, var(--primary) 22%, var(--surface)); color: var(--fg); }
+.grid.tabulator .tabulator-row .tabulator-cell.tabulator-editing { background: var(--bg); }
+.grid.tabulator .tabulator-row .tabulator-cell input, .grid.tabulator .tabulator-row .tabulator-cell select { color: var(--fg); background: var(--bg); }
+.grid.tabulator .tabulator-row .tabulator-cell.flash { background: color-mix(in srgb, var(--primary) 35%, var(--surface)); }
+.grid.tabulator .tabulator-tableholder .tabulator-placeholder span { color: var(--fg-2); }
+/* focus: the platform's focus color, inside the cell so the next cell does not hide it */
+.grid.tabulator .tabulator-tableholder:focus-visible, .grid.tabulator .tabulator-header:focus-visible,
+.grid.tabulator .tabulator-row .tabulator-cell:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+/* problems: an outline and a corner symbol (x stops the run, ! a warning), not color alone (1.4.1) */
+.grid.tabulator .tabulator-row .tabulator-cell.issue-error { outline: 2px solid var(--bad); outline-offset: -2px; padding-right: 14px; }
+.grid.tabulator .tabulator-row .tabulator-cell.issue-warning { outline: 2px solid var(--warn); outline-offset: -2px; padding-right: 14px; }
+.grid.tabulator .tabulator-row .tabulator-cell.issue-info { outline: 1px dashed var(--fg-2); outline-offset: -2px; }
+.grid.tabulator .tabulator-row .tabulator-cell.issue-error::after, .grid.tabulator .tabulator-row .tabulator-cell.issue-warning::after {
+  position: absolute; top: 2px; right: 2px; font-size: .7rem; font-weight: 700; line-height: 1; pointer-events: none; }
+.grid.tabulator .tabulator-row .tabulator-cell.issue-error::after { content: "\2715"; color: var(--bad); }
+.grid.tabulator .tabulator-row .tabulator-cell.issue-warning::after { content: "!"; color: var(--warn); }
+/* value-list cells: the value with a dropdown arrow on the right */
+.grid.tabulator .list-cell { display: flex; align-items: center; gap: .3rem; width: 100%; }
+.grid.tabulator .list-cell .list-val { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.grid.tabulator .list-cell .list-val::after { content: "\200b"; }   /* keeps a full line height in an empty cell, so its arrow lines up */
+.grid.tabulator .list-cell .list-arrow { flex: none; color: var(--fg-2); font-size: .8rem; line-height: 1; }
+/* Tabulator's popups (dropdown lists) are appended to <body> with a fixed white background */
+div.tabulator-popup-container { background: var(--surface); color: var(--fg); border-color: var(--line); }
+.tabulator-popup-container.tabulator-edit-list { background: var(--surface); color: var(--fg); border: 1px solid var(--line); font-size: .85rem; }
+.tabulator-popup-container.tabulator-edit-list .tabulator-edit-list-item, .tabulator-popup-container.tabulator-edit-list .tabulator-edit-list-placeholder { color: var(--fg); }
+.tabulator-popup-container.tabulator-edit-list .tabulator-edit-list-item.active, .tabulator-popup-container.tabulator-edit-list .tabulator-edit-list-item:hover { background: var(--primary); color: var(--primary-fg); }
+.tabulator-popup-container.tabulator-edit-list .tabulator-edit-list-item.focused { outline: 2px solid var(--focus); outline-offset: -2px; }

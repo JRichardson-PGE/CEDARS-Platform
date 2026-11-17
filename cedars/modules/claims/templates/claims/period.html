@@ -1,0 +1,141 @@
+{% extends "core/base.html" %}
+{% block title %}{{ label }}{% if org %} · {{ org.code }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "claims/period" %}</div>
+  {% if sysadmin %}<a class="button" href="{% url 'claims:setup' cy.year %}">How {{ cy.year }} claims are priced</a>{% endif %}
+</div>
+<dl class="facts">
+  <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.retired_at %}<dt>Canceled</dt><dd id="filing-canceled"><span class="status warn">Canceled</span> {{ deadline.retired_at|date_words }}: {{ deadline.retired_reason }}. No filing can start for it.</dd>{% endif %}
+  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
+  <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
+  {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
+  {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}; cost tests: {% if cy.cost_test_set %}{{ cy.cost_test_set }}{% else %}the published set in force for {{ cy.year }}{% endif %}</dd>{% endif %}
+</dl>
+{% if not org %}{% url 'claims:index' as back %}{% include "submissions/_choose_pa.html" with what="claim" back=back back_text="Every confirmation of the year" %}{% endif %}
+{% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this {% if statewide %}statewide {% endif %}claim yet. Its filers upload it here.</p>{% endif %}
+
+{% if org and v or can_submit %}{% include "submissions/_filing_steps.html" %}{% endif %}
+{% if v %}{% include "submissions/_filing_outcome.html" %}{% endif %}
+{% if v and not legacy %}{% url 'claims:findings_csv' v.pk as findings_csv %}{% include "submissions/_filing_findings.html" with findings_csv=findings_csv %}{% endif %}
+
+{% if can_submit and not v.locked %}{% include "submissions/_filing_upload.html" with upload_body="claims/_upload.html" %}{% endif %}
+
+{% if v and file or counts %}
+<details class="section" id="version-details">
+  <summary><h2 id="version-details-h">Version {{ v.number }}: file and records</h2><span class="count">{{ file.uploaded_as|default:file.name }}{% if counts %}, {{ counts|length }} table{{ counts|length|pluralize }}{% endif %}</span></summary>
+  <div class="section-body">
+  {% if file %}<p>File: {{ file.uploaded_as|default:file.name }}{% if file.sha256 %} <span class="small muted">SHA-256 {{ file.sha256|truncatechars:20 }}</span>{% endif %}{% if v.reason %}. Reason for this version: {{ v.reason }}{% endif %}</p>
+  {% if file.ignored_columns %}<p class="small">Columns the template does not have were ignored: {% for t, cols in file.ignored_columns.items %}{{ t }}: {{ cols|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+  {% endif %}
+  {% if counts %}
+  <p class="small">Year to date is compiled over {% if s.base_label %}{{ s.base_label }}{% else %}the year's first confirmation{% endif %}.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Records by table">
+  <table class="list">
+    <caption class="sr-only">Records by table: {% if s.base_label %}compiled over {{ s.base_label }}{% else %}the year's first confirmation{% endif %}</caption>
+    <thead><tr><th scope="col">Table</th><th scope="col">In this upload</th><th scope="col">Replacing earlier records</th><th scope="col">Year to date</th></tr></thead>
+    <tbody>{% for t, own, replaced, total in counts %}<tr><th scope="row">{{ t }}</th><td class="num">{{ own|floatformat:"0g" }}</td><td class="num">{{ replaced|floatformat:"0g" }}</td><td class="num">{{ total|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% if s.changed_claims_count %}<details class="small"><summary>{{ s.changed_claims_count|floatformat:"0g" }} claim{{ s.changed_claims_count|pluralize }} from earlier quarters changed by this upload</summary>
+    <p>{{ s.changed_claims|join:", " }}{% if s.changed_claims_count > s.changed_claims|length %} and {{ s.changed_claims_count|add:"-200"|floatformat:"0g" }} more{% endif %}</p></details>{% endif %}
+  {% endif %}
+  </div>
+</details>
+{% endif %}
+
+{% if statewide %}
+<details class="section" id="statewide-filing">
+  <summary><h2 id="sw-h">Statewide claims, filed first</h2><span class="count">{% if org %}{% if led %}{{ org.code }} leads {{ led|length }} statewide program{{ led|length|pluralize }}{% else %}{{ org.code }} leads no statewide program{% endif %}{% else %}Only the statewide programs each lead PA leads{% endif %}</span></summary>
+  <div class="section-body">
+  <p>This filing holds only the claims of the statewide programs {% if org %}{{ org.code }} leads{% else %}a PA leads{% endif %}. It is due before the {{ counterpart.kind|default:"PAs' own claim" }}{% if counterpart %} ({{ counterpart.due_at|date_words }}){% endif %}, so each funding PA sees what is credited to it before it files. It is priced with the statewide allocation: each record's results are credited to the funding PAs, and once it is confirmed each of them sees its share on its <a href="{% url 'claims:statewide' cy.year %}">statewide share page</a> and in its year's totals.</p>
+  {% if org %}<p>{% if led %}{{ org.code }} leads {{ led|length }} statewide program{{ led|length|pluralize }}: {% for p in led %}{{ p.prg_id }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% else %}{{ org.code }} leads no statewide program, so it has nothing to file here.{% endif %}</p>{% endif %}
+  </div>
+</details>
+{% elif sw_status %}
+<details class="section" id="statewide-first">
+  <summary><h2 id="sw-h">Statewide claims credited to {% if org %}{{ org.code }}{% else %}each PA{% endif %}</h2><span class="count">{% if sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}{% elif sw_status.open %}Not confirmed yet{% else %}No lead PA has filed yet{% endif %}</span></summary>
+  <div class="section-body">
+  <p>Statewide programs are claimed by their lead PA in the <a href="{% url 'claims:period' sw_status.deadline.pk %}">{{ sw_status.deadline.kind }}</a>, due {{ sw_status.deadline.due_at|date_words }}, before this one. Don't include them here.
+  {% if sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}.{% endif %}
+  {% if sw_status.open %}Not confirmed yet by {{ sw_status.open|join:", " }}.{% endif %}
+  {% if not sw_status.confirmed and not sw_status.open %}No lead PA has filed it yet.{% endif %}</p>
+  <p><a href="{% url 'claims:statewide' cy.year %}{% if org %}?org={{ org.code }}{% endif %}">What the statewide claims credit to {% if org %}{{ org.code }}{% else %}a PA{% endif %} in {{ cy.year }}</a></p>
+  </div>
+</details>
+{% endif %}
+
+{% if earlier %}
+<details class="section" id="earlier">
+  <summary><h2 id="earlier-h">Earlier confirmations this year</h2><span class="count">{{ earlier|length }}; this upload is compiled over the latest</span></summary>
+  <div class="section-body">
+  <p class="small muted">This confirmation's upload is compiled over the latest of them. Their compiled inputs can be downloaded.</p>
+  <ul class="links">
+    {% for e in earlier %}<li>{{ e.deadline.kind }}: {% if e.standing %}<a href="{% url 'claims:version' e.standing.pk %}">version {{ e.standing.number }}</a>, confirmed {{ e.standing.confirmed_at|date_words }}{% if e.standing.findings.compiled_key %} (<a href="{% url 'claims:file' e.standing.pk 0 %}">year-to-date inputs</a>){% endif %}{% else %}not confirmed{% endif %}</li>{% endfor %}
+  </ul>
+  </div>
+</details>
+{% endif %}
+
+{% if v and pii_shown %}
+<section aria-labelledby="pii-h">
+<h2 id="pii-h">Personal information</h2>
+{% if not vault %}<p>This environment has no PII vault, so it takes no personal information.</p>
+{% else %}
+<p class="small muted">PII_Contact and PII_Site are kept apart from the claims, in the PII vault, and join them only by ContactID and
+SiteID. Reading them needs the PII grant, which a data steward approves; every upload and download is recorded in the audit trail.</p>
+{% if pii %}
+  {% if pii.status == "accepted" %}
+  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|datetime_words }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
+  {% else %}
+  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|datetime_words }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="PII findings">
+  <table class="list">
+    <caption class="sr-only">PII findings: the record's key and field, never its value</caption>
+    <thead><tr><th scope="col">Table</th><th scope="col">Line</th><th scope="col">Key</th><th scope="col">Field</th><th scope="col">Rule</th><th scope="col">Finding</th></tr></thead>
+    <tbody>{% for f in pii.findings|slice:":200" %}<tr><td>{{ f.table }}</td><td class="num">{{ f.line }}</td><td>{{ f.key }}</td><td>{{ f.field }}</td><td>{{ f.rule }}</td><td>{{ f.message }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% if pii.findings|length > 200 %}<p class="small">The first 200 are shown.</p>{% endif %}
+  {% endif %}
+{% else %}<p>No PII file has been kept for this version.</p>{% endif %}
+
+{% if pii_read and pii.status == "accepted" %}
+<form method="post" action="{% url 'claims:pii_download' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  <input type="hidden" name="org" value="{{ org.code }}">
+  <div class="field"><label for="pii-reason">Why you need it (recorded in the audit trail)</label><input type="text" id="pii-reason" name="reason" maxlength="500"></div>
+  <div class="actions"><button type="submit">Download the PII (.zip)</button></div>
+</form>
+{% endif %}
+
+{% if pii_upload %}
+{% before_upload rules_note="the PII file is checked on upload: keys, required fields and the claims it names; one with findings is not stored" guide="claims" guide_label="the claims guide" %}
+<form method="post" enctype="multipart/form-data" action="{% url 'claims:pii_upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  {{ pii_form.file.as_field_group }}
+  <div class="actions"><button type="submit">Upload and check the PII</button> <span class="small muted">A file that passes replaces this version's PII; one with findings is not stored.</span></div>
+</form>
+{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
+{% if versions|length > 1 or v.locked %}
+<section aria-labelledby="versions-h">
+<h2 id="versions-h">Versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions table">
+<table class="list">
+  <caption class="sr-only">Versions of {{ org.code }}'s {{ label }}, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Confirmed</th><th scope="col">Reason</th></tr></thead>
+  <tbody>{% for ver in versions %}<tr>
+    <th scope="row"><a href="{% url 'claims:version' ver.pk %}">Version {{ ver.number }}</a></th>
+    <td><span class="status {{ ver.status|status_tone }}">{{ ver.get_status_display }}</span>{% if ver.late %} <span class="small">(late)</span>{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date_words }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by|person }}{% endif %}{% endif %}</td>
+    <td>{{ ver.reason }}{% if ver.letter %} (<a href="{% url 'claims:change_letter' ver.letter.pk %}">change letter</a>){% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+{% endblock %}

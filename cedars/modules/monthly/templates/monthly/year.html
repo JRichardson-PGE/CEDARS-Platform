@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}{{ year }} monthly reports{% if org %} · {{ org.code }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li></ol></nav>
+<div class="page-title"><h1>{{ year }} monthly reports{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/year" %}</div>
+<p>Every month of the year in one place. Reports are cumulative: each month's spend is read from its year-to-date BCA inputs, so the
+spend this month is the change since the month before, and the year-to-date spend should never fall. {{ paid_vs_committed }}{% if published_only %} Only confirmed reports are shown.{% endif %}</p>
+{% if choices %}
+<form method="get" class="filters" aria-label="Choose the program administrator">
+  <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
+  <button type="submit">Apply</button>
+</form>
+{% endif %}
+{% if org %}
+{% if inconsistent %}
+<div class="card" role="note"><p><strong>{{ inconsistent|length }} month{{ inconsistent|length|pluralize }} {{ inconsistent|length|pluralize:"does,do" }} not add up:</strong>
+{% for m in inconsistent %}{{ m.deadline.period.starts|date:"F" }}{% if not forloop.last %}, {% endif %}{% endfor %}. The year-to-date spend is lower than the month before's.</p></div>
+{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="year-caption">
+<table class="list data">
+  <caption id="year-caption">{{ org.code }}'s {{ year }} reports by month, totals over its programs</caption>
+  <thead><tr><th scope="col">Month</th><th scope="col">Report</th>{% for h in headings %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in rows %}<tr>
+    <th scope="row">{% if published_only %}{{ row.m.deadline.period.starts|date:"F" }}{% else %}<a href="{% url 'monthly:report' row.m.deadline.pk %}?org={{ org.code|urlencode }}">{{ row.m.deadline.period.starts|date:"F" }}</a>{% endif %}</th>
+    <td>{% if row.m.version %}{% url 'monthly:version' row.m.version.pk as version_url %}{% endif %}{% include "ui/version_status.html" with s=row.status url=version_url %}</td>
+    {% for c in row.cells %}<td class="num">{{ c }}{% if forloop.first and not row.m.consistent %} (spend fell){% endif %}</td>{% endfor %}
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+<p><a class="button" href="{% url 'monthly:year_csv' year %}{{ csv_query }}">Download the year (CSV)</a>{% if latest %} · <a href="{% url 'monthly:version' latest.version.pk %}">The latest report by program</a>{% endif %}
+  · <a href="{% url 'monthly:closing' year %}{{ csv_query }}">The 13th-month report, from the confirmed claims</a></p>
+{% else %}
+<p>Choose a program administrator to see its year.</p>
+{% endif %}
+{% endblock %}

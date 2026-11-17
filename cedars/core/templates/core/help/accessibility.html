@@ -1,0 +1,18 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>CEDARS is built to meet WCAG 2.2 Level AA, as California requires of state agency sites. Every page is tested in the light and
+dark color schemes.</p>
+<h2>Key points</h2>
+<ul>
+  <li>Everything works with a keyboard; <strong>Skip to content</strong> is the first stop, and the focus is always shown.</li>
+  <li>Status is given in words, never by color alone, and every chart has a table of the same numbers.</li>
+  <li>Pages reflow at 320 pixels wide and 200% zoom, and work without JavaScript.</li>
+  <li>Workbooks CEDARS makes are screen-reader friendly. Files you upload are checked, and you are told how to fix any problem.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_tour' %}">The tour on one page</a>.</li>
+  <li>Making an accessible file: in Word or PowerPoint, export to PDF with document structure tags on; in Excel, use Review, Check Accessibility.</li>
+  <li>Found a barrier? See <a href="{% url 'core:help_contact' %}">getting support</a>: a barrier is a defect, and we fix it.</li>
+</ul>
+{% endblock %}

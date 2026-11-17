@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}
+{% block title %}Restated claims{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
+<div class="page-title"><h1>Restated claims</h1>{% page_help "claims/restatements" %}</div>
+<p>Confirmed claims priced again on today's engine, as analyses: yours and your organizations'. The filed records are never changed. To
+restate a confirmed version, open it and choose Restate these claims.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="restatements-caption">
+<table class="list">
+  <caption id="restatements-caption" class="sr-only">Restatements, newest first</caption>
+  <thead><tr><th scope="col">Restatement</th><th scope="col">Claims</th><th scope="col">ReCET</th><th scope="col">ACC</th><th scope="col">For</th><th scope="col">Started</th></tr></thead>
+  <tbody>
+  {% for rs, label in rows %}<tr>
+    <th scope="row"><a href="{% url 'claims:restatement' rs.pk %}">{{ rs.name }}</a></th>
+    <td>{{ rs.version.submission.organisation.code }} {{ label }}, version {{ rs.version.number }}</td>
+    <td>{{ rs.release }}</td>
+    <td>{% for acc, n in rs.acc_records.items %}{{ acc }}{% if not forloop.last %}, {% endif %}{% endfor %} (filed {{ rs.filed.acc }})</td>
+    <td>{% if rs.organisation %}{{ rs.organisation.code }}{% else %}{{ rs.owner|person }} (own){% endif %}</td>
+    <td class="nowrap">{{ rs.created_at|date_words }}</td>
+  </tr>{% empty %}<tr><td colspan="6">No restatements yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,370 @@
+legacy_label,layouts,table,canonical
+Claim ID,claims_a claims_b,Key,ClaimID
+Year,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Key,Used_Year
+PA,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Key,PA
+Program ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,PrgID
+Program Name,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_ProgramName
+Program Group,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Legacy,Legacy_ProgramGroup
+Program Segment,claims_a claims_b filings filings_2026_2027_tual,Program,Prg_ProgramSegment
+Program Status,claims_a claims_b filings filings_2026_2027_tual,Program,Prg_ProgramStatus
+Primary Sector,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_PrimarySector
+Program Sector,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Sector
+Statewide Program,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_StatewideProgram
+Program Category,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_ProgramCategory
+Direct Install,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_DirectInstall
+Financing,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Financing
+Program Implementer,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_ProgramImplementer
+Resource Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Resource_Flag
+Non Resource Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_NonResource_Flag
+Deemed Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Deemed_Flag
+Custom Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Custom_Flag
+Upstream Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Upstream_Flag
+Midstream Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Midstream_Flag
+Downstream Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Downstream_Flag
+Audit Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Audit_Flag
+Exclude From Budget Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Exclude_From_Budget
+Exclude from CE Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Program,Prg_Exclude_From_CE
+Claim Year Quarter,claims_a claims_b,Measure,ClaimYearQuarter
+Measure Table,claims_a claims_b,Legacy,Legacy_MeasureTable
+Measure Sector,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,Sector
+Delivery Type,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,DeliveryType
+Building Type,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,BldgType
+Climate Zone,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,AC_Climate_Zone
+Gas Savings Profile,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,AC_Gas_Impact_Profile
+Gas Sector,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,AC_Gas_Target_Sector
+Measure Electric End Use Shape,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,AC_Elec_Impact_Profile
+Target Sector,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,AC_Elec_Target_Sector
+Measure Application Type,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,MeasAppType
+Measure Code,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,MeasCode
+Measure Description,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,MeasDescription
+Measure Impact Type,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,MeasImpactType
+Measure ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,MeasureID
+Measure Qualifier,claims_a claims_b,Legacy,Legacy_MeasureQualifier
+Interactive Effect Table Name,claims_a claims_b,Claim,IETableName
+Location Cost Adjustment,claims_a claims_b,Legacy,Legacy_LocationCostAdjustment
+Labor Rate,claims_a claims_b,Legacy,Legacy_LaborRate
+Measure Technology ID,claims_a claims_b,Claim,MeasTechID
+Technology Group,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,TechGroup
+Technology Type,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,TechType
+Use Category,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UseCategory
+Use Subcategory,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UseSubCategory
+Pre-Existing Technology Description,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,PreDesc
+Standard Technology Description,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,StdDesc
+Source Description,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,SourceDesc
+Version,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,Version
+Normalizing Unit,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NormUnit
+Number of Units,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NumUnits
+Unit kWh First Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitkWh1stBaseline
+Unit kW First Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitkW1stBaseline
+Unit Therm First Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitTherm1stBaseline
+Unit kWh Second Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitkWh2ndBaseline
+Unit kW Second Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitkW2ndBaseline
+Unit Therm Second Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitTherm2ndBaseline
+Unit Gross Measure Cost First Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitMeaCost1stBaseline
+Unit Gross Measure Cost Second Baseline,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitMeaCost2ndBaseline
+Unit Direct Install Labor,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitDirectInstallLab
+Unit Direct Install Materials,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitDirectInstallMat
+Unit End User Rebate,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitEndUserRebate
+Unit Incentive to Others,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,UnitIncentiveToOthers
+NTG ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NTG_ID
+NTGR kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NTGRkWh
+NTGR kW,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NTGRkW
+NTGR Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NTGRTherm
+NTGR Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,NTGRCost
+EUL ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,EUL_ID
+EUL Years,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,EUL_Yrs
+RUL ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,RUL_ID
+RUL Years,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,RUL_Yrs
+GSIA ID,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,GSIA_ID
+Realization Rate kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,RealizationRatekWh
+Realization Rate kW,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,RealizationRatekW
+Realization Rate Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,RealizationRateTherm
+Installation Rate kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,InstallationRatekWh
+Installation Rate kW,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,InstallationRatekW
+Installation Rate Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,InstallationRateTherm
+Measure Residential Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,Residential_Flag
+Measure Upstream Flag,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Measure,Upstream_Flag
+First Year Gross kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossKWh
+First Year Gross kW,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossKW
+First Year Gross Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossThm
+First Year Net kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetKWh
+First Year Net kW,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetKW
+First Year Net Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetThm
+Lifecycle Gross kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossKWh
+Lifecycle Gross Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossThm
+Lifecycle Net kWh,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetKWh
+Lifecycle Net Therm,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetThm
+Gross Measure Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,GrossMeasureCost
+Gross Measure Cost Early Retirement,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Legacy,Legacy_GrossMeasureCostER
+End User Rebate,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,EndUserRebate
+Incentive to Others,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,IncentiveToOthers
+Direct Install Labor,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,DILaborCost
+Direct Install Materials,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,DIMaterialCost
+Budget,claims_a filings filings_2024_2027 filings_2026_2027_tual,Legacy,Legacy_Budget
+Gross Participant Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,GrossParticipantCost
+Net Participant Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,NetParticipantCost
+Weighted Program Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WeightedProgramCost
+Weighted Admin Costs Overhead and GA,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdAdminCostsOverheadAndGA
+Weighted Admin Costs Other,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdAdminCostsOther
+Weighted Marketing Outreach,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdMarketingOutreach
+Weighted Direct Install Activity,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,WtdDIActivity
+Weighted Direct Install Installation,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,WtdDIInstallation
+Weighted Direct Install Hardware and Materials,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,WtdDIHardwareAndMaterials
+Weighted Direct Install Rebate and Inspection,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,WtdDIRebateAndInspection
+Weighted EMV,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdEMV
+Weighted User Input Incentive,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdUserInputIncentive
+Weighted Costs Recovered From Other Sources,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,WtdCostsRecoveredFromOtherSources
+Electric Supply Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,ElecSupplyCost
+Electric Supply Cost Gross,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,ElecSupplyCostGross
+Gas Supply Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,GasSupplyCost
+Gas Supply Cost Gross,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,GasSupplyCostGross
+Other Benefits,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,OtherBen
+Other Benefits Gross,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,OtherBenGross
+Other Costs,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,OtherCost
+Other Costs Gross,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,OtherCostGross
+Total System Benefit,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TotalSystemBenefit
+Total System Benefit Gross,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TotalSystemBenefitGross
+TRC,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TRCRatio
+PAC,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,PACRatio
+TRC No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TRCRatioNoAdmin
+PAC No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,PACRatioNoAdmin
+RIM,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,RIMRatio
+Benefits,claims_a filings_2024_2027 filings_2026_2027_tual,Legacy,Legacy_Benefits
+Electric Benefits,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,ElecBen
+Gas Benefits,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,GasBen
+TRC Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TRCCost
+PAC Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,PACCost
+TRC Cost No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,TRCCostNoAdmin
+PAC Cost No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,PACCostNoAdmin
+RIM Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,RIMCost
+Levelized Benefits Electric,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevBenElec
+Levelized Benefits Gas,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevBenGas
+Levelized TRC Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevTRCCost
+Levelized PAC Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevPACCost
+Levelized RIM Cost,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevRIMCost
+Levelized TRC Cost No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevTRCCostNoAdmin
+Levelized PAC Cost No Admin,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevPACCostNoAdmin
+Levelized Net Benefits TRC Electric,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenTRCElec
+Levelized Net Benefits TRC Gas,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenTRCGas
+Levelized Net Benefits PAC Electric,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenPACElec
+Levelized Net Benefits PAC Gas,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenPACGas
+Levelized Net Benefits RIM Electric,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenRIMElec
+Levelized Net Benefits RIM Gas,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenRIMGas
+Levelized Net Benefits TRC No Admin Electric,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenTRCElecNoAdmin
+Levelized Net Benefits TRC No Admin Gas,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenTRCGasNoAdmin
+Levelized Net Benefits PAC No Admin Electric,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenPACElecNoAdmin
+Levelized Net Benefits PAC No Admin Gas,claims_a filings filings_2024_2027 filings_2026_2027_tual,Output,LevNetBenPACGasNoAdmin
+First Year Gross Elec CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossElecCO2
+First Year Gross Gas CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossGasCO2
+First Year Net Elec CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetElecCO2
+First Year Net Gas CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetGasCO2
+Lifecycle Gross Elec CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossElecCO2
+Lifecycle Gross Gas CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossGasCO2
+Lifecycle Net Elec CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetElecCO2
+Lifecycle Net Gas CO2,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetGasCO2
+First Year Gross Elec NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossElecNOx
+First Year Gross Gas NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossGasNOx
+First Year Net Elec NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetElecNOx
+First Year Net Gas NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetGasNOx
+Lifecycle Gross Elec NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossElecNOx
+Lifecycle Gross Gas NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossGasNOx
+Lifecycle Net Elec NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetElecNOx
+Lifecycle Net Gas NOx,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetGasNOx
+First Year Gross PM10,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearGrossElecPM10
+First Year Net PM10,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,FirstYearNetElecPM10
+Lifecycle Gross PM10,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleGrossElecPM10
+Lifecycle Net PM10,claims_a claims_b filings filings_2024_2027 filings_2026_2027_tual,Output,LifecycleNetElecPM10
+IOU AC Territory,claims_b,Measure,IOU_AC_Territory
+Fuel ID,claims_b filings,Measure,FuelID
+Total Expenditures,claims_b,Output,TotalExpenditures
+Weighted Direct Implementation Activity,claims_b,Output,WtdDIActivity
+Weighted Direct Implementation Installation,claims_b,Output,WtdDIInstallation
+Weighted Direct Implementation Hardware and Materials,claims_b,Output,WtdDIHardwareAndMaterials
+Weighted Direct Implementation Rebate and Inspection,claims_b,Output,WtdDIRebateAndInspection
+RIM Benefits,claims_b filings,Output,RIMBen
+PAC Benefits,claims_b filings,Output,PACBen
+Levelized Net Benefits TRC Electric No Admin,claims_b,Output,LevNetBenTRCElecNoAdmin
+Levelized Net Benefits PAC Electric No Admin,claims_b,Output,LevNetBenPACElecNoAdmin
+Levelized Net Benefits TRC Gas No Admin,claims_b,Output,LevNetBenTRCGasNoAdmin
+Levelized Net Benefits PAC Gas No Admin,claims_b,Output,LevNetBenPACGasNoAdmin
+NAICS Building Type,claims_b,Claim,NAICSBldgType
+Program Element,claims_b,Claim,PrgElement
+Project ID,claims_b,Claim,ProjectID
+Why Savings Zeroed,claims_b,Claim,WhySavingsZeroed
+Why Costs Zeroed,claims_b,Claim,WhyCostsZeroed
+Parent Claim ID,claims_b,Claim,ParentClaimID
+Site ID,claims_b,Claim,SiteID
+Participant ID,claims_b,Claim,ParticipantID
+Application Code,claims_b,Claim,ApplicationCode
+CMPA Application ID,claims_b,Claim,CMPA_ApplicationID
+CMPA Measure code,claims_b,Claim,CMPA_MeasureCode
+Measure Detail ID,claims_b,Claim,MeasDetailID
+Funding Cycle,claims_b,Claim,FundingCycle
+SEM Phase,claims_b,Claim,SEM_Phase
+Building Location,claims_b,Claim,BldgLoc
+Building Vintage,claims_b,Claim,BldgVint
+Building HVAC,claims_b,Claim,BldgHVAC
+DEER Measure ID,claims_b,Claim,DEER_MeasureID
+DEER Sector,claims_b,Claim,DEER_Sector
+Measure Impact Calc Type,claims_b,Claim,MeasImpactCalcType
+Installed Norm Unit,claims_b,Claim,InstalledNormUnit
+Water Use,claims_b,Measure,WaterUse
+Rate Schedule Electric,claims_b,Measure,RateScheduleElec
+Rate Schedule Gas,claims_b,Measure,RateScheduleGas
+Combustion Type,claims_b,Measure,CombustionType
+Measure Inflation,claims_b,Measure,MeasInflation
+Misc Costs Description,claims_b,Measure,MiscCostsDesc
+Misc Benefits Description,claims_b,Measure,MiscBensDesc
+Partial Payment Percent,claims_b,Claim,PartialPaymentPercent
+Water Gallons,claims_b,Claim,WaterGallons
+Installed Number Units,claims_b,Claim,InstalledNumUnits
+Original Meter Install Year,claims_b,Claim,OriginalMeterInstallYear
+Unit kWh IOU Water 1st baseline,claims_b,Measure,UnitkWhIOUWater1stBaseline
+Unit kWh IOU Water 2nd baseline,claims_b,Measure,UnitkWhIOUWater2ndBaseline
+Unit Gas infra Benefits,claims_b,Measure,UnitGasInfraBens
+Unit Refrigerant Benefits,claims_b,Measure,UnitRefrigBens
+Unit Misc Benefits,claims_b,Measure,UnitMiscBens
+Unit Refrigerant Costs,claims_b,Measure,UnitRefrigCosts
+Unit Misc Costs,claims_b,Measure,UnitMiscCosts
+Unit Tax Credits,claims_b filings,Measure,UnitTaxCredits
+Application Date,claims_b,Claim,ApplicationDate
+Authorized Signature Date,claims_b,Claim,AuthorizedSignatureDate
+Customer Agreement Date,claims_b,Claim,CustomerAgreementDate
+Compliance Certificate Date,claims_b,Claim,ComplianceCertDate
+Installation Date,claims_b,Claim,InstallationDate
+Paid Date,claims_b,Claim,PaidDate
+Project completion Date,claims_b,Claim,ProjectCompletionDate
+Start Date,claims_b,Claim,StartDate
+Permit Issuance Date,claims_b,Claim,PermitIssuanceDate
+Shipment Date,claims_b,Claim,ShipmentDate
+Sales Date,claims_b,Claim,SalesDate
+Savings Date,claims_b,Legacy,Legacy_SavingsDate
+CCAREN Flag,claims_b,Claim,CCAREN_Flag
+DAC Flag,claims_b,Claim,DAC_Flag
+ETP Flag,claims_b,Claim,ETP_Flag
+HTR Flag,claims_b,Claim,HTR_Flag
+Lang Flag,claims_b,Claim,Lang_Flag
+NMEC TU Flag,claims_b,Claim,NMEC_TU_Flag
+NR Size Flag,claims_b,Claim,NRSize_Flag
+NR Lease Flag,claims_b,Claim,NRLease_Flag
+OBF Flag,claims_b,Claim,OBF_Flag
+OMBCSA Flag,claims_b,Claim,OMBCSA_Flag
+Partial Payment Final Flag,claims_b,Claim,PartialPaymentFinal_Flag
+Public K12 Flag,claims_b,Claim,PublicK_12_Flag
+Residential LI Flag,claims_b,Claim,ResLI_Flag
+Residential MFMH Flag,claims_b,Claim,ResMFMH_Flag
+Revised Flag,claims_b,Claim,Revised_Flag
+Underserved Flag,claims_b,Claim,Underserved_Flag
+CA Flag,claims_b,Claim,CA_Flag
+LG Flag,claims_b,Claim,LG_Flag
+Electric Master Meter Flag,claims_b,Claim,ElectricMasterMeter_Flag
+Gas Master Meter Flag,claims_b,Claim,GasMasterMeter_Flag
+TRC Cost Gross,claims_b,Output,TRCCostGross
+TRC Lifecycle Net Benefits,claims_b,Output,TRCLifecycleNetBen
+PAC Lifecycle Net Benefits,claims_b,Output,PACLifecycleNetBen
+First Year Gross kWh Site,claims_b,Output,FirstYearGrossKWhSite
+First Year Gross kWh Water,claims_b,Output,FirstYearGrossKWhWater
+First Year Net kWh Site,claims_b,Output,FirstYearNetKWhSite
+First Year Net kWh Water,claims_b,Output,FirstYearNetKWhWater
+Lifecycle Gross kWh Site,claims_b,Output,LifecycleGrossKWhSite
+Lifecycle Gross kWh Water,claims_b,Output,LifecycleGrossKWhWater
+Lifecycle Net kWh Site,claims_b,Output,LifecycleNetKWhSite
+Lifecycle Net kWh Water,claims_b,Output,LifecycleNetKWhWater
+Annual Gross kWh Site,claims_b,Output,AnnualGrossKWhSite
+Annual Gross kWh Water,claims_b,Output,AnnualGrossKWhWater
+Annual Net kWh Site,claims_b,Output,AnnualNetKWhSite
+Annual Net kWh Water,claims_b,Output,AnnualNetKWhWater
+Annual Gross kWh,claims_b,Output,AnnualGrossKWh
+Annual Gross kW,claims_b,Output,AnnualGrossKW
+Annual Gross Therm,claims_b,Output,AnnualGrossThm
+Annual Net kWh,claims_b,Output,AnnualNetKWh
+Annual Net kW,claims_b,Output,AnnualNetKW
+Annual Net Therm,claims_b,Output,AnnualNetThm
+Bill Reduction Electric,claims_b,Output,LifecycleBillReducElec
+Bill Reduction Gas,claims_b,Output,LifecycleBillReducGas
+Electric Benefits Gross,claims_b,Output,ElecBenGross
+Gas Benefits Gross,claims_b,Output,GasBenGross
+Water Energy Benefits,claims_b filings,Output,WaterEnergyBen
+Water Energy Benefits Gross,claims_b filings,Output,WaterEnergyBenGross
+Water Energy Cost,claims_b filings,Output,WaterEnergyCost
+Water Energy Cost Gross,claims_b filings,Output,WaterEnergyCostGross
+Weighted Savings,claims_b,Legacy,Legacy_WeightedSavings
+Weighted Benefits,claims_b,Output,WeightedBenefits
+Weighted Electric alloc,claims_b,Output,WeightedElecAlloc
+Discounted Savings Gross kWh,claims_b,Output,DiscountedSavingsGrosskWh
+Discounted Savings Net kWh,claims_b,Output,DiscountedSavingsNetkWh
+Discounted Savings Gross Therm,claims_b,Output,DiscountedSavingsGrossThm
+Discounted Savings Net Therm,claims_b,Output,DiscountedSavingsNetThm
+Gross Participant Cost Adjusted,claims_b,Output,GrossParticipantCostAdjusted
+Net Participant Cost Adjusted,claims_b,Output,NetParticipantCostAdjusted
+Excess Incentives,claims_b,Output,ExcessIncentives
+Market Effect Plus Excess Incentives,claims_b,Output,MarkEffectPlusExcessInc
+Rebates and Incentives,claims_b,Output,RebatesandIncents
+Rebates and Incentives PV,claims_b,Output,RebatesandIncentsPV
+Gross Measure Cost PV,claims_b,Output,GrossMeasCostPV
+Excess Incentives PV,claims_b,Output,ExcessIncentivesPV
+Market Effect Plus Excess Incentives PV,claims_b,Output,MarkEffectPlusExcessIncPV
+Gross Participant Cost PV,claims_b,Output,GrossParticipantCostPV
+Gross Participant Cost Adjusted PV,claims_b,Output,GrossParticipantCostAdjustedPV
+Net Participant Cost PV,claims_b,Output,NetParticipantCostPV
+Net Participant Cost Adjusted PV,claims_b,Output,NetParticipantCostAdjustedPV
+Program Costs,claims_b,Legacy,Legacy_ProgramCosts
+Tax Credits,claims_b filings,Output,TaxCredits
+Tax Credits Gross,claims_b filings,Output,TaxCreditsGross
+Electric Bill Increase,claims_b filings,Output,LifecycleBillIncrElec
+Gas Bill Increase,claims_b filings,Output,LifecycleBillIncrGas
+RIM Cost No Admin,claims_b filings,Output,RIMCostNoAdmin
+RIM Ratio No Admin,claims_b,Output,RIMRatioNoAdmin
+SCB,claims_b filings,Output,SCBRatio
+SCB Cost,claims_b filings,Output,SCBCost
+SCB Cost Gross,claims_b filings,Output,SCBCostGross
+SCB Cost No Admin,claims_b filings,Output,SCBCostNoAdmin
+SCB Ratio No Admin,claims_b filings,Output,SCBRatioNoAdmin
+SCH,claims_b filings,Output,SCHRatio
+SCH Cost,claims_b filings,Output,SCHCost
+SCH Cost Gross,claims_b filings,Output,SCHCostGross
+SCH Cost No Admin,claims_b filings,Output,SCHCostNoAdmin
+SCH Ratio No Admin,claims_b filings,Output,SCHRatioNoAdmin
+Electric Benefits SCB,claims_b filings,Output,ElecBen_SB
+Electric Benefits SCH,claims_b filings,Output,ElecBen_SH
+Electric Benefits Gross SCB,claims_b filings,Output,ElecBenGross_SB
+Electric Benefits Gross SCH,claims_b filings,Output,ElecBenGross_SH
+Electric Supply Cost SCB,claims_b filings,Output,ElecSupplyCost_SB
+Electric Supply Cost SCH,claims_b filings,Output,ElecSupplyCost_SH
+Electric Supply Cost Gross SCB,claims_b filings,Output,ElecSupplyCostGross_SB
+Electric Supply Cost Gross SCH,claims_b filings,Output,ElecSupplyCostGross_SH
+Gas Benefits SCB,claims_b filings,Output,GasBen_SB
+Gas Benefits SCH,claims_b filings,Output,GasBen_SH
+Gas Benefits Gross SCB,claims_b filings,Output,GasBenGross_SB
+Gas Benefits Gross SCH,claims_b filings,Output,GasBenGross_SH
+Gas Supply Cost SCB,claims_b filings,Output,GasSupplyCost_SB
+Gas Supply Cost SCH,claims_b filings,Output,GasSupplyCost_SH
+Gas Supply Cost Gross SCB,claims_b filings,Output,GasSupplyCostGross_SB
+Gas Supply Cost Gross SCH,claims_b filings,Output,GasSupplyCostGross_SH
+Water Energy Benefits SCB,claims_b filings,Output,WaterEnergyBen_SB
+Water Energy Benefits SCH,claims_b filings,Output,WaterEnergyBen_SH
+Water Energy Benefits Gross SCB,claims_b filings,Output,WaterEnergyBenGross_SB
+Water Energy Benefits Gross SCH,claims_b filings,Output,WaterEnergyBenGross_SH
+Water Energy Cost SCB,claims_b filings,Output,WaterEnergyCost_SB
+Water Energy Cost SCH,claims_b filings,Output,WaterEnergyCost_SH
+Water Energy Cost Gross SCB,claims_b filings,Output,WaterEnergyCostGross_SB
+Water Energy Cost Gross SCH,claims_b filings,Output,WaterEnergyCostGross_SH
+Impact Profile Source,claims_b,Legacy,Legacy_ImpactProfileSource
+PrgID,participants,Participant,PrgID
+PrgYear,participants,Participant,PrgYear
+ParticipantType,participants,Participant,ParticipantType
+SiteID,participants,Participant,SiteID
+ParticipantCount,participants,Participant,ParticipantCount
+EquityTargeted,participants,Participant,EquityTargeted
+DAC,participants,Participant,DAC
+HTR,participants,Participant,HTR
+Underserved,participants,Participant,Underserved
+Comments,participants,Participant,Comments
+Filing ID,filings filings_2024_2027 filings_2026_2027_tual,Key,CEInputID
+Filing Year Quarter,filings filings_2024_2027 filings_2026_2027_tual,Measure,ClaimYearQuarter
+RIM No Admin,filings,Output,RIMRatioNoAdmin
+TRC Benefits,filings,Output,TRCBen
+SCB Benefits,filings,Output,SCBBen
+SCH Benefits,filings,Output,SCHBen
+Electric Bill Reduction,filings,Output,LifecycleBillReducElec
+Gas Bill Reduction,filings,Output,LifecycleBillReducGas

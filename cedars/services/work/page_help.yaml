@@ -1,0 +1,328 @@
+# Help for each page (cedars/core/page_help.py): work items and the backlog.
+
+work/backlog:
+  title: Work items
+  guide:
+    - For the CPUC's backlog managers, approvers and support desk. A work item is one problem to fix or one improvement to make.
+      The requests that asked for it are joined to it and are its evidence.
+    - The backlog is the accepted work items in one order, and what is first is built first. Evidence shows how many requests are
+      joined to each item, from how many organizations, and how many of them are urgent.
+    - A proposed item waits for a backlog manager to accept it or decline it. Declining an item and making one public are the CPUC's
+      to approve. A backlog manager proposes each, and it takes effect when an approver confirms it. A person who holds both
+      permissions does each in one step.
+  how:
+    - Choose what to show, then Apply.
+    - Up and Down move an item one place in the backlog. Open an item to move it to any position.
+    - Propose a work item starts a new one. To start one from a request, open the request on Feedback.
+    - Release plans lists what each coming release is to hold.
+    - Measures shows how the loop from a request to a release is running.
+  see: administering
+  tour:
+    - target: main form.filters
+      title: What to show
+      text: The backlog by default. Also the proposed items, those waiting for approval and the declined ones.
+    - target: "#plans-link"
+      title: Release plans
+      text: What each coming release is to hold.
+    - target: "#work-items"
+      title: The work items
+      text: Each with its kind, its evidence, its size and where it stands.
+
+work/item:
+  title: A work item
+  guide:
+    - One work item. Its story says who needs it, on which pages, what they need and why. It also has a size, a severity for a
+      problem, and a workaround people can use meanwhile.
+    - Evidence lists the requests joined to it, with the organization each was sent for and the page. A security concern's page is
+      shown to system administrators only, and an item joined to one is never made public.
+    - An item is internal until it is made public. Then anyone may read its title, workaround and status, so they must name no
+      person, organization or filing. A public problem is listed on Known problems and a public item planned for an approved
+      release on Upcoming changes. Signed-in people can say a public item affects them too, and the count is part of its evidence.
+    - The senders of the requests joined to an item, and the people following it, are told when the CPUC approves a release
+      plan that holds it and when it is declined. A sender's own request page shows where the work stands.
+    - Acceptance tests say what done means. Each has steps and an expected result, as the test scripts' tests do. An item is ready
+      for a release when it has a story, its pages, a size and at least one acceptance test. It is planned from the release's page.
+    - An acceptance test may name a test of the test scripts by its ID. Where testing is on, that test is run in the release's
+      round of testing and its results are shown on the release's page.
+    - A backlog manager marks a planned item built on its release's page. When the CPUC says go on the release, the item is
+      Done. It then leaves Known problems and Upcoming changes, and the people waiting on it are told.
+    - Where the developers' tracker sends its events to this site, the page shows the pull requests that name the item (by its
+      number, such as W-12, or by its issue) as open, merged or closed, and whether its issue is open or closed. When the issue
+      closes, an item of an approved release plan is marked built without anyone doing it, and reopening the issue takes that
+      mark back.
+    - Every step is in the audit log, and each move in the backlog records who moved the item from where to where.
+  how:
+    - Accept puts a proposed item at the bottom of the backlog. Move it to its place by position.
+    - Decline it with a reason, or make it public. From a backlog manager each is a proposal that waits for the CPUC's approval.
+    - An approver approves a proposal or does not, with a reason for the backlog manager.
+    - Take off removes a request from the item, so it can be joined to another.
+    - Add an acceptance test, or remove one. A planned item keeps at least one.
+    - Start the issue opens the developers' tracker with a new issue filled from the story, pages and acceptance tests. The
+      requests are not sent. Save the issue there, then keep its address here.
+    - Where the site is set up for it, Or have the site post the issue shows the issue as it will be posted. Read it, tick the
+      box and choose Post the issue. The site posts it and keeps its address.
+  see: administering
+  tour:
+    - target: main dl.facts
+      title: Where it stands
+      text: Its status and place in the backlog, its kind and size, and whether it is public.
+    - target: "#approval"
+      title: Waiting for approval
+      text: What a backlog manager proposed, for the CPUC to approve or not.
+      optional: true
+    - target: "#story"
+      title: The story
+      text: Who needs it, where, what they need and why, and the workaround.
+    - target: "#tests"
+      title: Acceptance tests
+      text: What done means. Steps and an expected result.
+    - target: "#issue"
+      title: The issue for the developers
+      text: Start it filled from this work item, then keep its address.
+      optional: true
+    - target: "#evidence"
+      title: Evidence
+      text: The requests joined to it.
+    - target: "#accept-h"
+      title: Accept
+      text: Into the backlog, at the bottom.
+      optional: true
+    - target: "#move-h"
+      title: Move
+      text: To any position in the backlog.
+      optional: true
+    - target: "#public-h"
+      title: Make it public
+      text: Anyone may then read its title, workaround and status.
+      optional: true
+    - target: "#decline-h"
+      title: Decline
+      text: With a reason, which the people who asked are told.
+      optional: true
+    - target: "#reconsider-h"
+      title: Reconsider
+      text: A declined item goes back to Proposed.
+      optional: true
+
+work/form:
+  title: Writing a work item
+  guide:
+    - A work item is written as a story. It says who needs it, on which pages, what they need and why. The same form proposes a
+      new item and changes one.
+    - The title is in plain words. People outside the CPUC read it if the item is made public, so it names no person, organization
+      or filing. The same goes for the workaround.
+    - Size is agreed with the developers, and severity is for problems. Both can wait until they are known.
+  how:
+    - Fill in the story and choose Propose it or Save.
+  see: administering
+  tour:
+    - target: "#item-form"
+      title: The story
+      text: The title, what it is, who needs it, where, what and why, then severity, size and workaround.
+
+work/from_request:
+  title: A work item for a request
+  guide:
+    - When answering a request takes a fix or an improvement, the request is joined to a work item. This is how the same problem
+      reported many times becomes one item with many requests as its evidence.
+    - Join the request to an item that already covers it, or propose a new one. A new item starts with the request's page and kind.
+      Its words are yours, because a work item may be made public and the sender's words never are.
+    - A request is joined to one work item at a time.
+  how:
+    - Choose a work item and Join the request, or write a new one and Propose it.
+  see: administering
+  tour:
+    - target: "#the-request"
+      title: The request
+      text: What was sent, from which page, and for which organization.
+    - target: "#already"
+      title: Already joined
+      text: The work item this request is joined to.
+      optional: true
+    - target: "#join-h"
+      title: Join it
+      text: To a work item that already covers it.
+      optional: true
+    - target: "#new-h"
+      title: Propose a new one
+      text: Written in your own words, with the request joined to it.
+      optional: true
+
+work/measures:
+  title: Measures
+  guide:
+    - How the loop from a request to a release is running. Everything is counted from the records as they stand, so nobody fills
+      anything in for it. The page shows counts only, never a request's words or a person.
+    - Requests shows how many were sent in the period, how long the first reply and the answer took (the median, so one slow
+      request does not hide the rest), how many wait on the CPUC now, and the pages most asked about. A closed request is deleted
+      when its retention period ends, so a long period counts fewer than were sent.
+    - Work items shows the backlog as it stands, and how many days the items released in the period took from accepted into the
+      backlog to released, by size.
+    - After the last release counts the problems and accessibility barriers reported since it went out on the pages its work
+      items changed. These are what testing may have missed.
+    - Where testing is on, Testing shows each recent round's results over every tester's tests, and the tests of the scripts as
+      last loaded that no round has answered.
+  how:
+    - Choose the period and Apply. It sets the Requests section and the released work items.
+  see: administering
+  tour:
+    - target: "#days"
+      title: The period
+      text: The last 30 days, 90 days or year.
+    - target: "#requests"
+      title: Requests
+      text: Whether the support desk is keeping up, and which pages people ask about.
+    - target: "#delivery"
+      title: Work items
+      text: The backlog now, and how long delivery takes by size.
+    - target: "#escaped"
+      title: After the last release
+      text: Problems reported since on the pages it changed.
+    - target: "#testing"
+      title: Testing
+      text: Each round's results, and the tests never run.
+      optional: true
+
+work/releases:
+  title: Release plans
+  guide:
+    - A release plan is what a coming release is to hold. It is made of work items taken from the top of the backlog.
+    - A backlog manager starts a plan, fills it and proposes it. It is the plan once the CPUC approves it. Until then it is being
+      filled or waiting for approval.
+    - When every work item of an approved plan is built, the CPUC decides whether the release goes. A release that went is
+      shown as Released, with its date.
+  how:
+    - Open a release to see its work items, plan more for it, propose it or approve it.
+    - Start a release plan with the release's name and, when it is known, the date it is expected.
+  see: administering
+  tour:
+    - target: "#plans"
+      title: The plans
+      text: Each release, when it is expected, how many work items it holds and where the plan stands.
+    - target: "#new-h"
+      title: Start a plan
+      text: For backlog managers.
+      optional: true
+
+work/release:
+  title: A release plan
+  guide:
+    - One release's plan. It lists the work items planned for the release, when the release is expected and what it is for.
+    - A backlog manager plans work items for it from the backlog. Only an item that is ready can be planned. Ready means it has a
+      story, its pages, a size and at least one acceptance test. The page lists the backlog's items that are not ready, with what
+      each still needs. A planned item leaves the backlog, and one taken out goes back to the top of it.
+    - The manager proposes the filled plan and a CPUC approver approves it or sends it back with a reason. After approval, a
+      manager's change to its work items sends it back for approval. The expected date of an approved plan is the approver's to
+      change.
+    - A backlog manager marks each work item of an approved plan built. When all are built, a CPUC approver decides. Go records
+      the release as out on a date, makes its work items Done and tells the people waiting on them. It is not undone. No-go
+      holds the release with a reason, which the backlog managers are told, until it is built again.
+    - Where the developers' tracker sends its events to this site, a work item is also marked built when its issue closes
+      there. The table says so. A backlog manager can still say it is not built after all.
+    - Where testing is on, Acceptance testing lists every acceptance test of the release's work items. A test that names a test
+      of the test scripts by its ID is run in the release's round of testing, and the page shows how it was answered. The others
+      are checked by hand. A test lead opens the round here once the plan is approved, then assigns its scripts to testers on
+      the round's page. A failed test does not stop the CPUC's decision. It is shown beside it.
+  how:
+    - Choose a work item and Plan it for this release. Take out removes one.
+    - Propose the plan when it is filled.
+    - An approver approves it, or does not and gives the reason.
+    - Mark built says a work item is ready to go out.
+    - A test lead opens a round of testing for the release under Acceptance testing.
+    - An approver chooses Go with the date, or No-go with a reason.
+  see: administering
+  tour:
+    - target: main dl.facts
+      title: Where it stands
+      text: The plan's status, the expected date and what the release is for.
+    - target: "#decision"
+      title: Go or no-go
+      text: Once every work item is built, the CPUC decides whether the release goes.
+      optional: true
+    - target: "#plan-items"
+      title: Its work items
+      text: What the release is to hold.
+    - target: "#acceptance-testing"
+      title: Acceptance testing
+      text: Each acceptance test, whether it is in the test scripts, and how the release's round of testing answered it.
+      optional: true
+    - target: "#approve-h"
+      title: Approve
+      text: For the CPUC's approvers, when the plan is proposed.
+      optional: true
+    - target: "#add-h"
+      title: Plan a work item
+      text: From the backlog, when it is ready.
+      optional: true
+    - target: "#propose-h"
+      title: Propose
+      text: Send the filled plan for the CPUC's approval.
+      optional: true
+    - target: "#details-h"
+      title: Name, date and note
+      text: Change them here.
+      optional: true
+
+work/known:
+  title: Known problems
+  guide:
+    - Problems with CEDARS that the CPUC knows about and has not yet fixed, the most severe first. Anyone may read the list.
+    - Each problem says how severe it is, what you can do meanwhile, and where its fix stands. Planned for a release means the
+      CPUC approved a release plan that holds the fix. To be done means the CPUC means to fix it and has not chosen a release.
+      Being considered means it has not yet decided.
+    - A problem is listed here once the CPUC makes it public. A problem you reported may be worked on without being listed, and
+      your request's own page says where it stands.
+  how:
+    - Open a problem to read all of it and to say it affects you too.
+    - Upcoming changes lists what each coming release is planned to hold.
+  see: getting-started
+  tour:
+    - target: "#known-problems"
+      title: The problems
+      text: Each with its severity, what to do meanwhile and where its fix stands.
+      optional: true
+    - target: "#upcoming-link"
+      title: Upcoming changes
+      text: The fixes and improvements planned for coming releases.
+
+work/upcoming:
+  title: Upcoming changes
+  guide:
+    - The fixes and improvements planned for coming releases of CEDARS, the soonest release first. Anyone may read the list.
+    - A release is shown once the CPUC has approved its plan. Its expected date may change. Only the work items the CPUC made
+      public are listed, so a release may hold more than is shown.
+    - Not yet scheduled lists the improvements the CPUC is considering or means to make, with no release chosen.
+    - A change to the specifications, rules or limits is also announced in the release notes before it takes effect.
+  how:
+    - Open a change to read all of it and to say it affects you too.
+  see: getting-started
+  tour:
+    - target: main .upcoming-release
+      title: A coming release
+      text: Its name, its expected date and the changes planned for it.
+      optional: true
+    - target: "#unscheduled"
+      title: Not yet scheduled
+      text: Improvements with no release chosen yet.
+
+work/public_item:
+  title: A known problem or an upcoming change
+  guide:
+    - One problem the CPUC means to fix, or one improvement it is considering or has planned. The page says where it stands,
+      which pages it touches and what you can do meanwhile. Once it has gone out in a release, the page names the release and
+      its date.
+    - If it affects you, say so. The CPUC orders its work by how many people each item touches. You are then told when it is
+      planned for a release, and if the CPUC decides not to do it. The CPUC's CEDARS team sees your name and organization, and
+      other people see only the count.
+  how:
+    - This affects me too follows it. You must be signed in.
+    - Stop following it takes your name off.
+  see: getting-started
+  tour:
+    - target: "#public-facts"
+      title: Where it stands
+      text: Its kind, its status, the pages it touches and what to do meanwhile.
+    - target: "#follow"
+      title: Does this affect you?
+      text: Say so here, and be told when it is planned.
+      optional: true

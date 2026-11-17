@@ -1,0 +1,128 @@
+{% extends "core/base.html" %}
+{% block title %}Filing calendar{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Filing calendar</h1>{% page_help "submissions/calendar" %}</div>
+{% if sysadmin %}<p id="add-filing"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a> <a class="button" href="{% url 'submissions:filing_sets' %}">Filing sets</a> <span class="small muted">Setting up a budget filing, claim year or year of monthly reports puts it on the calendar. To change one filing, select Change on its row; to edit a whole set, open Filing sets.</span></p>{% endif %}
+<nav class="view-switch" aria-label="Calendar view" id="calendar-view">
+  <span class="chip-label">View</span>
+  <ul class="toggle-chips">
+    <li><a href="{{ view_urls.year }}"{% if view == "year" %} aria-current="true"{% endif %}>{% if view == "year" %}<span aria-hidden="true">&#10003; </span>{% endif %}Year</a></li>
+    <li><a href="{{ view_urls.month }}"{% if view == "month" %} aria-current="true"{% endif %}>{% if view == "month" %}<span aria-hidden="true">&#10003; </span>{% endif %}Month</a></li>
+    <li><a href="{{ view_urls.list }}"{% if view == "list" %} aria-current="true"{% endif %}>{% if view == "list" %}<span aria-hidden="true">&#10003; </span>{% endif %}List</a></li>
+  </ul>
+</nav>
+<p>{% if view == "year" %}Choose the filing types to show, and move from year to year.{% elif view == "month" %}Choose the filing types to show, and move from month to month.{% else %}Choose the filing types and due dates to show.{% endif %} The address of the page keeps your choice, so a link to it shows the same view.</p>
+<section class="filters calendar-filters" aria-label="Filters">
+  <div role="group" aria-labelledby="types-label" class="chip-group" id="type-filter">
+    <span id="types-label" class="chip-label">Filing types</span>
+    <ul class="toggle-chips">{% for c in type_chips %}
+      <li><a href="{{ c.url }}"{% if c.on %} aria-current="true"{% endif %}>{% if c.on %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ c.label }}</a></li>{% endfor %}
+    </ul>
+    <p class="helptext">Select a type to add it or take it away. All types shows every filing.</p>
+  </div>
+  {% if view == "list" %}
+  <div role="group" aria-labelledby="dates-label" class="chip-group" id="date-filter">
+    <span id="dates-label" class="chip-label">Due dates</span>
+    <ul class="toggle-chips">{% for c in range_chips %}
+      <li><a href="{{ c.url }}"{% if c.on %} aria-current="true"{% endif %}>{% if c.on %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ c.label }}</a></li>{% endfor %}
+    </ul>
+  </div>
+  <form method="get" class="row-form custom-range" id="custom-range" aria-labelledby="custom-label">
+    <span id="custom-label" class="chip-label">{% if filters.range == "custom" %}<span aria-hidden="true">&#10003; </span>{% endif %}Custom dates</span>
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    <input type="hidden" name="view" value="list"><input type="hidden" name="range" value="custom">
+    <label>From <input type="date" name="from" value="{{ filters.from }}"></label>
+    <label>To <input type="date" name="to" value="{{ filters.to }}"></label>
+    <button type="submit">Show these dates</button>
+  </form>
+  {% endif %}
+</section>
+{% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
+<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide canceled filings{% else %}Show canceled filings ({{ retired_count }}){% endif %}</a>{% endif %}</p>
+{% if view == "year" %}
+<div class="month-head">
+  <h2 id="year-h">{{ year }}</h2>
+  <nav aria-label="Years" class="month-nav">
+    <a href="{{ year_urls.prev }}" rel="prev">&larr; {{ year|add:"-1" }}</a>
+    {% if not is_this_year %}<a href="{{ year_urls.this }}">This year</a>{% endif %}
+    <a href="{{ year_urls.next }}" rel="next">{{ year|add:"1" }} &rarr;</a>
+  </nav>
+  <form method="get" class="row-form month-jump" id="year-jump">
+    <input type="hidden" name="view" value="year">
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    {% if retired %}<input type="hidden" name="retired" value="1">{% endif %}
+    <label>Go to year <input type="number" name="year" value="{{ year }}" min="1900" max="2200" step="1" inputmode="numeric" class="year-input"></label>
+    <button type="submit">Go</button>
+  </form>
+</div>
+<div class="year-key" id="year-legend">
+  <h3 id="legend-h">Key</h3>
+  <ul class="cal-legend" aria-labelledby="legend-h">{% for code, label in legend %}
+    <li><span class="yswatch t-{{ code }}" aria-hidden="true"><span class="mk"></span></span>{{ label }}</li>{% endfor %}
+    <li><span class="yswatch today-swatch" aria-hidden="true"></span>Today</li>
+  </ul>
+  <p class="helptext">Each colored date has something due; its color and mark say which filing type, and a date split in colors has more than one. Point at a date, or move to it with Tab, for what is due; Escape hides it. Select a date to open its month with every deadline spelled out.</p>
+</div>
+<div class="year-grid" id="year-grid">{% for m in months %}
+  <div class="ymonth">
+    <h3 id="ym-{{ m.first|date:'m' }}"><a href="{{ m.url }}">{{ m.label }}</a>{% if m.count %} <span class="ycount">{{ m.count }} due</span>{% endif %}</h3>
+    <table class="mini-month">
+      <caption class="sr-only">{{ m.label }} {{ year }}: {{ m.count }} deadline{{ m.count|pluralize }}, by day, weeks starting on Sunday</caption>
+      <thead><tr>{% for name in weekdays %}<th scope="col"><span aria-hidden="true">{{ name|slice:":1" }}</span><span class="sr-only">{{ name }}</span></th>{% endfor %}</tr></thead>
+      <tbody>{% for week in m.weeks %}
+      <tr>{% for c in week %}{% if not c %}<td></td>{% elif c.rows %}<td class="ycell{% if c.today %} today{% endif %}"{% if c.today %} aria-current="date"{% endif %}><a class="yday" href="{{ m.url }}#d-{{ c.day.isoformat }}" aria-describedby="tip-{{ c.day.isoformat }}"><span class="fills" aria-hidden="true">{% for t in c.types %}<span class="f t-{{ t }}"><span class="mk"></span></span>{% endfor %}</span><span class="n">{{ c.day.day }}</span><span class="sr-only"> {{ c.day|date:"F" }}{% if c.today %}, today{% endif %}: {{ c.rows|length }} deadline{{ c.rows|length|pluralize }}</span></a><span class="ytip" role="tooltip" id="tip-{{ c.day.isoformat }}"><strong>{{ c.weekday }} {{ c.day.isoformat }}</strong>{% for row in c.rows %}{% with d=row.d %}<span class="tip-row"><span class="yswatch t-{{ d.module }}" aria-hidden="true"><span class="mk"></span></span><span><strong>{{ row.module }}:</strong> {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}. {{ d.due_at|due_words }}{% if d.opens_at %}; opens {{ d.opens_at|date_words }}{% endif %}.{% if d.retired_at %} Retired.{% endif %}</span></span>{% endwith %}{% endfor %}</span></td>{% else %}<td{% if c.today %} class="today" aria-current="date"{% endif %}><span class="n">{{ c.day.day }}</span>{% if c.today %}<span class="sr-only"> {{ c.day|date:"F" }}, today</span>{% endif %}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>{% endfor %}
+</div>
+{% if not deadlines %}<p id="year-empty">{% if filtered %}No deadlines of these types are due in {{ year }}.{% else %}No deadlines are due in {{ year }}.{% endif %}</p>{% endif %}
+{% elif view == "month" %}
+<div class="month-head">
+  <h2 id="month-h">{{ month_label }}</h2>
+  <nav aria-label="Months" class="month-nav">
+    <a href="{{ month_urls.prev }}" rel="prev">&larr; {{ prev_label }}</a>
+    {% if not is_this_month %}<a href="{{ month_urls.this }}">This month</a>{% endif %}
+    <a href="{{ month_urls.next }}" rel="next">{{ next_label }} &rarr;</a>
+  </nav>
+  <form method="get" class="row-form month-jump" id="month-jump">
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    {% if retired %}<input type="hidden" name="retired" value="1">{% endif %}
+    <label>Go to month <input type="month" name="month" value="{{ month_value }}" placeholder="YYYY-MM" aria-describedby="month-jump-help"></label>
+    <button type="submit">Go</button>
+    <span class="helptext" id="month-jump-help">As YYYY-MM, e.g. 2028-03.</span>
+  </form>
+</div>
+<table class="month-grid" id="month-grid">
+  <caption class="sr-only">Deadlines due in {{ month_label }}, by day, weeks starting on Sunday</caption>
+  <thead><tr>{% for name in weekdays %}<th scope="col"><span aria-hidden="true">{{ name|slice:":3" }}</span><span class="sr-only">{{ name }}</span></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for week in weeks %}<tr>{% for c in week %}<td{% if c.in_month %} id="d-{{ c.day.isoformat }}"{% endif %} class="{% if not c.in_month %}other-month{% endif %}{% if c.today %} today{% endif %}{% if c.rows %} has-due{% endif %}"{% if c.today %} aria-current="date"{% endif %}>
+    <span class="day"><span class="dow">{{ c.weekday|slice:":3" }} </span><time datetime="{{ c.day.isoformat }}">{{ c.day.day }}<span class="sr-only"> {{ c.day|date:"F" }}</span></time>{% if c.today %} <span class="today-label">Today</span>{% endif %}</span>
+    {% if c.rows %}<ul class="due-list">{% for row in c.rows %}{% with d=row.d %}<li class="mod-{{ d.module }}{% if d.retired_at %} retired{% endif %}">
+      <span class="mod">{{ row.module }}</span>
+      <a href="{% if row.url %}{{ row.url }}{% else %}{% url 'submissions:deadline' d.pk %}{% endif %}">{{ d.title }}</a>
+      <span class="period">{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span>
+      {% if d.retired_at %}<strong class="status warn">Canceled</strong>{% endif %}
+      {% if row.url %}<a class="small" href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ row.module }} {{ d.title }}</span></a>{% endif %}
+    </li>{% endwith %}{% endfor %}</ul>{% endif %}
+  </td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not deadlines %}<p id="month-empty">{% if filtered %}No deadlines of these types are due in {{ month_label }}.{% else %}No deadlines are due in {{ month_label }}.{% endif %}</p>{% endif %}
+{% else %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Deadlines">
+<table class="list">
+  <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
+  <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th><th scope="col">{% if sysadmin %}Change{% else %}History{% endif %}</th></tr></thead>
+  <tbody>
+  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Canceled</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
+  {% empty %}<tr><td colspan="5">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<h2>Corrections after the due date</h2>
+<ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% if not p.late_confirmation %}; a late first confirmation is not allowed{% endif %}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
+{% if sysadmin %}<p><a href="{% url 'submissions:workflow_settings' %}" id="workflow-settings-link">Change the workflow settings</a></p>{% endif %}
+{% endblock %}

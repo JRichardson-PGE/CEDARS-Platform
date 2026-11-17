@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% block title %}Specification change log{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li></ol></nav>
+<div class="page-title"><h1>Specification change log</h1>{% page_help "dictionary/changes" %}</div>
+<p>Every version of the data dictionary with what changed in it (fields added, retired, reinstated or changed), and every published
+version of the value lists and validation rule sets. The changes CPUC decisions and resolutions require are in the
+<a href="{% url 'mandates:index' %}">register of CPUC-mandated changes</a>, published with this log; announced changes are in the
+<a href="{% url 'releases:index' %}">release notes</a>.</p>
+<p class="actions"><a class="button" href="{% url 'dictionary:changes_csv' %}">Download the dictionary's changes (CSV)</a></p>
+<h2 id="catalog-h">Data dictionary versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="catalog-h">
+<table class="list">
+  <caption class="sr-only">Each catalog version, newest first, with how many fields it changed</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Loaded</th><th scope="col">Against</th><th scope="col">Added</th><th scope="col">Retired</th><th scope="col">Reinstated</th><th scope="col">Changed</th><th scope="col">Dropped</th><th scope="col">Notes</th></tr></thead>
+  <tbody>
+  {% for v, previous, n in versions %}<tr><th scope="row"><a href="{% url 'dictionary:version_changes' v.pk %}">{{ v.label }}</a>{% if v == current %} <strong>(current)</strong>{% endif %}</th>
+    <td>{{ v.loaded_at|date_words }}</td><td>{% if previous %}{{ previous.label }}{% else %}First version{% endif %}</td>
+    <td>{{ n.added }}</td><td>{{ n.retired }}</td><td>{{ n.reinstated }}</td><td>{{ n.changed }}</td><td>{{ n.dropped }}</td><td>{{ v.notes|truncatewords:25 }}</td></tr>
+  {% empty %}<tr><td colspan="9">No dictionary has been published yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<h2 id="lists-h">Value list versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="lists-h">
+<table class="list">
+  <caption class="sr-only">Each published value list version, latest effective date first</caption>
+  <thead><tr><th scope="col">Value list</th><th scope="col">In force from</th><th scope="col">Copied from</th><th scope="col">Why</th></tr></thead>
+  <tbody>
+  {% for lv in lists %}<tr><th scope="row"><a href="{% url 'dictionary:list' lv.value_list.name %}?version={{ lv.number }}">{{ lv.value_list.name }}, version {{ lv.number }}</a></th><td>{{ lv.effective_from|date_words }}</td><td>{{ lv.based_on }}</td><td>{{ lv.reason }}</td></tr>
+  {% empty %}<tr><td colspan="4">None published here yet: the lists shipped with the engine are in force.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<h2 id="rules-h">Validation rule set versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="rules-h">
+<table class="list">
+  <caption class="sr-only">Each published rule set, latest effective date first</caption>
+  <thead><tr><th scope="col">Rule set</th><th scope="col">In force from</th><th scope="col">Why</th></tr></thead>
+  <tbody>
+  {% for rs in rule_sets %}<tr><th scope="row"><a href="{% url 'rules:detail' rs.pk %}">{{ rs.label }}</a></th><td>{{ rs.effective_from|date_words }}</td><td>{{ rs.reason|default:rs.source }}</td></tr>
+  {% empty %}<tr><td colspan="3">No rule set is published yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

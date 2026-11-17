@@ -1,0 +1,16 @@
+{% if item %}
+<section class="card" aria-labelledby="progress-h" id="request-progress">
+  <h2 id="progress-h">What is being done</h2>
+  {% if progress.key == "declined" %}
+  <p>The CPUC looked at the work this request asks for and decided not to do it.</p>
+  <p class="prewrap"><strong>Reason:</strong> {{ progress.reason }}</p>
+  {% elif progress.key == "done" %}
+  <p>The work this request asked for{% if item.public %}, <a href="{% url 'known:item' item.pk %}">{{ item.title }}</a>,{% endif %} is done. <strong>{% include "work/_progress.html" %}.</strong></p>
+  <p>If it is still a problem for you, {% if fb.is_open %}add to this request{% else %}use the Feedback link at the foot of the page it is on{% endif %}.</p>
+  {% else %}
+  <p>This request is joined to work on CEDARS{% if item.public %}: <a href="{% url 'known:item' item.pk %}">{{ item.title }}</a>{% endif %}. <strong>{% include "work/_progress.html" %}.</strong>{% if progress.key == "scheduled" %} The date may change.{% elif progress.key == "considering" %} The CPUC has not yet decided whether to do it.{% endif %}</p>
+  {% if item.public and item.workaround %}<p class="prewrap"><strong>Meanwhile:</strong> {{ item.workaround }}</p>{% endif %}
+  <p class="small muted">You will be told here and by notification when it is planned for a release.</p>
+  {% endif %}
+</section>
+{% endif %}

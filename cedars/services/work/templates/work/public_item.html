@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+{% block title %}{{ item.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs">{% if item.kind == "problem" %}<li><a href="{% url 'known:problems' %}">Known problems</a></li>{% else %}<li><a href="{% url 'known:upcoming' %}">Upcoming changes</a></li>{% endif %}</ol></nav>
+<div class="page-title"><h1>{{ item.title }}</h1>{% page_help "work/public_item" %}</div>
+<dl class="facts" id="public-facts">
+  <dt>Kind</dt><dd>{{ item.get_kind_display }}{% if item.severity %}: {{ item.get_severity_display|lower }}{% endif %}</dd>
+  <dt>Where it stands</dt><dd id="progress">{% include "work/_progress.html" %}{% if progress.key == "scheduled" %}. The date may change.{% elif progress.key == "listed" %}. The CPUC means to do it and has not chosen a release.{% elif progress.key == "considering" %}. The CPUC has not yet decided whether to do it.{% endif %}</dd>
+  {% if item.page_list %}<dt>Pages</dt><dd>{% for p in item.page_list %}<code>{{ p }}</code>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>{% endif %}
+  <dt>Meanwhile</dt><dd class="prewrap">{% if item.workaround %}{{ item.workaround }}{% else %}No workaround is known.{% endif %}</dd>
+  <dt>Reference</dt><dd>{{ item.number }}</dd>
+</dl>
+{% if progress.key == "done" %}
+<p id="released">It went out in that release. If it is still a problem for you, use the Feedback link at the foot of the page it is on.</p>
+{% else %}
+<section class="card" aria-labelledby="follow-h" id="follow">
+  <h2 id="follow-h">Does this affect you?</h2>
+  <p>{% if followers %}{{ followers }} {{ followers|pluralize:"person has,people have" }} said this affects them. {% endif %}The CPUC orders its work by how many people a problem or an improvement touches.</p>
+  {% if following %}
+  <p id="following">You said this affects you. You will be told when it is planned for a release, or if the CPUC decides not to do it.</p>
+  <form method="post" action="{% url 'known:follow' item.pk %}">{% csrf_token %}<input type="hidden" name="do" value="unfollow">
+    <div class="actions"><button type="submit">Stop following it</button></div></form>
+  {% elif user.is_authenticated %}
+  <form method="post" action="{% url 'known:follow' item.pk %}">{% csrf_token %}
+    <div class="actions"><button type="submit" class="primary">This affects me too</button></div></form>
+  <p class="small muted">The CPUC's CEDARS team sees your name and organization. Other people see only the count.</p>
+  {% else %}
+  <p><a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in</a> to say it affects you and be told when it is planned.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% if can_see %}<p id="staff-link"><a href="{% url 'work:item' item.pk %}">Open the work item</a> (staff)</p>{% endif %}
+{% endblock %}

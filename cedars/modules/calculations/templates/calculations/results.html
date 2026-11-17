@@ -1,0 +1,101 @@
+{% extends "core/base.html" %}
+{% block title %}Results · {{ run.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:runs' %}">Runs</a></li><li><a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>Results: {{ run.name }}</h1>{% page_help "calculations/results" %}</div>
+  <div class="actions">
+    <a class="button" href="{% url 'calculations:run' run.pk %}">Run page and files</a>
+    {% if res %}<a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}
+    {% if res %}<a class="button" href="{% url 'calculations:walkthrough' run.pk %}{% if acc and acc != "comparison" %}?acc={{ acc }}{% endif %}">Walk through a measure</a>{% endif %}
+  </div>
+</div>
+{% if acc_tabs %}
+<nav class="subnav" aria-label="ACCs of this comparison">
+  {% for t in acc_tabs %}<a href="{{ t.href }}"{% if t.on %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+</nav>
+{% endif %}
+{% if comparison %}
+<h2 id="comparison-h">Comparison of the two ACCs</h2>
+<p class="small">The portfolio priced on each ACC, from <a href="{% url 'calculations:run_file' run.pk comparison.file %}">{{ comparison.file }}</a>; each measure's comparison is in the run's files.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="comparison-h">
+<table class="list data">
+  <caption class="sr-only">The portfolio priced on each ACC, side by side</caption>
+  <thead><tr>{% for c in comparison.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for r in comparison.rows %}<tr>{% for v, num in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td{% if num %} class="num"{% endif %}>{{ v }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+{% elif not res %}
+<p>{{ note }}</p>
+{% else %}
+<form method="get" class="filters" aria-label="What to show">
+  {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
+  <input type="hidden" name="level" value="{{ level }}">
+  <input type="hidden" name="columns" value="{{ keys|join:',' }}">
+  <label>PA <select name="pa">{% for p in pas %}<option{% if p == pa %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  {% if all_years|length > 1 %}
+  <fieldset class="checks-inline" aria-describedby="years-help">
+    <legend>Program years</legend>
+    {% for y in all_years %}<label class="inline"><input type="checkbox" name="years" value="{{ y }}"{% if y in years %} checked{% endif %}> {{ y }}</label>{% endfor %}
+    <span class="small muted" id="years-help">Totals over the ticked years; none ticked is every year.</span>
+  </fieldset>
+  {% endif %}
+  <button type="submit">Apply</button>
+</form>
+<p class="small muted">{{ res.n|floatformat:"0g" }} measures{% if years %}, totaled over program year{{ years|length|pluralize }} {{ years|join:", " }}{% endif %}{% if pa != all_pas %}, {{ pa }} only{% endif %}. Every level above the measure is a sum of its measures; ratios are recomputed from the summed benefits and costs.</p>
+
+{% if tiles %}
+<section aria-labelledby="tiles-h">
+  <h2 id="tiles-h" class="sr-only">Portfolio results{% if pa != all_pas %} for {{ pa }}{% endif %}</h2>
+  <dl class="tiles">{% for t in tiles %}<div class="tile"><dt>{{ t.label }}</dt><dd>{{ t.value }}</dd></div>{% endfor %}</dl>
+  <details class="small"><summary>What these numbers are</summary>
+    <dl class="facts">{% for t in tiles %}<dt>{{ t.label }}</dt><dd>{{ t.help }}</dd>{% endfor %}</dl></details>
+</section>
+{% endif %}
+
+{% if chart %}
+<section class="card" aria-labelledby="chart-h">
+  <h2 id="chart-h">{{ chart.title }}{% if pa != all_pas %} ({{ pa }}){% endif %}</h2>
+  <ul class="bars">
+    {% for b in chart.bars %}
+    <li><span class="bar-name">{{ b.name }}</span>
+      <svg class="bar-track" viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="bar{% if b.negative %} negative{% endif %}" x="0" y="0" width="{{ b.pct }}" height="1"/></svg>
+      <span class="bar-value">{{ b.value }}{% if b.negative %} <span class="small">(negative)</span>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% include "calculations/_column_picker.html" %}
+
+<nav class="subnav" aria-label="Level">
+  {% for l in levels %}
+  {% if l.off %}<span class="muted">{{ l.label }} (off: {{ res.n|floatformat:"0g" }} measures)</span>
+  {% else %}<a href="{{ l.href }}"{% if l.key == level %} aria-current="page"{% endif %}>{{ l.label }}</a>{% endif %}
+  {% endfor %}
+</nav>
+{% if note %}<p class="alert" role="alert">{{ note }}</p>{% endif %}
+
+{% if table is not None %}
+<form method="get" class="row-form" aria-label="Filter rows">
+  {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
+  <input type="hidden" name="level" value="{{ level }}"><input type="hidden" name="pa" value="{{ pa }}"><input type="hidden" name="columns" value="{{ keys|join:',' }}">
+  {% for y in years %}<input type="hidden" name="years" value="{{ y }}">{% endfor %}
+  <label>Filter rows <input type="search" name="q" value="{{ text }}" placeholder="program, PA, text"></label>
+  <button type="submit">Filter</button>
+  {% if text %}<span class="small">{{ rows|length }} of {{ filtered_from }} rows</span>{% endif %}
+  <a class="button" href="{% url 'calculations:results_csv' run.pk %}{{ csv }}">Download this table (CSV)</a>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="table-caption">
+<table class="list data">
+  <caption id="table-caption" class="sr-only">{{ run.name }}, {% for l in levels %}{% if l.key == level %}{{ l.label|lower }}{% endif %}{% endfor %}. Column headings sort the table.</caption>
+  <thead><tr>{% for h in head %}<th scope="col"{% if h.sort %} aria-sort="{{ h.sort }}"{% endif %}><a href="{{ h.href }}">{{ h.label }}{% if h.sort == "ascending" %} <span aria-hidden="true">▲</span>{% elif h.sort == "descending" %} <span aria-hidden="true">▼</span>{% endif %}</a></th>{% endfor %}</tr></thead>
+  <tbody>{% for r in rows %}<tr>{% for v, num in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td{% if num %} class="num"{% endif %}>{{ v }}</td>{% endif %}{% endfor %}</tr>
+  {% empty %}<tr><td colspan="{{ head|length }}">No rows for this PA{% if years %} and these years{% endif %} at this level{% if text %} matching "{{ text }}"{% endif %}.</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if definitions %}<details class="small"><summary>Column definitions</summary>
+  <dl class="facts">{% for label, help in definitions %}<dt>{{ label }}</dt><dd>{{ help }}</dd>{% endfor %}</dl></details>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

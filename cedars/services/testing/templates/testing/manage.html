@@ -1,0 +1,59 @@
+{% extends "core/base.html" %}
+{% block title %}Testing{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Testing</h1>{% page_help "testing/manage" %}</div>
+{% if not on %}
+<p id="testing-off">Testing is not switched on for this site. It runs on the sandbox and test sites, where testers step through the test scripts and record a result for each test.</p>
+{% else %}
+<p>Rounds of testing run on this site. Open a round, assign each script to testers' own accounts, and follow their progress. A tester finds the script in My queue, records a result for each test, and can stop and come back at any time.</p>
+<section aria-labelledby="rounds-h">
+  <h2 id="rounds-h">Rounds of testing</h2>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Rounds of testing">
+  <table class="list" id="rounds">
+    <caption class="sr-only">Rounds of testing, newest first</caption>
+    <thead><tr><th scope="col">Round</th><th scope="col">Scripts</th><th scope="col">Dates</th><th scope="col">Testers</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+    {% for row in campaigns %}{% with c=row.campaign %}
+    <tr>
+      <th scope="row"><a href="{% url 'testing:campaign' c.pk %}">{{ c.name }}</a></th>
+      <td>{{ c.version.label }}</td>
+      <td>{{ c.starts_on|date_words }}{% if c.ends_on %} to {{ c.ends_on|date_words }}{% endif %}</td>
+      <td>{{ row.testers }} <span class="small muted">({{ row.assignments }} script{{ row.assignments|pluralize }} assigned)</span></td>
+      <td><span class="status {% if c.is_open %}info{% else %}ok{% endif %}">{% if c.is_open %}Open{% else %}Closed{% endif %}</span></td>
+    </tr>
+    {% endwith %}{% empty %}<tr><td colspan="5">No round of testing yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">Open a round of testing</h2>
+  {% if versions %}
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Open the round</button></div>
+  </form>
+  {% else %}
+  <p>Load the test scripts first (below); a round uses one loaded version of them.</p>
+  {% endif %}
+</section>
+<section aria-labelledby="scripts-h">
+  <h2 id="scripts-h">Loaded scripts</h2>
+  <p>The test scripts are loaded by the site's operator with <code>manage.py load_test_scripts</code>. A version is never changed: edited scripts are loaded as a new version, and each round keeps the version it was opened with.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Loaded script versions">
+  <table class="list" id="versions">
+    <caption class="sr-only">Loaded versions of the test scripts, newest first</caption>
+    <thead><tr><th scope="col">Version</th><th scope="col">Loaded</th><th scope="col">Scripts</th><th scope="col">Tests</th></tr></thead>
+    <tbody>
+    {% for row in versions %}
+    <tr><th scope="row">{{ row.version.label }}</th><td>{{ row.version.loaded_at|datetime_words }}{% if row.version.loaded_by %} by {{ row.version.loaded_by|person }}{% endif %}</td><td>{{ row.scripts }}</td><td>{{ row.tests }}</td></tr>
+    {% empty %}<tr><td colspan="4">No scripts loaded yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

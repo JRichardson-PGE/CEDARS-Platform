@@ -1,0 +1,3 @@
+{% comment %}An organization's status on a filing (DESIGN.md): the badge, then the version in small text (a link when url is given).
+s = {code, label, version, late} as monthly.views._status builds it.{% endcomment %}
+<span class="status {{ s.code|status_tone }}">{{ s.label }}</span>{% if s.version %} <span class="small muted nowrap">{% if url %}<a href="{{ url }}">{{ s.version }}</a>{% else %}{{ s.version }}{% endif %}{% if s.late %} (late){% endif %}</span>{% endif %}

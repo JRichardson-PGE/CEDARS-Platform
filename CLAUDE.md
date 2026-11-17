@@ -1,0 +1,77 @@
+# CEDARS Platform
+
+The CEDARS replacement: one Django project (a modular monolith) that the CPUC owns and hosts on its AWS account. Design: the CEDARS
+Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/CEDARS_Replacement_Architecture.html`, settled
+2026-10-29). The requirements document is internal (CEDARS-Research, private). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
+unchanged as a package; never copy engine code here. `docs/ARCHITECTURE_AS_BUILT.md` is the one architecture document: the whole platform as
+built, with diagrams, and (section 17) where each part lives and how far it is built.
+
+## Rules
+
+- **The architecture document stays true** (Jake, 2026-11-06). `docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with
+  its Mermaid diagrams. A PR that changes the structure (apps, layers, hooks), the models, a flow (filing states, checks, pricing,
+  publication, statewide claims), roles or permissions, the engine integration, background work, caching or deployment updates the
+  document and its diagrams in the same PR. `tests/test_architecture_doc.py` fails on an app, model, management command or hook it does
+  not name, on an import from one module into another (or from a service into a module), and on a malformed diagram; the rest is
+  the author's to keep true. Check a changed diagram renders (GitHub shows it on the file's page).
+- **Public repository** (MIT, 2026-10-30). Nothing non-public goes into a commit, its message or a PR: no secrets, server addresses, key
+  paths, bucket names, personal emails or laptop paths, real PII, or the vendor's name. Commit under a noreply address. CI's secret scan
+  (`gitleaks.toml` over the whole history, plus a noreply check on every author) enforces it.
+- **Services and modules.** `cedars/services/<name>` holds the shared services (registry, submissions, rules, dictionary, audit,
+  notifications, reference data, snapshots); `cedars/modules/<name>` the modules (Programs, Calculations, Impact profiles, Budgets, ...). A module
+  changes data only through a service's functions (it may read a service's models to show them) and never imports another module;
+  a service never imports a module.
+- **Versions, not edits.** A confirmed submission is never updated in place; a correction is a new version with a reason. The audit trail is
+  append-only (no UPDATE or DELETE on its table).
+- **Every change audited.** A service that changes a record writes an audit event (who, active organization, what, why, before, after).
+- **Configure rather than recode.** Rule sets, periods, value lists, templates, retention periods and policy choices are data with
+  effective dates and an admin page, not code paths.
+- **PII stays in the vault.** Only `PII_Contact` and `PII_Site`, in their own database; everything else holds SiteID / ContactID keys only.
+- **Names.** ReCET's renamed field dictionary is canonical; CET names are accepted on upload through the crosswalk. Name ACCs by year
+  ("2024 ACC"). Never name the development vendor in pages, docs or commits.
+- **No requirement references** (Jake, 2026-11-09). The requirements document is internal: never name it, quote it or cite its
+  requirement IDs, decision numbers or review gap numbers anywhere in this repository (pages, page help, the FAQ, release notes, docs,
+  code comments, test names, commit messages, PR text). Say what the code does in plain words instead. `tests/test_no_requirement_refs.py`
+  fails on its abbreviation or a requirement ID in any tracked file, ReCET's exported documents (`data/recet_docs/`, `data/dictionary/`)
+  included: they are public pages, so a reference there is fixed in ReCET and the pin moved.
+- **US spelling** (Jake, 2026-10-31): every page, label, help text, message, doc and comment uses US English ("organization",
+  "color", "canceled", "behavior"). Code identifiers, URL route names, database tables and columns, audit action names and API field
+  names keep their original `organisation` spelling (renaming them is a schema and API change); write new identifiers in US spelling.
+  Page URLs are US (`/admin/organizations/`; old `/admin/organisations/` links redirect). `tests/test_us_spelling.py` checks templates and docs.
+  Data values from CEDARS or the PAs (e.g. the PSR's "Cancelled" status) stay as filed.
+- **WCAG 2.2 AA on every page** (a California state agency requirement). Pages render on the server and work without scripts.
+  Every page change keeps: a visible label or accessible name on every control; keyboard reach and a visible focus for everything a mouse can do;
+  status in text, not color alone; 4.5:1 text and 3:1 control-border/focus contrast in both color schemes; announcements through
+  `window.cedarsAnnounce` (one page-wide live region), never a new live region; never disable the focused control (use aria-disabled); targets
+  at least 24 x 24 px; reflow at 320 px and 200% zoom. Add every new page to `tests/a11y/pages.py`; CI runs axe on it in both schemes.
+  ReCET's web templates, CSS and NVDA fixes are the reference (`recet/web`, `tests/screenreader`).
+- **Help on every page** (Jake, 2026-10-31). A new page's heading is `<div class="page-title"><h1>...</h1>{% page_help "<app>/<template>" %}</div>`
+  and its app's `page_help.yaml` gets the entry: a guide to the page, its user guide (`see:`, required), a `how:` list when the page has
+  actions, and a tour of it, each step pointing at a part of the page by CSS
+  selector or heading text (`cedars/core/page_help.py`). A changed page keeps its help true; the tests fail on a heading without help and on
+  a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have). The help pages themselves
+  (`page_help.WITHOUT_HELP`: a page's help on a page of its own, and the list of them) have no (?): it would be help about the help.
+- **The header is data** (navigation review D1, Jake 2026-11-04): `cedars/core/nav.py` lists the menus and who sees each item (signed
+  out, a member of no organization, a member, approver, administrators); the highlighted menu is set by the page (each item's `pages`,
+  view names), not its address (D4). A page added to the header is an item there, with its help key and words in `core/search.py`'s HELP_KEYS. Published data is what anyone may read;
+  Reference data is what runs and filings are priced and checked against. Each page is listed once (cost-test sets under Reference data,
+  engine releases under Calculations).
+- **Breadcrumbs and sub-navigation** (navigation review D4): every page below a menu item has a breadcrumb back to it; a section with
+  several sibling pages adds a sub-navigation and keeps the breadcrumb (`{% section_nav "<menu>" %}` draws one from a header menu). A new
+  page's view name is held by an item in `core/nav.py` or listed in its NO_MENU / SHARED (tests/test_navigation.py fails otherwise).
+- **Before you upload** (navigation review D3): every data file control has `{% before_upload %}` beside it (the template, the field
+  definitions, the rules in force, the guide); tests/test_before_upload.py fails on a new multipart form without it.
+- **Release notes, limits and guides** (`cedars/services/releases`). A limit people meet is a setting listed in
+  `releases/limits.py`, never a number in a page or message. A change to a user guide (`core/templates/core/help/<slug>.html`) or the
+  FAQ (`core/faq.yaml`) is recorded with `uv run python manage.py help_revisions --update` in the same PR (a test fails otherwise); bump
+  `cedars.__version__` for a release, and announce user-facing changes as a release note before they take effect.
+- **Same-origin scripts only.** The CSP allows `'self'`; vendor a library with its integrity checked, never load it from a CDN.
+- **PostgreSQL only** (tests too): the design relies on its triggers and ranges.
+- **Secrets from the environment**, never in files. Settings per environment in `cedars/settings/`.
+
+## Working here
+
+- `uv sync`, then `uv run pytest` (needs PostgreSQL; `DATABASE_URL`, default `postgres://cedars:cedars@localhost:5432/cedars`).
+- `uv run pytest -m a11y` runs axe in Chromium (`uv run playwright install chromium`, or `PLAYWRIGHT_CHROMIUM_EXECUTABLE`).
+- `uv run ruff check . && uv run ruff format --check .`
+- Each PR is small and off `main`; never stack PRs. Migrations are part of the PR that changes the models (CI checks).

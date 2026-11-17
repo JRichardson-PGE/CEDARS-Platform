@@ -1,0 +1,148 @@
+{% extends "core/base.html" %}
+{% load data_tags %}
+{% block title %}{{ series }} records · Record downloads{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}" aria-current="page">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
+  {% if user.is_authenticated %}<a href="{% url 'data:downloads' %}">Your downloads</a>{% endif %}
+</nav>
+<div class="page-title"><h1>{{ series }} records</h1>{% page_help "data/records" %}</div>
+<p>The published measure-level records, for every PA in one file. Choose the records and the columns, then download them as CSV,
+Excel or Parquet. A download from a dashboard row holds exactly the records behind it.
+{% if as_of %}Data as of {{ as_of|datetime_words }}.{% endif %}</p>
+{% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:records' %}">Start again</a></p>{% endif %}
+
+<form method="post" action="{% url 'data:records' %}" class="filters dash-controls records-form" aria-label="Records and columns">
+  {% csrf_token %}
+  {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <input type="hidden" name="columns" value="none">
+  <label>Data
+    <select name="dataset">{% for code, label in datasets %}<option value="{{ code }}"{% if code == q.dataset %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label>Filing (forecast)
+    <select name="filing">
+      <option value="">Each PA's latest</option>
+      {% for value, label in filings %}<option value="{{ value }}"{% if value == q.filing %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>From year <input type="number" name="year_from" min="1990" max="2100" inputmode="numeric" value="{{ q.year_from|default_if_none:'' }}"></label>
+  <label>To year <input type="number" name="year_to" min="1990" max="2100" inputmode="numeric" value="{{ q.year_to|default_if_none:'' }}"></label>
+  {% include "core/_pa_picker.html" %}
+  {% include "core/_program_picker.html" with picker=program_picker %}
+  {% for f in text_filters %}
+  <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.value }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">{{ f.help }}</span></label>
+  {% endfor %}
+  <details class="dash-filters"{% for f in more_filters %}{% if f.selected %} open{% endif %}{% endfor %}>
+    <summary>More filters and exclusions</summary>
+    {% for f in more_filters %}
+    {% if f.options %}<fieldset>
+      <legend>{{ f.label }}</legend>
+      {% for o in f.options %}<label class="check"><input type="checkbox" name="{{ f.code }}" value="{{ o }}"{% if o in f.selected %} checked{% endif %}> {{ o }}</label>{% endfor %}
+    </fieldset>{% else %}
+    <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.selected|join:',' }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">Separated by commas.</span></label>
+    {% endif %}
+    {% endfor %}
+    <fieldset>
+      <legend>Leave out <span class="muted small">(records hold every published program unless you leave some out)</span></legend>
+      {% for code, label, excluded in exclusions %}<label>{{ label }}
+        <select name="{{ code }}"><option value="include"{% if not excluded %} selected{% endif %}>Included</option><option value="exclude"{% if excluded %} selected{% endif %}>Left out</option></select></label>{% endfor %}
+    </fieldset>
+  </details>
+  {% if groups %}<fieldset class="column-picker">
+    <legend>Columns: {{ page.columns|length }} of {{ column_count }} chosen</legend>
+    {% if default_columns.on %}<p class="small"><strong>These are your default columns.</strong> The page starts from them when a link names no columns.</p>{% endif %}
+    <p class="small">Start from: {% for label, href in presets %}<a href="{{ href }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
+      <span data-without-picker>Open a group to tick its columns.</span><span data-with-picker hidden>Add columns from the list on the left; the list
+      on the right is what the download holds, in the order the file has them.</span>
+      Each column is defined in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+    <input type="hidden" name="cols" id="records-cols" value="{{ page.columns|join:',' }}" disabled>
+    {% include "core/_field_picker.html" with fp=column_picker %}
+    <div data-without-picker>
+    {% for g in groups %}
+    <details>
+      <summary>{{ g.label }} <span class="muted">({{ g.chosen }} of {{ g.count }} chosen)</span></summary>
+      <ul class="column-list">
+        {% for c, checked in g.columns %}<li><label class="check"><input type="checkbox" name="col" value="{{ c.name }}"{% if checked %} checked{% endif %}{% if c.definition %} aria-describedby="def-{{ g.slug }}-{{ forloop.counter }}"{% endif %}> <span class="mono">{{ c.name }}</span></label>{% if c.definition %} <span class="small muted" id="def-{{ g.slug }}-{{ forloop.counter }}">{{ c.definition|truncatewords:24 }}</span>{% endif %}</li>{% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+    </div>
+  </fieldset>{{ column_catalog|json_script:"field-catalog" }}{% endif %}
+  <button type="submit">Show these records</button>
+</form>
+{% if user.is_authenticated and page.columns %}
+<form method="post" action="{% url 'data:records_default_columns' %}" class="filters default-columns" aria-label="Your default columns">
+  {% csrf_token %}
+  <input type="hidden" name="query" value="{{ job_query }}">
+  {% if not default_columns.on %}<button type="submit">Make these {{ page.columns|length }} columns my default</button>{% endif %}
+  {% if default_columns.set %}<button type="submit" name="clear" value="1">Start from the key columns again</button>{% endif %}
+  <span class="helptext">{% if default_columns.set %}Your records page starts from your own default columns when a link names none.{% else %}Your records page then starts from these columns, instead of the key ones, whenever a link names none.{% endif %}</span>
+</form>
+{% endif %}
+
+{% if applied %}<ul class="chips" aria-label="Applied filters">{% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong></li>{% endfor %}</ul>{% endif %}
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if page.unknown %}<p class="notices">Not in these records, so left out: {{ page.unknown|join:", " }}.</p>{% endif %}
+
+{% if page.count %}
+<h2>Download</h2>
+<p>{{ page.count|floatformat:"0g" }} record{{ page.count|pluralize }} from {{ page.result.files|length }} published filing{{ page.result.files|length|pluralize }},
+  with {{ page.columns|length }} column{{ page.columns|length|pluralize }}.
+  {% for m in metric_list %}{{ m.label|capfirst }}{% if m.unit %} ({{ m.unit }}){% endif %}: {{ totals|get_item:m.code|metric_value:m }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>
+{% if too_many and page.columns %}
+<p>These are more records than the {{ max_rows }} made while you wait, so the file is made in the background. You are told when it is
+  ready, on your notifications page and by email, and it waits for you under <a href="{% url 'data:downloads' %}">your downloads</a>.</p>
+{% if user.is_authenticated %}
+<form method="post" action="{% url 'data:download_request' %}" class="filters">
+  {% csrf_token %}
+  <input type="hidden" name="query" value="{{ job_query }}">
+  <fieldset>
+    <legend>Format</legend>
+    <label class="check"><input type="radio" name="format" value="csv" checked> CSV</label>
+    <label class="check"><input type="radio" name="format" value="parquet"> Parquet</label>
+    {% if not xlsx_too_many %}<label class="check"><input type="radio" name="format" value="xlsx"> Excel (XLSX)</label>{% endif %}
+  </fieldset>
+  <button type="submit" class="primary">Make this download</button>
+</form>
+{% else %}
+<p><a href="{{ sign_in }}">Sign in</a> to have it made (anyone can register), or narrow the filters to a PA, program, measure or years.</p>
+{% endif %}
+{% elif page.columns %}
+<ul class="downloads">
+  {% for fmt, label, href in downloads %}{% if fmt == "XLSX" and xlsx_too_many %}<li>Excel: more rows than a worksheet holds; use CSV or Parquet</li>{% else %}<li><a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ page.count|floatformat:"0g" }} records</span></a></li>{% endif %}{% endfor %}
+</ul>
+<p class="small muted">Each file records its release, when its data last changed, the snapshots and PAs it was read from, the filters,
+  what was left out and the columns, under their canonical names.</p>
+{% else %}<p>Choose at least one column to download.</p>{% endif %}
+
+{% if page.columns %}
+<h2>The records</h2>
+{% if previous or next %}
+<nav class="pager pager-above" aria-label="Record pages, above the list">
+  {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
+  <span>Records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}</span>
+  {% if next %}<a href="{{ next }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Records, {{ first }} to {{ last }}">
+<table class="list records">
+  <caption class="sr-only">{{ series }} records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}, by CEInputID</caption>
+  <thead><tr>{% for c in page.columns %}<th scope="col" class="mono">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in page.rows %}<tr>{% for v in r %}<td{% if v|is_number %} class="num"{% endif %}>{{ v|cell }}</td>{% endfor %}</tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if previous or next %}
+<nav class="pager" aria-label="Record pages, below the list">
+  {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
+  <span>Records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}</span>
+  {% if next %}<a href="{{ next }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% elif not error %}<p>No records match.</p>{% endif %}
+{% include "data/_saved_views.html" %}
+{% endblock %}

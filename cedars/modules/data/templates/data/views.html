@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}Saved views · Data{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}" aria-current="page">Saved views</a>
+  {% if user.is_authenticated %}<a href="{% url 'data:downloads' %}">Your downloads</a>{% endif %}
+</nav>
+<div class="page-title"><h1>Saved views</h1>{% page_help "data/views" %}</div>
+<p>A saved view is a dashboard page or the records page with its choices: years, filters, metric and, for records, the columns. It opens
+on the data published now. Save one from the bottom of any of those pages{% if not user.is_authenticated %} once you are
+<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">signed in</a>{% endif %}.</p>
+
+{% if waiting %}
+<h2 id="waiting">Waiting to be published</h2>
+{% include "data/_view_table.html" with rows=waiting caption="Views their owners asked the CPUC to publish" show_owner=True %}
+{% endif %}
+
+{% if user.is_authenticated %}
+<h2 id="yours">Your views</h2>
+{% if own %}{% include "data/_view_table.html" with rows=own caption="Your saved views" show_sharing=True %}
+{% else %}<p>None yet.</p>{% endif %}
+<p class="small">{% if default_columns %}Your records page opens on your own {{ default_columns|length }} default column{{ default_columns|length|pluralize }}
+  when a link names none; change them on the <a href="{% url 'data:records' %}">records page</a>.{% else %}Your records page opens on the key
+  columns. To start from columns of your own, choose them on the <a href="{% url 'data:records' %}">records page</a> and make them your
+  default.{% endif %}</p>
+
+<h2 id="shared">Shared with you</h2>
+{% if shared %}{% include "data/_view_table.html" with rows=shared caption="Views others shared with you or your organization" show_owner=True %}
+{% else %}<p>Nobody has shared a view with you or your organization yet.</p>{% endif %}
+{% endif %}
+
+<h2 id="published">Published views</h2>
+{% if published %}{% include "data/_view_table.html" with rows=published caption="Views the CPUC published for everyone" %}
+{% else %}<p>The CPUC has not published any views yet.</p>{% endif %}
+{% endblock %}

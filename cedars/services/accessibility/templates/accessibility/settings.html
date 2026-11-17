@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Document accessibility settings{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'accessibility:files' %}">Document accessibility</a></li></ol></nav>
+<div class="page-title"><h1>Document accessibility settings</h1>{% page_help "accessibility/settings" %}</div>
+<p>Whether the accessibility check only warns an uploader, or refuses a file with the findings chosen below. Files brought over from the legacy sites are never refused. A change applies to the next upload; it needs a reason and is in the audit log.{% if cfg.changed_by %} Last changed {{ cfg.changed_at|date_words }} by {{ cfg.changed_by|person }}.{% endif %}</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  <p><label class="check"><input type="checkbox" name="block" id="block"{% if cfg.block %} checked{% endif %} aria-describedby="block-hint"> Refuse uploads with a finding chosen below</label>
+    <span class="helptext" id="block-hint">Off: every file is stored, the uploader is warned, and the file is listed for review.</span></p>
+  <fieldset>
+    <legend>Findings that refuse an upload</legend>
+    {% for c, d, on in codes %}<p><label class="check"><input type="checkbox" name="blocking" value="{{ c }}"{% if on %} checked{% endif %}> {{ d.label }} <span class="small muted">({{ d.kind }}, WCAG {{ d.wcag|join:", " }})</span></label></p>{% endfor %}
+  </fieldset>
+  <p><label for="reason">Reason</label><input id="reason" name="reason" required></p>
+  <div class="actions"><button type="submit" class="primary">Save</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+{% block title %}Measures{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'work:backlog' %}">Work items</a></li></ol></nav>
+<div class="page-title"><h1>Measures</h1>{% page_help "work/measures" %}</div>
+<p>How the loop from a request to a release is running, counted from the records as they stand. Nobody fills anything in for this page. It shows counts only: no request's words and no person.</p>
+<form method="get" class="filters" aria-label="Choose the period">
+  <div><label for="days">Period</label>
+  <select id="days" name="days">
+    {% for value, words in periods %}<option value="{{ value }}"{% if value == days %} selected{% endif %}>{{ words }}</option>{% endfor %}
+  </select></div>
+  <button type="submit">Apply</button>
+</form>
+<section aria-labelledby="requests-h" id="requests">
+  <h2 id="requests-h">Requests</h2>
+  <p>Sent in {{ period_words|lower }} and still kept. A closed request is deleted when its retention period ends, so a long period counts fewer than were sent. Test findings are counted apart.</p>
+  <dl class="facts">
+    <dt>Sent</dt><dd>{{ requests.sent }}{% if requests.kinds %} ({% for label, n in requests.kinds %}{{ label|lower }}: {{ n }}{% if not forloop.last %}; {% endif %}{% endfor %}){% endif %}</dd>
+    <dt>Test findings</dt><dd>{{ requests.findings }}</dd>
+    <dt>With a reply from the CPUC</dt><dd>{{ requests.replied }} of {{ requests.sent }}</dd>
+    <dt>Time to the first reply (median)</dt><dd>{{ requests.first_reply }}</dd>
+    <dt>With an answer</dt><dd>{{ requests.answered }} of {{ requests.sent }}</dd>
+    <dt>Time to the answer (median)</dt><dd>{{ requests.answer }}</dd>
+    <dt>Waiting on the CPUC now</dt><dd>{{ requests.waiting }}{% if requests.oldest_waiting %}; the oldest has waited {{ requests.oldest_waiting }}{% endif %}</dd>
+  </dl>
+  <h3 id="pages-h">The pages most asked about</h3>
+  {% if requests.pages %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="pages-h">
+  <table class="list" id="request-pages">
+    <caption class="sr-only">The pages the most requests were sent from, the most first</caption>
+    <thead><tr><th scope="col">Page</th><th scope="col">Requests</th></tr></thead>
+    <tbody>{% for page, n in requests.pages %}<tr><th scope="row"><code>{{ page }}</code></th><td>{{ n }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>No request was sent in the period.</p>{% endif %}
+</section>
+<section aria-labelledby="delivery-h" id="delivery">
+  <h2 id="delivery-h">Work items</h2>
+  <dl class="facts">
+    {% for label, n in delivery.now %}<dt>{{ label }} now</dt><dd>{{ n }}</dd>{% endfor %}
+    {% if delivery.backlog_sizes %}<dt>The backlog by size</dt><dd>{% for label, n in delivery.backlog_sizes %}{{ label|lower }}: {{ n }}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
+    <dt>Released in the period</dt><dd>{{ delivery.released }} work item{{ delivery.released|pluralize }} in {{ delivery.releases }} release{{ delivery.releases|pluralize }}</dd>
+  </dl>
+  <h3 id="took-h">From accepted to released, by size</h3>
+  {% if delivery.by_size %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="took-h">
+  <table class="list" id="delivery-times">
+    <caption class="sr-only">Days from accepted into the backlog to released, for the work items released in the period, by size</caption>
+    <thead><tr><th scope="col">Size</th><th scope="col">Work items</th><th scope="col">Median days</th><th scope="col">Longest, days</th></tr></thead>
+    <tbody>{% for row in delivery.by_size %}<tr><th scope="row">{{ row.size }}</th><td>{{ row.items }}</td><td>{{ row.median }}</td><td>{{ row.longest }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>No work item was released in the period.</p>{% endif %}
+</section>
+<section aria-labelledby="escaped-h" id="escaped">
+  <h2 id="escaped-h">After the last release</h2>
+  {% if escaped %}
+  <p><a href="{% url 'work:release' escaped.plan.pk %}">Release {{ escaped.plan.name }}</a> went out {{ escaped.plan.released_on|date_words }}. Since then {{ escaped.total }} problem{{ escaped.total|pluralize }} or accessibility barrier{{ escaped.total|pluralize }} {{ escaped.total|pluralize:"was,were" }} reported on the pages its work items changed. These are what testing may have missed.</p>
+  {% if escaped.pages %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="escaped-h">
+  <table class="list" id="escaped-pages">
+    <caption class="sr-only">Problems reported since release {{ escaped.plan.name }} on each page it changed</caption>
+    <thead><tr><th scope="col">Page the release changed</th><th scope="col">Problems reported since</th></tr></thead>
+    <tbody>{% for page, n in escaped.pages %}<tr><th scope="row"><code>{{ page }}</code></th><td>{{ n }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% else %}<p>No release has gone out yet.</p>{% endif %}
+</section>
+{% if testing %}
+<section aria-labelledby="testing-h" id="testing">
+  <h2 id="testing-h">Testing</h2>
+  {% if testing.rounds %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="testing-h">
+  <table class="list" id="testing-rounds">
+    <caption class="sr-only">The most recent rounds of testing, the newest first, with every tester's tests counted</caption>
+    <thead><tr><th scope="col">Round</th><th scope="col">For</th><th scope="col">Tests to do</th><th scope="col">Passed</th><th scope="col">Failed</th><th scope="col">Blocked</th><th scope="col">Does not apply</th><th scope="col">No result</th></tr></thead>
+    <tbody>
+    {% for r in testing.rounds %}
+    <tr>
+      <th scope="row">{% if can_test %}<a href="{% url 'testing:results' r.round.pk %}">{{ r.round.name }}</a>{% else %}{{ r.round.name }}{% endif %} <span class="small">({% if r.round.is_open %}open{% else %}closed{% endif %})</span></th>
+      <td>{% if r.release %}<a href="{% url 'work:release' r.release.pk %}">Release {{ r.release.name }}</a>{% else %}<span class="muted">No release</span>{% endif %}</td>
+      <td>{{ r.total }}</td><td>{{ r.passed }}</td><td>{{ r.failed }}</td><td>{{ r.blocked }}</td><td>{{ r.na }}</td><td>{{ r.left }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p>No round of testing has been opened.</p>{% endif %}
+  <h3 id="never-h">Tests no round has answered</h3>
+  {% if not testing.version %}<p>No test scripts are loaded.</p>
+  {% elif testing.never %}
+  <p>{{ testing.never_total }} test{{ testing.never_total|pluralize }} of the scripts as last loaded (version {{ testing.version.label }}) {{ testing.never_total|pluralize:"has,have" }} no result in any round.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="never-h">
+  <table class="list" id="never-run">
+    <caption class="sr-only">Tests with no result in any round, by script</caption>
+    <thead><tr><th scope="col">Script</th><th scope="col">Tests with no result</th><th scope="col">Tests in the script</th></tr></thead>
+    <tbody>{% for n in testing.never %}<tr><th scope="row">{{ n.script.code }}: {{ n.script.title }}</th><td>{{ n.never }}</td><td>{{ n.tests }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>Every test of the scripts as last loaded (version {{ testing.version.label }}) has a result in some round.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}The {{ t.name }} table: {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li><li><a href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Tables and fields</a></li></ol></nav>
+<div class="page-title"><h1>The {{ t.name }} table</h1>{% page_help "specifications/edit_table" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="table-facts">{% if t.keys %}A record is identified by {{ t.keys|join:" and " }}. {% endif %}{% if t.replace == "claim" %}A claim's rows in a later upload replace all its earlier rows. {% endif %}{% if t.vault %}It is kept in the PII vault. {% endif %}
+These are CEDARS' processing and stay as they are; the names a file or sheet may give the table and the guidance shown above its fields can change.</p>
+<form method="post" class="stack form-narrow" novalidate id="table-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save the table</button>
+    <a class="button" href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Cancel</a></div>
+</form>
+{% endblock %}

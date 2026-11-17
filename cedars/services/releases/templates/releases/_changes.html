@@ -1,0 +1,16 @@
+{# One note's changes as a table: kind, part of CEDARS, what changes, what to do. #}
+<div class="hscroll" tabindex="0" role="region" aria-label="Changes in {{ note.title }}">
+<table class="list">
+  <caption class="sr-only">The changes in {{ note.title }}</caption>
+  <thead><tr><th scope="col">Kind</th><th scope="col">Part of CEDARS</th><th scope="col">What changes</th><th scope="col">What you need to do</th>{% if removable %}<th scope="col">Remove</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for c in note.changes.all %}<tr>
+    <td>{{ c.get_kind_display }}</td>
+    <td>{% for key, label in areas.items %}{% if key == c.area %}{{ label }}{% endif %}{% endfor %}</td>
+    <td>{{ c.text|linebreaksbr }}{% if c.limit_value %}<br><strong>New value: {{ c.limit_value }}</strong>{% endif %}</td>
+    <td>{{ c.action|default:"Nothing"|linebreaksbr }}</td>
+    {% if removable %}<td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="change" value="{{ c.pk }}"><button type="submit">Remove<span class="sr-only"> the change: {{ c.text|truncatechars:60 }}</span></button></form></td>{% endif %}
+  </tr>{% empty %}<tr><td colspan="{% if removable %}5{% else %}4{% endif %}">No changes listed yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>

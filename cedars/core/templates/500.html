@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block title %}Something went wrong{% endblock %}
+{% comment %}Rendered with no context and no request (cedars/core/errors.server_error): whatever failed must not take this page down too.
+So the header offers only Help, and nothing here reads the database or the visitor.{% endcomment %}
+{% block header_controls %}<div class="who"><a href="{% url 'core:help' %}">Help</a></div>{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Something went wrong</h1>{% page_help "500" %}</div>
+<p class="lede error-sentence">CEDARS could not show this page because of a problem on our side; it has been recorded.</p>
+<p>Try again in a few minutes. Anything you sent before this page may not have been saved: check it once the page opens again.</p>
+{% include "core/_error_ways_on.html" %}
+{% endblock %}

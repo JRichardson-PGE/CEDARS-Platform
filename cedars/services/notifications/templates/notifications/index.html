@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Notifications</h1>{% page_help "notifications/index" %}</div>
+<p>{% if unread %}{{ unread }} unread.{% else %}Nothing unread.{% endif %} <a href="{% url 'notifications:settings' %}">Choose what you are sent</a>.</p>
+{% if page.object_list %}
+{% pager page query="" label="Pages of notifications" previous="Newer" next="Older" where="above" %}
+<form method="post">{% csrf_token %}
+  <ul class="notices">
+  {% for n in page %}
+    <li{% if not n.read_at %} class="unread"{% endif %}>
+      <p><strong>{% if not n.read_at %}<span class="status">New</span> {% endif %}{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}</strong></p>
+      {% if n.body %}<p>{{ n.body|linebreaksbr }}</p>{% endif %}
+      <p class="small muted">{{ n.created_at|datetime_words }}{% if n.emailed_at %} · emailed{% elif n.email_error %} · the email could not be sent{% endif %}</p>
+    </li>
+  {% endfor %}
+  </ul>
+  {% if unread %}<div class="actions"><button type="submit">Mark all as read</button></div>{% endif %}
+</form>
+{% pager page query="" label="Pages of notifications" previous="Newer" next="Older" where="below" %}
+{% else %}
+{% url 'notifications:settings' as settings_url %}
+{% include "ui/empty.html" with title="No notifications yet" text="You are told here, and by email if you choose, when a filing you follow changes, a run finishes, or something waits on you." action_url=settings_url action="Choose what you are sent" %}
+{% endif %}
+{% endblock %}

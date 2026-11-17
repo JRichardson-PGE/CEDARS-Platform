@@ -1,0 +1,339 @@
+"""Fund shift and operating budget pages."""
+
+import csv
+from decimal import Decimal, InvalidOperation
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+
+from cedars.services.accounts import service as access
+from cedars.services.accounts.models import Organisation
+from cedars.services.accounts.service import AccessDenied
+from cedars.services.registry import service as registry
+
+from . import forms, shifts
+from .models import FundShift
+
+BLANK_ROWS = 4
+
+
+def _shift(request, pk) -> FundShift:
+    s = get_object_or_404(FundShift.objects.select_related("organisation", "cycle", "created_by", "submitted_by"), pk=pk)
+    if not shifts.can_read(request.user, s):
+        raise Http404
+    return s
+
+
+@login_required
+def shift_list(request):
+    org = request.filing_organisation  # the CPUC has no operating budget of its own: it sees every PA's (regulator wording)
+    return render(
+        request,
+        "budgets/shifts.html",
+        {
+            "org": org,
+            "shifts": shifts.readable(request.user).order_by("-created_at")[:200],
+            "waiting": shifts.waiting_for(org) if org and shifts.access.has_permission(request.user, org, "budgets.confirm") else [],
+            "can_submit": shifts.can_submit(request.user, org),
+            "cycles": shifts.cycles(),
+            # Only offered to those who may read the acting PA's operating budget (UAT 2, U03), or every PA's (CPUC staff).
+            "can_read_operating": org is not None and shifts.can_read_operating(request.user, org),
+            "can_read_every_operating": org is None and shifts.can_read_every_operating(request.user),
+        },
+    )
+
+
+@login_required
+def shift_new(request):
+    org = request.organisation
+    if not shifts.can_submit(request.user, org):
+        raise Http404
+    cycles = shifts.cycles()
+    form = forms.ShiftForm(request.POST or None, cycles=cycles, initial={"cycle": shifts.current_cycle(cycles)})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            s = shifts.create(request.user, org, d["cycle"], title=d["title"], reason=d["reason"])
+        except (AccessDenied, shifts.ShiftInvalid) as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Fund shift started. Enter the amounts it moves.")
+            return redirect("budgets:shift_lines", s.pk)
+    return render(request, "budgets/shift_new.html", {"form": form, "org": org})
+
+
+@login_required
+def shift(request, pk):
+    s = _shift(request, pk)
+    org = request.organisation
+    acks = {a.organisation.code: a for a in s.acknowledgements.select_related("organisation", "acknowledged_by")}
+    editable = s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and org == s.organisation
+    shares = shifts.frozen_shares(s)
+    parts = shifts.parts(s)
+    return render(
+        request,
+        "budgets/shift.html",
+        {
+            "s": s,
+            "parts": parts,
+            "has_lines": any(p.lines for p in parts),
+            "problems": shifts.problems(s) if s.status == FundShift.Status.DRAFT else [],
+            "editable": editable,
+            "can_read_operating": shifts.can_read_operating(request.user, s.organisation),
+            "can_withdraw": s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING)
+            and shifts.can_submit(request.user, s.organisation)
+            and org == s.organisation,
+            "can_acknowledge": shifts.can_acknowledge(request.user, s, org),
+            "shares": [
+                (p.pa, p.portions, p.portion, acks.get(p.pa), p.pa == s.organisation.code, p.pa in s.informed)
+                for p in parts
+                if p.pa in shares
+            ],
+            "amounts": sorted(shifts.frozen(s).amounts.items(), key=lambda kv: shifts._key(kv[0])),
+            "org": org,
+        },
+    )
+
+
+def _entered(request) -> list:
+    """The lines typed in the table, then any pasted into the Paste lines box (one line each: PrgID, year, amount)."""
+    typed = [
+        shifts.LineIn(p, y, a)
+        for p, y, a in zip(request.POST.getlist("prg_id"), request.POST.getlist("year"), request.POST.getlist("amount"), strict=False)
+    ]
+    return [ln for ln in typed if not ln.blank()] + shifts.paste_lines(request.POST.get("paste", ""))
+
+
+def _rows(request, entered, saved, budget=None) -> list[dict]:
+    """The table's rows, each with what its program-year holds (`shifts.entry_budget`), then blank ones to fill."""
+    rows = (
+        [{"prg_id": ln.prg_id, "year": ln.year, "amount": ln.amount} for ln in entered if not ln.blank()]
+        if entered is not None
+        else [{"prg_id": ln.prg_id, "year": str(ln.year), "amount": f"{ln.amount}"} for ln in saved]
+    )
+    for r in rows:
+        b = (budget or {}).get(f"{r['prg_id'].strip()} {r['year'].strip()}")
+        r["held"] = Decimal(b["held"]) if b else None
+    extra = BLANK_ROWS + (int(request.GET.get("more", 0)) if str(request.GET.get("more", "")).isdigit() else 0)
+    return rows + [{"prg_id": "", "year": "", "amount": "", "held": None}] * extra
+
+
+def _net(rows, budget) -> Decimal | None:
+    """The lines' net for the PA: each line's amount, a statewide line's by the PA's factor. None while a line's amount is not a figure."""
+    total = Decimal(0)
+    for r in rows:
+        if not r["amount"].strip():
+            continue
+        try:
+            amount = Decimal(r["amount"].replace(",", "").replace("$", "").strip())
+        except InvalidOperation:
+            return None
+        b = budget.get(f"{r['prg_id'].strip()} {r['year'].strip()}") or {}
+        total += amount * Decimal(b["factor"]) if b.get("factor") else amount
+    return total.quantize(Decimal("0.01"))
+
+
+def _table(request, s, organisation, entered, saved) -> dict:
+    """What `budgets/_shift_lines_table.html` needs: the rows, years, the PA's programs for the picker, what each program-year holds
+    and the running net."""
+    budget = shifts.entry_budget(organisation, s)
+    rows = _rows(request, entered, saved, budget)
+    return {
+        "rows": rows,
+        "years": _years(s),
+        "programs": shifts.program_choices(s, organisation if organisation != s.organisation else None),
+        "budget": budget,
+        "net": _net(rows, budget),
+        "pa": organisation.code,
+    }
+
+
+def _years(s) -> list[str]:
+    return [str(y) for y in range(s.cycle.first_year, s.cycle.last_year + 1)]
+
+
+@login_required
+def shift_lines(request, pk):
+    s = _shift(request, pk)
+    if not (
+        s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and request.organisation == s.organisation
+    ):
+        raise Http404
+    problems, entered = [], None
+    if request.method == "POST":
+        entered = _entered(request)
+        try:
+            shifts.set_lines(request.user, s, entered)
+        except shifts.ShiftInvalid as e:
+            problems = e.problems
+        except AccessDenied as e:
+            messages.error(request, str(e))
+            return redirect("budgets:shift", pk)
+        else:
+            if "more" in request.POST:
+                return redirect(f"{request.path}?more={int(request.GET.get('more', 0) or 0) + BLANK_ROWS}")
+            messages.success(request, "Lines saved.")
+            return redirect("budgets:shift", pk)
+    return render(
+        request,
+        "budgets/shift_lines.html",
+        {"s": s, "problems": problems, **_table(request, s, s.organisation, entered, s.lines.filter(pa=s.organisation.code))},
+    )
+
+
+@login_required
+def shift_acknowledge(request, pk):
+    """A co-funder places its portion among its own programs and acknowledges the shift."""
+    s = _shift(request, pk)
+    org = request.organisation
+    if not shifts.can_acknowledge(request.user, s, org):
+        raise Http404
+    problems, entered = [], None
+    if request.method == "POST":
+        entered = _entered(request)
+        try:
+            shifts.acknowledge(request.user, s, org, entered, request.POST.get("note", ""))
+        except shifts.ShiftInvalid as e:
+            problems = e.problems
+        except AccessDenied as e:
+            messages.error(request, str(e))
+            return redirect("budgets:shift", pk)
+        else:
+            s.refresh_from_db()
+            messages.success(request, "Acknowledged." + (" The shift is now in effect." if s.status == FundShift.Status.EFFECTIVE else ""))
+            return redirect("budgets:shift", pk)
+    part = next(p for p in shifts.parts(s) if p.pa == org.code)
+    return render(
+        request,
+        "budgets/shift_acknowledge.html",
+        {
+            "s": s,
+            "org": org,
+            "part": part,
+            "portion": shifts.portion(s, org.code),
+            "owed": -shifts.portion(s, org.code),
+            "problems": problems,
+            **_table(request, s, org, entered, []),
+            "note": request.POST.get("note", ""),
+        },
+    )
+
+
+def _act(request, pk, fn, done: str):
+    s = _shift(request, pk)
+    try:
+        fn(s)
+    except (AccessDenied, shifts.ShiftInvalid) as e:
+        for p in getattr(e, "problems", None) or [str(e)]:
+            messages.error(request, p)
+    else:
+        messages.success(request, done)
+    return redirect("budgets:shift", pk)
+
+
+@login_required
+@require_POST
+def shift_submit(request, pk):
+    def do(s):
+        s = shifts.submit(request.user, s)
+        if s.status == FundShift.Status.WAITING:
+            messages.info(request, f"Waiting for {', '.join(s.cofunders)} to acknowledge it.")
+
+    return _act(request, pk, do, "Fund shift submitted.")
+
+
+@login_required
+@require_POST
+def shift_withdraw(request, pk):
+    return _act(request, pk, lambda s: shifts.withdraw(request.user, s, request.POST.get("reason", "")), "Fund shift withdrawn.")
+
+
+# --- the operating budget
+
+
+def _operating(request, cycle):
+    """The operating budget of the PA chosen with ?org=, else the acting PA's; None when neither names a PA (the CPUC's own page, which
+    lists the PAs to choose from)."""
+    cycle = registry.cycle_from_slug(cycle)
+    if cycle is None:
+        raise Http404
+    code = request.GET.get("org")
+    org = access.by_code_or_404(code) if code else request.filing_organisation
+    if org is None and not code and shifts.can_read_every_operating(request.user):
+        return cycle, None
+    if org is None or not org.files or not shifts.can_read_operating(request.user, org):
+        raise Http404
+    return cycle, shifts.operating_budget(org, cycle)
+
+
+def _cycle_pas(cycle):
+    """The PAs with a budget filing or a fund shift in the cycle: the operating budgets there are to choose from."""
+    pas = Organisation.objects.filter(fund_shifts__cycle=cycle) | Organisation.objects.filter(
+        submissions__deadline__module="budgets", submissions__deadline__cycle=cycle
+    )
+    return [o for o in pas.distinct().order_by("code") if o.files]
+
+
+def _year(request, ob) -> int | None:
+    y = request.GET.get("year", "")
+    return int(y) if y.isdigit() and int(y) in ob.years else None
+
+
+@login_required
+def operating(request, cycle):
+    cycle, ob = _operating(request, cycle)
+    if ob is None:
+        return render(request, "budgets/operating.html", {"ob": None, "cycle": cycle, "orgs": _cycle_pas(cycle)})
+    year = _year(request, ob)
+    rows = [r for r in ob.rows if year is None or r.year == year]
+    by_year = [(y, ob.total([y])) for y in ob.years]
+    return render(
+        request,
+        "budgets/operating.html",
+        {
+            "ob": ob,
+            "rows": rows,
+            "year": year,
+            "total": ob.total([year] if year else None),
+            "by_year": by_year,
+            "cycle": ob.cycle,
+            "orgs": _cycle_pas(ob.cycle),
+        },
+    )
+
+
+@login_required
+def operating_csv(request, cycle):
+    ob = _operating(request, cycle)[1]
+    if ob is None:
+        raise Http404
+    year = _year(request, ob)
+    resp = HttpResponse(content_type="text/csv")
+    name = f"operating_budget_{ob.organisation.code}_{ob.cycle}{'_' + str(year) if year else ''}.csv"
+    resp["Content-Disposition"] = f'attachment; filename="{name}"'
+    w = csv.writer(resp)
+    w.writerow(
+        [
+            "PA",
+            "PrgID",
+            "Program",
+            "Year",
+            "Approved budget",
+            "Fund shifts",
+            "Operating budget",
+            "Statewide program budget",
+            "Allocation factor",
+        ]
+    )
+    for r in ob.rows:
+        if year is None or r.year == year:
+            w.writerow(
+                [ob.organisation.code, r.prg_id, r.name, r.year, r.approved, r.shifted, r.operating]
+                + ([r.statewide_total, r.factor] if r.statewide else ["", ""])
+            )
+    t = ob.total([year] if year else None)
+    w.writerow([ob.organisation.code, "Total", "", year or "", t.approved, t.shifted, t.operating, "", ""])
+    return resp
