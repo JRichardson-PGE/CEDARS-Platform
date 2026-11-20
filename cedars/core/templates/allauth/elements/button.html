@@ -1,8 +1,8 @@
-{% load allauth %}{% comment %} djlint:off {% endcomment %}
+{% load allauth %}{% comment %} djlint:off {% endcomment %}{% comment %}Button words in sentence case ("Change Password" reads "Change password").{% endcomment %}
 <{% if attrs.href %}a class="button{% if 'prominent' in attrs.tags or 'primary' in attrs.tags %} primary{% endif %}" href="{{ attrs.href }}"{% else %}button class="{% if 'prominent' in attrs.tags or 'primary' in attrs.tags %}primary{% elif 'link' in attrs.tags %}link{% endif %}"{% endif %}
 {% if attrs.form %}form="{{ attrs.form }}"{% endif %}
 {% if attrs.id %}id="{{ attrs.id }}"{% endif %}
 {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
 {% if attrs.value %}value="{{ attrs.value }}"{% endif %}
 {% if attrs.type %}type="{{ attrs.type }}"{% endif %}
->{% slot %}{% endslot %}</{% if attrs.href %}a{% else %}button{% endif %}>
+>{% filter sentence_case %}{% slot %}{% endslot %}{% endfilter %}</{% if attrs.href %}a{% else %}button{% endif %}>

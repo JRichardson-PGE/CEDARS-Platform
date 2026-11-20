@@ -1,0 +1,6 @@
+{% load allauth %}{% comment %}A part of an account page (your authenticator app, security keys, recovery codes): a card with its heading in sentence case and its buttons in a row, not allauth's bulleted list.{% endcomment %}
+<section class="card account-panel">
+    <h2>{% filter sentence_case %}{% slot title %}{% endslot %}{% endfilter %}</h2>
+    {% slot body %}{% endslot %}
+    {% if slots.actions %}<div class="actions">{% for action in slots.actions %}{{ action }}{% endfor %}</div>{% endif %}
+</section>
