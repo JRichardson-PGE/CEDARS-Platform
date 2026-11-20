@@ -261,3 +261,23 @@ def limit(key: str) -> str:
     from cedars.services.releases import limits
 
     return limits.current(key)
+
+
+@register.filter(is_safe=True)
+def sentence_case(text) -> str:
+    """'Change Password' -> 'Change password': the sign-in library's own headings in the site's sentence case. A word written all in
+    capitals (CEDARS, PII) keeps its capitals; the first word keeps its capital letter."""
+    words = str(text).split()
+    return " ".join(w if i == 0 or (w.isupper() and len(w) > 1) else w[:1].lower() + w[1:] for i, w in enumerate(words))
+
+
+@register.filter
+def in_sentence_case(form):
+    """The sign-in library's forms with their labels and placeholders in sentence case ("New Password" reads "New password"). Changes
+    only this form instance's own copy of its fields, before any field is drawn."""
+    for field in form.fields.values():
+        if field.label:
+            field.label = sentence_case(field.label)
+        if field.widget.attrs.get("placeholder"):
+            field.widget.attrs["placeholder"] = sentence_case(field.widget.attrs["placeholder"])
+    return form
