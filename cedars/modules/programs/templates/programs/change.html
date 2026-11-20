@@ -8,7 +8,7 @@ right a value a version holds wrongly, correct that version instead, from the pr
 {% if reaches %}<p>{{ p.prg_id }} is a statewide program: the same change starts the same day on each PA's ID that follows it ({{ reaches|join:", " }}).</p>{% endif %}
 {% if locked %}<p>Locked: {{ locked|join:", " }}. A change to any of them is sent, with the rest of the change, as a
 <a href="{% url 'programs:requests' %}">request</a> for a CPUC approver's decision; nothing changes until it is approved.</p>{% endif %}
-<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+<form method="post" class="stack form-cols" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% include "programs/_attributes.html" %}
   <div class="actions"><button type="submit" class="primary">Save the change</button> <a href="{% url 'programs:program' p.prg_id %}">Cancel</a></div>

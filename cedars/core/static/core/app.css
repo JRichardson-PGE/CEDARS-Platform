@@ -406,6 +406,17 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .fieldset-row > fieldset { flex: 1 1 min(100%, 20rem); margin: 0; }
 .fieldset-row > fieldset.grow { flex: 3 1 min(100%, 40rem); }   /* the larger section: two or three columns of its own beside a small one */
 .wide-form > fieldset { margin: 0; }
+/* A long create or change form (adding a program, filing a document, setting up a claim year, a rule, a work item): on a wide screen its
+   fields flow into as many columns as fit, in reading order, instead of one 40rem column; a series of dates (a year's due dates) is a grid
+   of its own. Headings, notes, the buttons, text areas, tick lists and pickers keep a whole row. One column at 320 px (1.4.10). */
+form.form-cols { max-width: 84rem; }
+form.form-cols, form.form-cols :is(.form-step, fieldset.stack) {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: .9rem 1.5rem; align-items: start; }
+form.form-cols > :not(.field), form.form-cols :is(.form-step, fieldset.stack) > :not(.field),
+form.form-cols .field:has(textarea, fieldset, table, .picker, input[type=file]) { grid-column: 1 / -1; }
+form.form-cols .field:has(textarea) { max-width: 56rem; }
+form.form-cols > button { justify-self: start; }   /* a button on a row of its own keeps the width of its words */
+form.form-cols .field :is(select, input:not([type=checkbox], [type=radio], [type=file]), textarea) { width: 100%; max-width: none; box-sizing: border-box; }
 /* New run's Advanced options: the sections most runs leave alone, folded into one native disclosure (Jake, 2026-11-06). Its summary keeps
    the browser's own triangle and reads as a section heading; 44 px tall, so it is an easy target. */
 .advanced-options { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0 1rem; background: var(--surface); }

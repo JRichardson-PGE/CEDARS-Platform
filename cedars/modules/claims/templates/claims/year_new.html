@@ -5,7 +5,7 @@
 <div class="page-title"><h1>Set up a claim year</h1>{% page_help "claims/year_new" %}</div>
 <p>A claim year has five confirmations, each with its own due date: the four quarters, then the annual claims (due the following
 spring). Statewide programs' lead PAs file first, each due before the PAs' own.</p>
-<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+<form method="post" class="stack form-cols" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.year.as_field_group }}
   {{ form.acc_version.as_field_group }}

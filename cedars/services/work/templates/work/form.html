@@ -4,7 +4,7 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'work:backlog' %}">Work items</a></li>{% if item %}<li><a href="{% url 'work:item' item.pk %}">{{ item.number }}</a></li>{% endif %}</ol></nav>
 <div class="page-title"><h1>{% if item %}Change {{ item.number }}{% else %}Propose a work item{% endif %}</h1>{% page_help "work/form" %}</div>
 <p>Write it as a story: who needs it, on which pages, what they need and why. The title is what people outside the CPUC read if the item is made public.</p>
-<form method="post" class="stack form-narrow" id="item-form">{% csrf_token %}
+<form method="post" class="stack form-cols" id="item-form">{% csrf_token %}
   {{ form.non_field_errors }}
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <div class="actions"><button type="submit" class="primary">{% if item %}Save{% else %}Propose it{% endif %}</button></div>
