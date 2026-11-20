@@ -1,0 +1,69 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Every page has a <strong>Feedback on this page</strong> link at the bottom. What you send goes to the CPUC's CEDARS team with the page
+you came from, so nobody has to ask where you were. When a request takes a fix or an improvement, the team joins it to a work item, and
+the work items are built in the order of the backlog.</p>
+<h2 id="sending">Sending a request</h2>
+<ol>
+  <li>On the page it is about, choose <strong>Feedback on this page</strong>. Say whether it is a question, a problem, an
+  accessibility barrier, an idea, a comment or a security concern, and write your message. Leave out customers' names, addresses and
+  account numbers.</li>
+  <li>Before a question is sent, the form lists the parts of Help that share words with it, in case one answers it. Nothing is sent
+  until you choose Send.</li>
+  <li>Signed in, you follow it on <a href="{% url 'feedback:mine' %}">My requests</a> (also at the bottom of every page). Signed out, it
+  is sent without your name and cannot be answered.</li>
+</ol>
+<ul>
+  <li>Received means the team has it, Being looked at that someone is working on it, Waiting for you that the team asked you a question,
+  Answered that they replied, and Closed that it is finished. A question for you waits in <a href="{% url 'core:queue' %}">My queue</a>
+  too, and you are told of each answer on your Notifications page and by email unless you turned that off.</li>
+  <li>Reply on the request's page while it is open. When you have what you need, say it is settled and it closes.</li>
+  <li>Accessibility barriers and security concerns are urgent. A security concern is read only by the CPUC's system administrators.</li>
+  <li>When you act for an organization, its administrators can read your questions, problems and accessibility barriers so they can
+  help, unless you tick the box to keep one from them. They never read ideas, comments or security concerns.</li>
+  <li>When your request is joined to a work item, its page says where that work stands: being considered, to be done, planned for a
+  release, or not planned, with the reason.</li>
+  <li><a href="{% url 'known:problems' %}">Known problems</a> and <a href="{% url 'known:upcoming' %}">Upcoming changes</a> list the
+  work items the CPUC made public. Signed in, you can say a known problem affects you too.</li>
+</ul>
+<h2 id="answering">How the support desk answers</h2>
+<p>The CPUC's support desk (the "Support: answer requests" permission) and its system administrators answer requests on
+{% page_link 'feedback:inbox' "Feedback" %}. Requests waiting on the CPUC are also in their My queue, urgent ones first.</p>
+<ul>
+  <li>Mark a request as being looked at, then answer it or ask the sender a question. A note is for staff only. Close it with a note
+  on what was done, or reopen a closed one with a reason. Every step is in the audit log.</li>
+  <li>When answering it takes a fix or an improvement, join the request to a work item that already covers it, or propose a new one in
+  your own words. A request is joined to one work item at a time.</li>
+</ul>
+<h2 id="work-items">Work items and the backlog</h2>
+<p>A work item is one problem to fix or one improvement to make, written as a story: who needs it, on which pages, what and why, with
+a size, a severity for a problem, a workaround and acceptance tests that say what done means. The requests joined to it are its
+evidence. {% page_link 'work:backlog' "Work items" %} holds them.</p>
+<ul>
+  <li><strong>Backlog managers</strong> ("Work items: manage the backlog") accept a proposed item into the backlog or propose
+  declining it, put the backlog in order (what is first is built first), propose making an item public, and fill release plans from the
+  top of the backlog.</li>
+  <li><strong>CPUC approvers</strong> ("Work items: approve") approve or turn down what a backlog manager proposes: declining an item,
+  making one public, and a release plan. When every item of an approved plan is built, the CPUC decides whether the release goes; its
+  items are then Done and the people waiting on them are told.</li>
+  <li>The senders of the requests joined to an item are told when a release plan that holds it is approved and when it is declined.</li>
+</ul>
+<h2 id="testing">Rounds of testing</h2>
+<p>On the sites where testing is switched on (the sandbox and test sites), the CPUC tests a release from versioned test scripts.</p>
+<ul>
+  <li>A <strong>test lead</strong> (a CPUC system administrator) opens a round with a version of the scripts and its dates on the
+  Testing page, assigns each script to testers' own accounts, follows their progress, reads or downloads the results, and closes the
+  round.</li>
+  <li>A <strong>tester</strong> finds the scripts assigned to them on <strong>My testing</strong> and in My queue, steps through each
+  test (which account to use, what must be true first, the steps and the result to expect) and records what they found. A failed or
+  blocked result is also sent to Feedback as a finding, and answered like any other request.</li>
+  <li>A work item's acceptance test may name a test of the scripts; that test is then run in the release's round, and its results show
+  on the release's page.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_contact' %}">Getting support</a>: what to include when you write.</li>
+  <li><a href="{% url 'core:help_guide' 'reviewing' %}">Reviewing and approving</a>: My queue.</li>
+  <li><a href="{% url 'core:help_guide' 'administering' %}">Administering CEDARS</a>: giving the support desk and backlog permissions.</li>
+</ul>
+{% endblock %}

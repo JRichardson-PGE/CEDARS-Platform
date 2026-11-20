@@ -38,8 +38,8 @@ first until they do.</p>
 <h2>Cost-test sets</h2>
 <ul class="links">
   <li>A <a href="{% url 'refdata:cost_tests' %}">cost-test set</a> says which value streams each cost test adds up and how it shares the
-  program costs. Every run is pinned to one. A filing is priced only on a published set: the one its filing setup names, or the one in
-  force for its first program year.</li>
+  program costs. Every run is pinned to one. A filing is priced only on a published set: the one its filing specification version names, else the one its filing setup
+  names, else the one in force for its first program year.</li>
   <li>Anyone signed in may <a href="{% url 'refdata:build_start' %}">build a set</a>, usually from a copy of a registered set, and price
   their own analysis runs on it from New run. Only the CPUC registers a set for filings.</li>
   <li>The builder shows each test as a formula, <code>TRC = (ElecBen + GasBen + adder(TaxCredits)) / (ElecSupplyCost + share x

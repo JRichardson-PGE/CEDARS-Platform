@@ -9,11 +9,11 @@
   },
   "guide:administering": {
     "release": "0.2.0",
-    "sha256": "f879aa428d6f6e99d150400fc9648518a765e9132978a27332fbb73bcea80176"
+    "sha256": "e6033096f4d2167667708b9073ebd1db0356941e4d5ef38f21cf6dea946241f3"
   },
   "guide:budgets": {
     "release": "0.2.0",
-    "sha256": "fa0d1b8972c6342a230b91528e25b3577cba1c32f0952a3a6d9030cc6281d4d4"
+    "sha256": "c83c7ac3a622d9261349acaa7421d84e2a15e127c5c75d13756e4ade4ef794d8"
   },
   "guide:calculations": {
     "release": "0.2.0",
@@ -21,11 +21,11 @@
   },
   "guide:claims": {
     "release": "0.2.0",
-    "sha256": "fd09b0ca4021eca78d1bd69e2fed437d4c955b6c8ed00a651b4a9f72305e55e4"
+    "sha256": "efcb3c50c2ad08634e470ee67d44e21f5d583456103b0d1dcd23593959e7d7f9"
   },
   "guide:correcting-records": {
     "release": "0.2.0",
-    "sha256": "e4c8f5b2215ade36bc4426d57a5e4161ec6a858ddf8a266f2658e0aaa562e09e"
+    "sha256": "caf443f049dd3c3bc71af9784ceb3b28e4d24c50e4e3614dbb7442e73e819911"
   },
   "guide:documents": {
     "release": "0.2.0",
@@ -37,7 +37,7 @@
   },
   "guide:glossary": {
     "release": "0.2.0",
-    "sha256": "a89f12d5946220797c14c6d4c2a30df9f7a0e242a1c12dd2c51b095ff768a225"
+    "sha256": "50bb94bfd3577606a422fcc1c4f56c9be55450a35c324c84902f098f335aab92"
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
@@ -45,7 +45,7 @@
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
-    "sha256": "45b15e7bf70b0627880c40090a74f9c0a90ed5b0a20ec3cfe1423657ba801095"
+    "sha256": "1c343decfd09c0195b92bf0f7d700869b81619a04c36df8a0c97cd5c7a7f09b3"
   },
   "guide:programs": {
     "release": "0.2.0",
@@ -57,15 +57,19 @@
   },
   "guide:reference-data": {
     "release": "0.2.0",
-    "sha256": "f2f5cbeeeafa4b0845d0d6318c70aa28fbc0bffd6ab0d1e23f9962b28b505cc0"
+    "sha256": "6b52c8bba34ddd261304c700fb8e818beb777767ef8b4ac403223c9f23b48c9b"
   },
   "guide:releases": {
     "release": "0.2.0",
-    "sha256": "1af8fd46c9b01966628878a567337bae8edac64371476582428b02ad86816fff"
+    "sha256": "4eb4018cfdb5bec4416476ac6670cf0532f0bc2a89942f2fd72b85f11df51333"
+  },
+  "guide:requests": {
+    "release": "0.2.0",
+    "sha256": "15fcda650e49fd605c3f0fdb90371a882b7f6228615b4897f6341ef5d1132c6d"
   },
   "guide:reviewing": {
     "release": "0.2.0",
-    "sha256": "af226ef3faf660dc8c5bf56c77dc0481704d5dfb2d67f288d9d532a8862d66b1"
+    "sha256": "d3b8fb7de04c92a17977fc2bbc626de2cf3414391dabd600afd863275530c5f6"
   },
   "guide:rules-and-lists": {
     "release": "0.2.0",

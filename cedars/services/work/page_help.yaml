@@ -16,7 +16,7 @@ work/backlog:
     - Propose a work item starts a new one. To start one from a request, open the request on Feedback.
     - Release plans lists what each coming release is to hold.
     - Measures shows how the loop from a request to a release is running.
-  see: administering
+  see: requests
   tour:
     - target: main form.filters
       title: What to show
@@ -61,7 +61,7 @@ work/item:
       requests are not sent. Save the issue there, then keep its address here.
     - Where the site is set up for it, Or have the site post the issue shows the issue as it will be posted. Read it, tick the
       box and choose Post the issue. The site posts it and keeps its address.
-  see: administering
+  see: requests
   tour:
     - target: main dl.facts
       title: Where it stands
@@ -114,7 +114,7 @@ work/form:
     - Size is agreed with the developers, and severity is for problems. Both can wait until they are known.
   how:
     - Fill in the story and choose Propose it or Save.
-  see: administering
+  see: requests
   tour:
     - target: "#item-form"
       title: The story
@@ -130,7 +130,7 @@ work/from_request:
     - A request is joined to one work item at a time.
   how:
     - Choose a work item and Join the request, or write a new one and Propose it.
-  see: administering
+  see: requests
   tour:
     - target: "#the-request"
       title: The request
@@ -164,7 +164,7 @@ work/measures:
       last loaded that no round has answered.
   how:
     - Choose the period and Apply. It sets the Requests section and the released work items.
-  see: administering
+  see: requests
   tour:
     - target: "#days"
       title: The period
@@ -194,7 +194,7 @@ work/releases:
   how:
     - Open a release to see its work items, plan more for it, propose it or approve it.
     - Start a release plan with the release's name and, when it is known, the date it is expected.
-  see: administering
+  see: requests
   tour:
     - target: "#plans"
       title: The plans
@@ -230,7 +230,7 @@ work/release:
     - Mark built says a work item is ready to go out.
     - A test lead opens a round of testing for the release under Acceptance testing.
     - An approver chooses Go with the date, or No-go with a reason.
-  see: administering
+  see: requests
   tour:
     - target: main dl.facts
       title: Where it stands
@@ -275,7 +275,7 @@ work/known:
   how:
     - Open a problem to read all of it and to say it affects you too.
     - Upcoming changes lists what each coming release is planned to hold.
-  see: getting-started
+  see: requests
   tour:
     - target: "#known-problems"
       title: The problems
@@ -295,7 +295,7 @@ work/upcoming:
     - A change to the specifications, rules or limits is also announced in the release notes before it takes effect.
   how:
     - Open a change to read all of it and to say it affects you too.
-  see: getting-started
+  see: requests
   tour:
     - target: main .upcoming-release
       title: A coming release
@@ -317,7 +317,7 @@ work/public_item:
   how:
     - This affects me too follows it. You must be signed in.
     - Stop following it takes your name off.
-  see: getting-started
+  see: requests
   tour:
     - target: "#public-facts"
       title: Where it stands
