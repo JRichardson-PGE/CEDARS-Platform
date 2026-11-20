@@ -7,7 +7,7 @@
 spend this month is the change since the month before, and the year-to-date spend should never fall. {{ paid_vs_committed }}{% if published_only %} Only confirmed reports are shown.{% endif %}</p>
 {% if choices %}
 <form method="get" class="filters" aria-label="Choose the program administrator">
-  <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
+  <label>PA <select name="org">{% if not org %}<option value="" selected>Choose a PA</option>{% endif %}{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
   <button type="submit">Apply</button>
 </form>
 {% endif %}
