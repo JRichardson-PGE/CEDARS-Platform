@@ -8,12 +8,14 @@
 <h2 id="summary-h" class="sr-only">Summary</h2>
 <ul class="queue-summary">{% for s in sections %}{% if s.items %}<li><a href="#{{ s.kind.key }}">{{ s.kind.label }}</a>: {{ s.items|length }}</li>{% endif %}{% endfor %}</ul>
 </section>
+{# Every kind's table has the same column widths (.queue-table), so Organization, Waiting since and Due line up down the page. #}
 {% for s in sections %}{% if s.items %}
 <section aria-labelledby="{{ s.kind.key }}">
 <h2 id="{{ s.kind.key }}" tabindex="-1">{{ s.kind.label }} <span class="small muted">({{ s.items|length }})</span></h2>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="{{ s.kind.key }}">
-<table class="list">
+<table class="list full queue-table">
   <caption class="sr-only">{{ s.kind.label }}</caption>
+  <colgroup><col><col class="org"><col class="since"><col class="due"><col class="act"></colgroup>
   <thead><tr><th scope="col">What</th><th scope="col">Organization</th><th scope="col">Waiting since</th><th scope="col">Due</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
   <tbody>{% for i in s.items %}<tr>
     <th scope="row">{{ i.what }}{% if i.note %}<br><span class="small muted">{{ i.note }}</span>{% endif %}</th>
