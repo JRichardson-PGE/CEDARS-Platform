@@ -296,7 +296,11 @@ def lists(request):
                 "later": vl.versions.filter(status="published", effective_from__gt=timezone.localdate()).first() if vl else None,
             }
         )
-    return render(request, "dictionary/lists.html", {"rows": rows, "engine": engine, "release": value_lists.engine_release()})
+    return render(
+        request,
+        "dictionary/lists.html",
+        {"rows": rows, "engine": engine, "release": value_lists.engine_release(), "can_edit": value_lists.can_edit(request.user)},
+    )
 
 
 def _list_or_404(name: str) -> ValueList:

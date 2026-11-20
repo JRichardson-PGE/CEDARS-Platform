@@ -156,6 +156,11 @@ def board(user, now=None, org=None) -> Board:
         if any(service.on_filing(c.deadline, o) or (c.deadline.pk, o.pk) in subs for c in cols):
             rows.append(Row(o, cells))
     own = next((r for r in rows if org is not None and r.organisation.pk == org.pk), None)
+    if own is not None:
+        # a filing's page opens on the reader's own organization's filing: no link in its heading when they may not read that one
+        for c, cell in zip(cols, own.cells, strict=True):
+            if not cell.readable:
+                c.url = ""
     return Board(cols, rows, without, access.is_cpuc_staff(user), own)
 
 

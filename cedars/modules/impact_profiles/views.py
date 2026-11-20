@@ -363,14 +363,18 @@ def load_shape_template(request):
 @login_required
 def load_shape(request, pk):
     ls = get_object_or_404(LoadShape.objects.select_related("package"), pk=pk)
-    versions = list(ls.versions.select_related("upload__uploaded_by", "shape"))
+    versions = list(ls.versions.select_related("upload__uploaded_by", "upload__organisation", "shape"))
     current = next((v for v in versions if v.superseded_at is None), None)
     months, peak = [], None
     if current is not None:
         values = shapes.load(current.shape)
         months = [(m, 100 * x) for m, x in shapes.monthly_shares(values, current.source_year)]
         peak = shapes.peak_hour(values, current.source_year)
-    context = {"ls": ls, "versions": versions, "current": current, "months": months, "peak": peak, "chart": month_chart(months)}
+    # an upload's page is its organization's (and administrators'): link the file only for those who may open it
+    signed_in = request.user.is_authenticated
+    opens = {v.upload_id for v in versions if signed_in and access.sees_organisation(request.user, v.upload.organisation.code)}
+    context = {"ls": ls, "versions": versions, "opens": opens, "current": current, "months": months, "peak": peak}
+    context["chart"] = month_chart(months)
     return render(request, "impact_profiles/load_shape.html", context)
 
 
