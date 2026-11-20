@@ -1,7 +1,8 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
 <p>You can correct records in place only on an open draft (a version not yet confirmed, or the draft an un-confirm or approved reopen
-leaves). A confirmed version never changes. You need the module's submit permission.</p>
+leaves). A confirmed version never changes. You need the module's submit permission. A corrected record is checked under the same
+<a href="{% url 'core:help_guide' 'rules-and-lists' %}#filing-specifications">filing specification</a> version as the rest of the filing, whatever the date.</p>
 <h2>One record at a time</h2>
 <ol>
   <li>On the filing's page (a claims period, budget filing or monthly report), choose <strong>Correct records</strong>.</li>

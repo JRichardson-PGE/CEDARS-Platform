@@ -19,7 +19,7 @@ feedback/form:
   how:
     - Choose what it is, write your message and Send; you go back to the page you came from.
     - Check for answers first lists what in Help matches your message without sending it.
-  see: getting-started
+  see: requests
   tour:
     - target: "#about-page"
       title: About that page
@@ -48,7 +48,7 @@ feedback/mine:
     - An organization's administrators also have a link to the requests its members sent.
   how:
     - Open a request to read the replies, answer a question or add something.
-  see: getting-started
+  see: requests
   tour:
     - target: "#organization-link"
       title: Your organization's requests
@@ -67,7 +67,7 @@ feedback/organization:
       and the CPUC add to a request. Ideas, comments, security concerns and anything a sender chose to keep from you are not listed.
   how:
     - Open a request to read it and its replies.
-  see: getting-started
+  see: requests
   tour:
     - target: "#organization-requests"
       title: The requests
@@ -88,7 +88,7 @@ feedback/request:
   how:
     - Write a reply and Send.
     - This is settled closes the request.
-  see: getting-started
+  see: requests
   tour:
     - target: main dl.facts
       title: Where it stands
@@ -132,7 +132,7 @@ feedback/inbox:
   how:
     - Choose a status and a kind, then Apply.
     - Open a request to read it whole, answer it, ask its sender a question, keep a note or close it.
-  see: administering
+  see: requests
   tour:
     - target: main form.filters
       title: Which requests
@@ -156,7 +156,7 @@ feedback/detail:
     - Answer, or ask the sender a question. A request sent signed out cannot be replied to.
     - Make or join a work item when answering it takes a fix or an improvement.
     - Close it with a note on what was done, or reopen a closed one with a reason.
-  see: administering
+  see: requests
   tour:
     - target: main dl.facts
       title: Where it came from

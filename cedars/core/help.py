@@ -151,12 +151,21 @@ GUIDES = [
     ),
     Guide(
         "rules-and-lists",
-        "Validation rules and value lists",
-        "What filings are checked against, checking a file before you file it, comparing rule sets, and keeping the rules, value lists "
-        "and fields in versions.",
+        "Filing specifications, rules and value lists",
+        "Filing specifications and their versions, what filings are checked against, checking a file before you file it, comparing "
+        "rule sets, and keeping the rules, value lists and fields in versions.",
         "Filers, and the CPUC staff who keep the rules and lists",
         ("reference",),
         "cpuc",
+    ),
+    Guide(
+        "requests",
+        "Requests, work items and testing",
+        "Asking the CPUC a question or reporting a problem and following it on My requests; how the support desk answers; how work "
+        "items, the backlog and release plans are kept; and rounds of testing.",
+        "Everyone; the later sections are for the support desk, backlog managers, approvers, testers and test leads",
+        (),
+        "everyone",
     ),
     Guide(
         "releases",

@@ -11,7 +11,7 @@ testing/manage:
   how:
     - Open a round of testing with a name, the scripts' version and its dates.
     - Open a round to assign its scripts and read the testers' progress.
-  see: administering
+  see: requests
   tour:
     - target: "#rounds"
       title: Rounds of testing
@@ -42,7 +42,7 @@ testing/campaign:
     - Withdraw an assignment with a reason. The results recorded so far are kept.
     - Close the round to keep every result as it stands. Reopen it with a reason.
     - Open the results to read what testers found, or download them as an Excel file.
-  see: administering
+  see: requests
   tour:
     - target: main dl.facts
       title: The round
@@ -79,7 +79,7 @@ testing/results:
   how:
     - Choose a result and a script, then Apply.
     - Download the results as an Excel file. The download is recorded in the audit trail.
-  see: administering
+  see: requests
   tour:
     - target: "#results-whole"
       title: The round so far
@@ -105,7 +105,7 @@ testing/mine:
     - Scripts with tests still to do are also in My queue.
   how:
     - Open a script to step through its tests.
-  see: getting-started
+  see: requests
   tour:
     - target: "#my-testing"
       title: Your scripts
@@ -126,7 +126,7 @@ testing/run:
     - Start or Continue goes to the next test without a result.
     - Open any test from the list to read or change its result while the round is open.
     - Replace the link to stop the old one everywhere.
-  see: getting-started
+  see: requests
   tour:
     - target: "#run-facts"
       title: The run
@@ -161,7 +161,7 @@ testing/test:
     - Choose a result, say what happened (needed for Failed or Blocked), then Save and go to the next test.
     - Save keeps you on this test.
     - Discard what I typed goes back to your saved result.
-  see: getting-started
+  see: requests
   tour:
     - target: "#test-facts"
       title: The test
@@ -185,7 +185,7 @@ testing/not_yours:
     - A test run opens for the tester it is assigned to, signed in as themselves, or in a browser that holds the run's link.
   how:
     - Sign in as yourself and open the script from My queue or My testing.
-  see: getting-started
+  see: requests
   tour:
     - target: "#ways"
       title: Opening your run

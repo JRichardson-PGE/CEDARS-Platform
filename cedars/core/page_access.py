@@ -40,6 +40,8 @@ WHO_WORDS = {
     "org_admin": "organization administrators",
     "steward": "CPUC data stewards",
     "approver": "CPUC approvers and their delegates",
+    "support": "the CPUC's support desk",
+    "work": "backlog managers and approvers of work items",
 }
 # A signed-out reader could open these once signed in, with an ordinary account.
 _SIGNED_IN = {"", "anon", "user", "member", "guest"}
