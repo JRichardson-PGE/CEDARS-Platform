@@ -471,6 +471,7 @@ def correct(request, prg_id, pk):
             "version": version,
             "form": form,
             "direct": direct,
+            "can_change": registry.can_edit(request.user, p),
             "reaches": list(p.subprograms.values_list("prg_id", flat=True)) if p.statewide else [],
         },
     )

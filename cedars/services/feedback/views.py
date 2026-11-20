@@ -124,6 +124,23 @@ def detail(request, pk):
     return _detail_page(request, _for_staff(request, pk, "user", "organisation", "closed_by"))
 
 
+# A tester's own run pages: only the tester may open them, so the staff's view of feedback sent from one names the page without a link.
+_TESTERS_OWN = {"run", "test", "draft", "new_link", "open"}
+
+
+def _page_opens(path: str) -> bool:
+    """Whether the page the feedback was sent from is one the staff can follow: a page of this site, and not a tester's own run."""
+    from urllib.parse import urlsplit
+
+    from django.urls import Resolver404, resolve
+
+    try:
+        match = resolve(urlsplit(path or "").path)
+    except Resolver404:
+        return False
+    return not (match.namespace == "testing" and match.url_name in _TESTERS_OWN)
+
+
 def _detail_page(request, fb, **filled):
     forms_ = {
         "answer_form": forms.ReplyForm(
@@ -142,6 +159,7 @@ def _detail_page(request, fb, **filled):
         "feedback/detail.html",
         {
             "fb": fb,
+            "page_opens": _page_opens(fb.page),
             "reads": service.readers(fb),
             "status_words": service.status_words(fb, staff=True),
             "conversation": service.conversation(fb, staff=True),

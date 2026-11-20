@@ -7,7 +7,7 @@
 <dl class="facts">
   {% if fb.is_urgent %}<dt>Priority</dt><dd><strong class="status warn">Urgent</strong> {% if fb.kind == "security" %}A security concern: only system administrators read it.{% else %}An accessibility barrier keeps someone from using the site.{% endif %}</dd>{% endif %}
   <dt>From</dt><dd>{% if fb.user %}{{ fb.user|person }}{% if fb.organisation %}, acting for {{ fb.organisation.code }}{% endif %}{% else %}Someone signed out (no name or address is kept){% endif %}</dd>
-  <dt>Page</dt><dd><a href="{{ fb.page }}"><code>{{ fb.page }}</code></a></dd>
+  <dt>Page</dt><dd>{% if page_opens %}<a href="{{ fb.page }}"><code>{{ fb.page }}</code></a>{% else %}<code>{{ fb.page }}</code>{% if "/testing/" in fb.page %} <span class="small muted">(the tester's own test page)</span>{% endif %}{% endif %}</dd>
   <dt>Sent on</dt><dd>{% if fb.site_version %}CEDARS {{ fb.site_version }}{% if fb.environment %}, {{ fb.environment }}{% endif %}{% else %}Not recorded{% endif %}</dd>
   <dt>Status</dt><dd><span class="status {{ fb.status|request_class }}">{{ status_words }}</span>{% if fb.closed_at %} {{ fb.closed_at|date_words }}{% if fb.closed_by %} by {{ fb.closed_by|person }}{% endif %}{% endif %}</dd>
   <dt>Read by</dt><dd>{% if fb.user %}The sender, {% endif %}{{ reads }}{% if fb.private %} (the sender kept it from their organization's administrators){% endif %}</dd>

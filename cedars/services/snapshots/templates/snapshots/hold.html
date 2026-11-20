@@ -36,7 +36,7 @@
 <ul>
   <li>If these are personal information, the filing's organization corrects the filing: un-confirm it before the due date and upload it again, or request a correction after the due date. The corrected version is scanned in its own right.</li>
   <li>If they are not (a measure code that looks like an account number, say), someone who confirms {{ snap.organisation.code }}'s filings certifies that with the reason, which releases it. The CPUC system administrators are told.</li>
-  <li>A CPUC system administrator can also release it, or change the <a href="{% url 'snapshots:scan_settings' %}">publication scan settings</a> for a false hit the scan should not make again and scan it again.</li>
+  <li>A CPUC system administrator can also release it, or change the {% if sysadmin %}<a href="{% url 'snapshots:scan_settings' %}">publication scan settings</a>{% else %}publication scan settings{% endif %} for a false hit the scan should not make again and scan it again.</li>
 </ul>
 {% if may_certify %}
 <div class="card">

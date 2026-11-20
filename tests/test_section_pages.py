@@ -176,6 +176,20 @@ def test_a_pa_sees_its_own_and_only_whether_the_others_are_published(make_user, 
     assert rows["PGE"][2].status == "Not published yet"  # the filer may read claims for PG&E, not its monthly reports
 
 
+def test_a_filings_heading_is_linked_only_when_the_reader_may_open_its_own_organizations_filing(
+    make_user, pge, pge_admin, sce, cpuc_admin, deadlines, monkeypatch
+):
+    monkeypatch.setattr(status.service, "deadline_page", lambda d: f"/{d.module}/{d.pk}/")
+    filer = make_user("claims@pge.example.org", "Cla Ims")
+    access.grant(pge_admin, filer, pge, "claims.submit")
+    pages = {(c.module, c.when): c.url for c in status.columns()[0]}
+    assert pages[("monthly", status.LAST)]
+    cols = {(c.module, c.when): c.url for c in status.board(filer, org=pge).columns}
+    assert cols[("claims", status.LAST)] == pages[("claims", status.LAST)]  # PG&E's claims: the filer may open them
+    assert cols[("monthly", status.LAST)] == ""  # its monthly report would answer Not found
+    assert {(c.module, c.when): c.url for c in status.board(cpuc_admin).columns} == pages  # the CPUC chooses a PA on the page
+
+
 def test_the_filings_page_shows_the_status_table(signed_in, cpuc_admin, pge, deadlines):
     html = page_only(signed_in(cpuc_admin).get("/filings/").content.decode())
     table = html.split('<table class="list filing-status">', 1)[1].split("</table>", 1)[0]
