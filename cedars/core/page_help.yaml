@@ -400,7 +400,7 @@ core/help/recet_doc:
     - On this page lists the document's sections; choose one to jump to it.
     - Wide tables scroll sideways inside their box; with the keyboard, Tab to the table and use the arrow keys.
   tour:
-    - target: details.doc-toc
+    - target: "nav.side-toc, details.doc-toc"
       title: On this page
       text: The document's sections and their subsections.
     - target: main .engine-doc

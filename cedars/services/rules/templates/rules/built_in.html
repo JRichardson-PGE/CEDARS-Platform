@@ -14,6 +14,11 @@ the version gives it; every other check always runs.</p>
   <button type="submit">Apply</button>
 </form>
 <p id="built-in-count">{% if shown == total %}{{ total }} checks.{% else %}{{ shown }} of {{ total }} checks match.{% endif %}</p>
+<div class="has-side-toc">
+{% if groups|length > 1 %}<nav aria-labelledby="built-in-toc-h" class="side-toc side-toc-only">
+  <h2 id="built-in-toc-h">On this page</h2>
+  <ul>{% for g, checks in groups %}<li><a href="#coded-{{ g.module }}">{{ g.label }}</a> ({{ checks|length }})</li>{% endfor %}</ul>
+</nav>{% endif %}
 {% for g, checks in groups %}
 <section aria-labelledby="coded-{{ g.module }}">
   <h2 id="coded-{{ g.module }}">{{ g.label }}</h2>
@@ -34,4 +39,5 @@ the version gives it; every other check always runs.</p>
 {% empty %}
 <p>No built-in checks match.</p>
 {% endfor %}
+</div>
 {% endblock %}
