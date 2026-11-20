@@ -437,6 +437,11 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert client.get(reverse("monthly:report", args=[jan.pk]) + "?org=PGE").status_code == 404
     year_page = client.get(reverse("monthly:year", args=[2028]) + "?org=PGE").content.decode()
     assert 'class="status ok">Published</span>' in year_page and "version 1</a>" in year_page
+    # with no PA applied, the box says so rather than showing a PA that is not shown
+    for page in ("monthly:year", "monthly:closing"):
+        html = client.get(reverse(page, args=[2028])).content.decode()
+        assert '<option value="" selected>Choose a PA</option><option value="PGE">PGE</option>' in html
+    assert '<option value="PGE" selected>PGE</option>' in year_page and "Choose a PA</option>" not in year_page
     assert client.get(reverse("monthly:year_new")).status_code == 404
     client.logout()
     sign_in(client, cpuc_admin)
