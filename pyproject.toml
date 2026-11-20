@@ -22,6 +22,7 @@ dependencies = [
     "pyyaml>=6.0",               # cost-test definition sets (ReCET's YAML), read for their header
     "markdown>=3.7",             # the pinned engine's documents shown under Help (data/recet_docs/)
     "pyjwt[crypto]>=2.9",        # signs the site's sign-in to the developers' issue tracker (services/work/tracker_client.py)
+    "typst>=0.15.2",             # typesets the specification document as a tagged PDF/UA-1 (services/specifications/printable.py)
 ]
 
 [dependency-groups]
@@ -45,7 +46,7 @@ version = { attr = "cedars.__version__" }
 include = ["cedars*"]
 
 [tool.setuptools.package-data]
-cedars = ["**/templates/**/*", "**/static/**/*"]
+cedars = ["**/templates/**/*", "**/static/**/*", "**/typst/*.typ"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "cedars.settings.test"

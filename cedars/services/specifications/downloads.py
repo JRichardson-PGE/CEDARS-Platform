@@ -8,6 +8,8 @@ import csv
 import io
 import zipfile
 
+from django.utils import timezone
+
 from . import service
 from .service import REQUIREMENT_WORDS, type_words
 
@@ -72,7 +74,8 @@ def template_zip(version, *, vault: bool = False) -> bytes:
 
 
 def fields_xlsx(version) -> bytes:
-    """Every table, field, rule and built-in check of the version, and its settings, for people who work from spreadsheets."""
+    """Every table, field, rule and built-in check of the version, its settings, the codes of its value lists as in force today, and
+    what changes from the version before it (printable.prior_of), for people who work from spreadsheets."""
     from cedars.core import workbooks
 
     book = workbooks.Book(
@@ -114,7 +117,35 @@ def fields_xlsx(version) -> bytes:
         widths={5: 60, 6: 60},
     )
     book.sheet("Settings", ["Setting", "Value"], service.settings_rows(version), widths={1: 80})
+    from . import printable
+
+    on = timezone.localdate()
+    book.sheet(
+        "Value lists",
+        ["Value list", "Field", "Code", "Description", "First year", "Last year"],
+        [[x.name, x.label, c["code"], c["description"], c["start_year"], c["end_year"]] for x in printable.value_lists_of(version, on)
+         for c in x.codes],
+        widths={3: 60},
+    )  # fmt: skip
+    prior = printable.prior_of(version)
+    book.sheet(
+        "Changes",
+        ["Compared with", "Part", "What changes"],
+        _change_rows(version, prior),
+        widths={2: 100},
+    )
     return book.save()
+
+
+def _change_rows(version, prior) -> list[list[str]]:
+    from . import printable
+
+    if version.historic:
+        return [["", "", "A legacy CEDARS layout records the columns of a download legacy CEDARS published; it changes nothing."]]
+    if prior is None:
+        return [["", "", "The first version of the specification: there is nothing earlier to compare it with."]]
+    rows = [[prior.name, heading, item] for heading, items in printable.changes(version, prior) for item in items]
+    return rows or [[prior.name, "", f"It says the same as {prior.name}."]]
 
 
 def json_schema(version, table) -> dict:

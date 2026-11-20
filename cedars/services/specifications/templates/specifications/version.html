@@ -74,6 +74,7 @@
 <section aria-labelledby="downloads-h" class="card">
   <h2 id="downloads-h">Downloads</h2>
   <ul class="downloads">
+    <li><a href="{% url 'specifications:printable' v.specification.code v.slug %}" download>The layout as a document to read or print (accessible PDF)</a></li>
     <li><a href="{% url 'specifications:fields' v.specification.code v.slug %}" download>Every column and the field it is loaded as (Excel workbook)</a></li>
     <li><a href="{% url 'specifications:document' v.specification.code v.slug %}" download>The layout as data (JSON)</a></li>
   </ul>
@@ -92,7 +93,8 @@
   <ul class="downloads">
     <li><a href="{% url 'specifications:template' v.specification.code v.slug 'xlsx' %}" download>Upload template (Excel workbook)</a> or <a href="{% url 'specifications:template' v.specification.code v.slug 'zip' %}" download>as a .zip of pipe-delimited files</a></li>
     {% if has_vault %}<li><a href="{% url 'specifications:template' v.specification.code v.slug 'pii-xlsx' %}" download>PII upload template (Excel workbook)</a> or <a href="{% url 'specifications:template' v.specification.code v.slug 'pii-zip' %}" download>as a .zip</a>: the vault tables, uploaded on their own page</li>{% endif %}
-    <li><a href="{% url 'specifications:fields' v.specification.code v.slug %}" download>Every field and rule (Excel workbook)</a></li>
+    <li><a href="{% url 'specifications:printable' v.specification.code v.slug %}" download>The whole specification as a document to read or print (accessible PDF)</a>: every table, field, rule, built-in check and value list, and what changed from the version before</li>
+    <li><a href="{% url 'specifications:fields' v.specification.code v.slug %}" download>Every field, rule and value list code, and the changes (Excel workbook)</a></li>
     <li><a href="{% url 'specifications:document' v.specification.code v.slug %}" download>The whole specification as data (JSON)</a>, with a JSON Schema for each table below and the same by the <a href="{% url 'specifications-api:version' v.specification.code v.slug %}">API</a></li>
     {% for e in v.examples.all %}<li>Example: {{ e.name }}{% if e.about %} ({{ e.about }}){% endif %}: <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'xlsx' %}" download>workbook</a> or <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'zip' %}" download>.zip</a></li>{% endfor %}
   </ul>
