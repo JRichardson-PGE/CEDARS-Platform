@@ -14,6 +14,7 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/template.<str:kind>", views.template, name="template"),
     path("<slug:code>/<slug:slug>/fields-and-rules.xlsx", views.fields, name="fields"),
     path("<slug:code>/<slug:slug>/specification.json", views.document, name="document"),
+    path("<slug:code>/<slug:slug>/specification.pdf", views.printable_pdf, name="printable"),
     path("<slug:code>/<slug:slug>/schema/<str:table>.json", views.schema, name="schema"),
     path("<slug:code>/<slug:slug>/examples/<slug:example>.<str:kind>", views.example, name="example"),
     # comments on a proposed version: anyone signed in while its comment period is open; CPUC staff answer

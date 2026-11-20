@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from cedars.core import nav
 from cedars.services.accounts.service import AccessDenied
 
-from . import comments, downloads, editor, forms, historic, service, transfer
+from . import comments, downloads, editor, forms, historic, printable, service, transfer
 from .models import SpecComment, Specification, SpecificationVersion
 
 
@@ -238,6 +238,13 @@ def document(request, code: str, slug: str):
     v = _version(request, code, slug)
     body = json.dumps(downloads.document(v, request.build_absolute_uri("/").rstrip("/")), indent=1, ensure_ascii=False)
     return _file(body.encode("utf-8"), f"{downloads.file_stem(v)}.json", "application/json")
+
+
+def printable_pdf(request, code: str, slug: str):
+    """The specification document: the whole version as an accessible (tagged PDF/UA-1) PDF to read, print or keep."""
+    v = _version(request, code, slug)
+    body = printable.pdf(v, base=request.build_absolute_uri("/").rstrip("/"))
+    return _file(body, f"{downloads.file_stem(v)}.pdf", "application/pdf")
 
 
 def schema(request, code: str, slug: str, table: str):

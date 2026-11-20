@@ -197,7 +197,7 @@ def test_the_fields_and_rules_workbook_lists_every_field_rule_and_check(client, 
     v = with_rules
     assert specifications.rules(v)
     book = load_workbook(io.BytesIO(client.get(f"/specifications/claims/{v.slug}/fields-and-rules.xlsx").content), read_only=True)
-    assert book.sheetnames == ["Tables", "Fields", "Rules", "Built-in checks", "Settings"]
+    assert book.sheetnames == ["Tables", "Fields", "Rules", "Built-in checks", "Settings", "Value lists", "Changes"]
     count = lambda s: sum(1 for r in book[s].iter_rows(min_row=2, values_only=True) if r[0])  # noqa: E731
     assert count("Tables") == v.tables.count()
     assert count("Fields") == sum(t.fields.count() for t in v.tables.all())

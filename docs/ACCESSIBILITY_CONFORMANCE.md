@@ -147,6 +147,26 @@ Every workbook is written by `cedars/core/workbooks.py`, so each is accessible t
 CSV and Parquet downloads are data formats with a header row and no presentation; the CSV's stamp lines start with `#`. Generated
 letters and pages (change letters, release notes, the limits page) are HTML pages and covered above.
 
+### Generated PDF documents
+
+The specification document (`specifications.printable.pdf`, the "accessible PDF" download on every filing specification version's
+page) is typeset by Typst to the PDF/UA-1 standard, and Typst refuses to write a file that would break it. The layout
+(`cedars/services/specifications/typst/specification.typ`) takes the version's words only as data, so a definition or rule never
+changes its structure. The documents of the starting versions, a version with the engine's claims rules and a legacy CEDARS layout
+pass veraPDF's PDF/UA-1 profile (checked when the document was built, November 2026); the tests check every version's document is
+tagged, titled, in en-US, declared PDF/UA-1 and passes the platform's own PDF check.
+
+| Criterion | How the generated PDF meets it |
+| --- | --- |
+| 1.1.1 Non-text Content | No pictures or charts: text and tables only |
+| 1.3.1 Info and Relationships | A tagged structure tree: headings at their levels, lists, and tables with header cells (each table's header row repeats on every page it runs onto) |
+| 1.3.2 Meaningful Sequence | One column; the tagged reading order is the order on the page; page footers are marked as artifacts |
+| 1.4.3 Contrast | Black text on white; header rows on a light gray-blue fill (over 15:1); links dark blue (8:1) |
+| 2.4.2 Page Titled | The document title (the specification and version) is set and shown as the window title |
+| 2.4.5 Multiple Ways | A contents list and bookmarks for every section and table |
+| 2.4.6 Headings and Labels | Headings name the section, table or value list |
+| 3.1.1 Language | The document language is en-US |
+
 ### Files people upload
 
 PDFs and workbooks stored as a document's file, or attached to a public comment on a document or to a comment on a filing, are checked

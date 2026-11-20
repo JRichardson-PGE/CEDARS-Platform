@@ -10,8 +10,11 @@ tables, the fields of each, which are required, each field's type, value list an
 built-in checks. The CPUC publishes each specification in named versions, and each filing on the calendar is set up with one: its
 upload page links the version under "Before you upload", and its findings name the version the file was checked under.</p>
 <ul class="links">
-  <li>Download a version's upload template (a workbook, or a .zip of pipe-delimited files), every field and rule as a workbook, or the
-  whole version as JSON with a JSON Schema for each table. Systems can read the same JSON from the API at
+  <li>Download a version's upload template (a workbook, or a .zip of pipe-delimited files), the whole version as a document to read,
+  print or keep (an accessible PDF with every table, field, rule, built-in check and value list code, and what changed from the
+  version before), every field, rule and value list code as a workbook, or the whole version as JSON with a JSON Schema for each
+  table. The document and the workbook list the value lists' codes as they stand on the day you download them: value lists change on
+  their own dates. Systems can read the same JSON from the API at
   <code>/api/v1/specifications/</code>.</li>
   <li><a href="{% url 'specifications:compare' %}">Compare two versions</a> to see the tables, fields, rules and checks that changed.</li>
   <li>A filing keeps the version it was set up with when a newer one is published; a later filing set takes the newer one.</li>
