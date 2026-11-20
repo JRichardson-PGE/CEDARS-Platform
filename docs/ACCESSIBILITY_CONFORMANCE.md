@@ -13,7 +13,7 @@ they contradict.
 | | |
 | --- | --- |
 | Product | CEDARS platform (this repository), every page in `tests/a11y/pages.py` and every file it generates |
-| Version | `cedars.__version__` 0.2.0 and later, as of 2026-11-01 |
+| Version | `cedars.__version__` 0.2.0 and later, as of 2026-11-20 |
 | Standard | WCAG 2.2, Levels A and AA (55 success criteria; 4.1.1 Parsing is obsolete in 2.2 and not listed) |
 | Methods | axe-core 4.10.2 in Chromium on every listed page in both color schemes (CI, every pull request); Playwright tests for reflow, focus, the sticky header, the tour, help dialogs and markup axe does not check; the document accessibility check on every generated workbook (unit tests); design rules enforced by tests (`test_page_help.py`, `test_us_spelling.py`, `test_page_patterns.py`, `test_form_fields.py`); the ReCET NVDA walk-through for the templates the platform reuses |
 | Not yet done | an NVDA (or JAWS) walk-through of the platform's own pages, a manual audit by someone other than the builders, VoiceOver on iOS and macOS |
@@ -27,11 +27,11 @@ they contradict.
   in CI), *rule* (a design rule in `DESIGN.md` / `CLAUDE.md` that review enforces, without an automated check), *ReCET NVDA* (the
   walk-through in ReCET `tests/screenreader`, NVDA 2026.2 with Chrome, 2026-10-29, on the templates and scripts this platform took over).
 
-## Evidence in numbers (2026-11-01)
+## Evidence in numbers (2026-11-20)
 
-- 305 page states in `tests/a11y/pages.py` (signed out, a second-factor set-up, and eight people: a CPUC system administrator, a CPUC
+- 533 page states in `tests/a11y/pages.py` (signed out, a second-factor set-up, and eight people: a CPUC system administrator, a CPUC
   approver, a PG&E administrator, analyst and PII filer, a measure developer, an SCE member and a community member), each checked by axe with the WCAG 2.0, 2.1 and 2.2 A and AA rules in the light
-  and the dark scheme: 610 axe runs, none with a violation, with every disclosure on the page opened and each header menu opened in turn.
+  and the dark scheme: 1,066 axe runs, none with a violation, with every disclosure on the page opened and each header menu opened in turn.
 - Each of those pages at 320 px wide with no sideways scroll, no id used twice, every checkbox and radio at least 24 x 24 px, every
   `summary` at least 24 px tall, every table with a caption, no label ending in a colon.
 - The sticky header never hides the focused element (Shift+Tab back up long pages, each link scrolled into view from below) and scrolls
