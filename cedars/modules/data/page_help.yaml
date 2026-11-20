@@ -34,14 +34,17 @@ data/dashboard: &dashboard
     - Every number is summed from the published records, and every row links to the records behind it, so you can download exactly what
       a row adds up.
   how: &dashboard_how
-    - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
-      then Apply.
+    - Read the sentence under the totals first; it says what the numbers show. The line above it sums up the view (years, series,
+      metric, grouping, basis, the forecast's filing and what is left out). Under the totals, "What is ...?" explains the metric.
+    - To change the view, open Change view and choose the series (forecast, claims and, where there are any, monthly reports), the
+      years, the metric and how to view the rows, then Apply.
     - Narrow to PAs, sectors, programs or measures under Filters. Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs)
       or single PAs inside one. Statewide programs count under the PAs that fund them; the records page has them on their own. Applied
       filters show as chips; Remove takes one off. Pick programs from the list under Program (type a PrgID or part of a name).
-    - Point at a chart's row to see its values. With the keyboard, Tab to the chart and use the up and down arrow keys; Escape hides
-      the values. The table under each chart lists them all.
-    - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
+    - Each chart's rows carry their values and the share claimed beside the bars. Point at a row for the full numbers; with the
+      keyboard, Tab to the chart and use the up and down arrow keys, and Escape hides them. The table under each chart lists them all.
+    - Select a section's heading (Change view, Chart, Table) to open it or fold it away. This browser remembers a folded chart or
+      table.
     - Select a row's name to drill down one level; Program page opens the program.
     - Download these rows gives the rows you see as CSV, Excel or Parquet, forecast and claimed together in one file when both are
       shown; Download the records behind these rows gives the measure-level records they add up, one download per series.
@@ -50,21 +53,29 @@ data/dashboard: &dashboard
     - target: main nav.subnav
       title: The dashboard's pages
       text: Each page looks at the same published data another way. Your years and filters go with you from page to page.
+    - target: section.view-summary
+      title: This view
+      text: The years, series, metric, grouping, basis, the forecast's filing and what is left out, in one line.
     - target: form.dash-controls
-      title: What to show
+      title: Change view
       text: The series, the filing a forecast comes from, the years, the metric and how to break the rows down. Choose, then Apply.
-        Select Filters and view to fold these away; the page remembers it, as it does for each chart and table.
+        The controls stay folded under Change view until you open them.
     - target: details.dash-filters
       title: Filters
       text: Narrow to PAs (or every PA of a type), sectors, programs or measures. The count says how many are applied.
+    - target: p.lede
+      title: What it shows
+      text: One sentence with the result, made from the rows below. Later sections say their own under their headings.
+      optional: true
     - target: dl.tiles
       title: The totals
-      text: The totals of the rows below for each series, and the share of the forecast claimed so far.
+      text: The totals of the rows below for each series, and the share of the forecast claimed so far. The line under each says
+        what the number is.
       optional: true
     - target: main .chart, main svg[role=img]
       title: The chart
-      text: The same numbers as the table under it. Point at a row, or Tab to the chart and use the arrow keys, to see its values. The
-        table is the full record; the chart is for the shape.
+      text: The same numbers as the table under it, each row's values printed beside its bars. Point at a row, or Tab to the chart
+        and use the arrow keys, for the full numbers. The table is the full record; the chart is for the shape.
       optional: true
     - target: main table.data, main table.list
       title: The rows

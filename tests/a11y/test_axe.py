@@ -2567,23 +2567,27 @@ def test_dashboard_chart_values_on_keyboard_and_pointer(browser, axe_source, sit
 
 
 def test_dashboard_sections_fold_and_stay_folded(browser, site, scene):
+    """Charts and tables start open and stay folded once folded; Change view starts folded on every page (the view is summed up in one
+    line above it), opens by pointer or keyboard, and is not remembered."""
     context, page = _open(browser, site, scene, CHART_PAGE, None, viewport={"width": 1280, "height": 900})
-    parts = page.locator("details.dash-part")
-    assert parts.count() >= 3 and all(parts.nth(i).evaluate("d => d.open") for i in range(parts.count()))
-    page.locator("details[data-part='filters'] > summary").click()
-    page.locator("details[data-part$=':chart'] > summary").first.focus()
+    parts = page.locator("details.dash-part:not([data-part='filters'])")
+    assert parts.count() >= 2 and all(parts.nth(i).evaluate("d => d.open") for i in range(parts.count()))
+    filters = page.locator("details[data-part='filters']")
+    assert not filters.evaluate("d => d.open") and page.locator("section.view-summary li").count() >= 5
+    filters.locator("> summary").focus()
     page.keyboard.press("Enter")  # by keyboard as well as by pointer
+    assert filters.evaluate("d => d.open") and page.locator("form.dash-controls").is_visible()
+    page.locator("details[data-part$=':chart'] > summary").first.click()
     page.reload()
     assert not page.locator("details[data-part='filters']").evaluate("d => d.open")
     assert not page.locator("details[data-part$=':chart']").first.evaluate("d => d.open")
     assert page.locator("details[data-part$=':table']").first.evaluate("d => d.open")
-    # the filters stay folded on the dashboard's other pages; a chart's state is its own page's
+    # a chart's state is its own page's
     page.goto(site.url + "/data/total-system-benefit/")
     assert not page.locator("details[data-part='filters']").evaluate("d => d.open")
     assert page.locator("details[data-part$=':chart']").first.evaluate("d => d.open")
-    page.goto(site.url + CHART_PAGE)
-    page.locator("details[data-part='filters'] > summary").click()
-    page.reload()
+    # a view that could not be shown keeps its controls open
+    page.goto(site.url + "/data/overview/?by=colour")
     assert page.locator("details[data-part='filters']").evaluate("d => d.open")
     context.close()
 
@@ -2619,7 +2623,7 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     """The PA picker (Jake, 2026-11-02): closed it names what it keeps; open, All PAs and each PA type are tri-state boxes over their
     PAs, every level shows and hides with a button, Escape closes it, and a whole type goes to the server as its pa_type."""
     context, page = _open(browser, site, scene, "/data/overview/?series=forecast", None)
-    page.evaluate("document.querySelectorAll('details.dash-filters').forEach(d => d.open = true)")
+    page.evaluate("document.querySelectorAll('details.dash-filters, details[data-part=filters]').forEach(d => d.open = true)")
     summary = page.locator(".pa-menu > summary")
     assert summary.inner_text().endswith("All PAs")  # no statewide programs choice on a dashboard (Jake, 2026-11-02)
     assert page.locator("[data-pa-statewide]").count() == 0

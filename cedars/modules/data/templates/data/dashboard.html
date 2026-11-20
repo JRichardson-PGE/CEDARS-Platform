@@ -12,8 +12,13 @@
 
 {% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:dashboard' page.slug %}">Start again</a></p>{% endif %}
 
-<details class="section dash-part" open data-part="filters"{% if error %} data-keep-open{% endif %}>
-<summary><h2>Filters and view</h2>{% if applied %}<span class="count">{{ applied|length }} filter{{ applied|length|pluralize }} applied</span>{% endif %}</summary>
+<section class="view-summary" aria-labelledby="view-summary-heading">
+  <h2 id="view-summary-heading" class="sr-only">This view</h2>
+  <ul class="view-chips">{% for what, value in view_summary %}<li>{{ what }}: <strong>{{ value }}</strong></li>{% endfor %}</ul>
+</section>
+{# The controls are folded away once the view is summed up above; a view that could not be shown keeps them open. #}
+<details class="section dash-part" data-part="filters"{% if error %} open data-keep-open{% endif %}>
+<summary><h2>Change view</h2>{% if applied %}<span class="count">{{ applied|length }} filter{{ applied|length|pluralize }} applied</span>{% endif %}</summary>
 <div class="section-body">
 <form method="get" class="filters dash-controls" aria-label="View controls">
   <fieldset>
@@ -85,12 +90,17 @@
 {% endif %}
 
 {% if first %}
+{% if lede %}<p class="lede takeaway">{{ lede }}</p>{% endif %}
 {% if as_of %}<p class="small muted">{% for name, when in as_of %}{{ name }} data {% if when %}as of {{ when|datetime_words }}{% else %}not published yet{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
 {% if totals %}<dl class="tiles">
-  {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ totals.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
-  {% if totals.both and metric.adds_up %}<div class="tile"><dt>% of forecast</dt><dd>{{ totals.totals.percent|percent }}</dd></div>{% endif %}
+  {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd class="tile-value">{{ totals.totals.values|get_item:s|short:metric }}</dd><dd class="tile-note">{{ tile_notes|get_item:s }}</dd></div>{% endfor %}
+  {% if totals.both and metric.adds_up %}<div class="tile"><dt>% of forecast</dt><dd class="tile-value">{{ totals.totals.percent|percent }}</dd><dd class="tile-note">{{ tile_notes.percent }}</dd></div>{% endif %}
 </dl>{% if totals.percent_note %}<p class="small">{{ totals.percent_note }}</p>{% endif %}{% endif %}
-{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if notes or claims_shown %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}{% if claims_shown %}<li>Claims are shown as the PAs filed them (ex ante), before evaluation.</li>{% endif %}</ul>{% endif %}
+<details class="metric-about">
+  <summary>{{ metric_question }}</summary>
+  <p>{% if metric_about %}{{ metric_about }} {% endif %}{{ metric.definition }} <a href="{% url 'data:metrics_csv' %}">Every metric's definition (CSV)</a></p>
+</details>
 
 {# The forecast bars' hatch pattern, defined once for every chart on the page (a pattern id must be unique on the page). #}
 <svg class="chart-defs" width="0" height="0" aria-hidden="true" focusable="false">
@@ -98,6 +108,7 @@
 </svg>
 {% for b in blocks %}
 <h2>{{ b.caption|capfirst }}</h2>
+{% if not forloop.first and b.takeaway %}<p class="takeaway">{{ b.takeaway }}</p>{% endif %}
 {% if b.chart %}{% with key=page.slug|add:":"|add:b.part|add:":chart" %}<details class="section dash-part" open data-part="{{ key }}">
 <summary><h3>Chart</h3><span class="sr-only">: {{ b.caption }}</span></summary>
 <div class="section-body">{% include "data/_chart.html" with chart=b.chart caption=b.caption %}</div>

@@ -4,9 +4,9 @@
 //    chart is a group with one tab stop: the up and down arrow keys (Home, End) move through its rows, and the row with the focus, or the
 //    row under the pointer, shows its values beside it (1.4.13: the values stay while the pointer is over them, and Escape hides them).
 //    Each row's values are the same text a screen reader reads when the row takes the focus, so nothing is shown that is not also said.
-// 2. Sections that fold away (native <details>: Filters and view, each chart and each table). Whether each is open is remembered in this
-//    browser: the filters for every dashboard page, a chart or table for its own page and place on it. Storage that is blocked or cleared
-//    simply leaves every section open.
+// 2. Sections that fold away (native <details>: Change view, each chart and each table). A folded chart or table is remembered in this
+//    browser for its own page and place on it; Change view starts folded on every page (the view is summed up above it). Storage that is
+//    blocked or cleared simply leaves every chart and table open.
 (function () {
   "use strict";
 
@@ -18,6 +18,7 @@
 
   document.querySelectorAll("details.dash-part[data-part]").forEach(function (d) {
     var key = d.getAttribute("data-part");
+    if (key === "filters") return;   // Change view starts folded on every page, whatever was remembered before
     // A view that could not be shown keeps its controls open, whatever was remembered, so the way back is in sight.
     if (key in saved && !d.hasAttribute("data-keep-open")) d.open = saved[key];
     d.addEventListener("toggle", function () {

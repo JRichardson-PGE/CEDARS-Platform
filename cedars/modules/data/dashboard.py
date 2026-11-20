@@ -535,7 +535,8 @@ def chart(comparison: Comparison, limit: int = 0) -> dict:
                 continue
             x = 100 * (min(v, 0) - low) / span
             bars.append({"series": s, "x": round(x, 3), "w": round(100 * abs(v) / span, 3), "y": 14 * i, "missing": False, "value": v})
-        groups.append({"label": code_label(r.key), "bars": bars})
+        percent = r.percent if comparison.both and comparison.view.metric.adds_up else None
+        groups.append({"label": code_label(r.key), "bars": bars, "percent": percent})
     return {
         "series": [{"code": s, "label": SERIES[s][0]} for s in series],
         "groups": groups,
@@ -557,4 +558,19 @@ def describe(chart: dict, fmt) -> dict:
         if chart.get("goal") and g.get("goal_value") is not None:
             tip.append(("goal", chart["goal"], fmt(g["goal_value"])))
         g["tip"] = tip
+    return chart
+
+
+def label_values(chart: dict, short) -> dict:
+    """Print each group's values beside its bars (`shown`: series code, label, value written short by `short`), and the share claimed:
+    of the forecast on a comparison, else of the marker (the goal, the operating budget). Read at a glance, without pointing at a row;
+    the hover values (`describe`) keep the full numbers."""
+    marker = (chart.get("goal") or "").lower()
+    for g in chart["groups"]:
+        g["shown"] = [(b["series"], label, short(b["value"])) for b in g["bars"] if not b["missing"] for label in [SERIES[b["series"]][0]]]
+        claimed = next((b["value"] for b in g["bars"] if b["series"] == "claims" and not b["missing"]), None)
+        if g.get("percent") is not None:
+            g["share"] = f"{g['percent']:,.0f}% of forecast"
+        elif marker and claimed is not None and g.get("goal_value"):
+            g["share"] = f"{100 * claimed / g['goal_value']:,.0f}% of {marker}"
     return chart
