@@ -60,8 +60,8 @@ topics:
         a:
           - >-
             Make an API token on your account page for one organization and the modules it may use; it can do no more than you can.
-            Send it with every call as an Authorization header. Calls are counted per person: {limit:api_rate_user} with a token
-            and {limit:api_rate_anon} without one. Over the limit a call gets 429 Too Many Requests and a Retry-After header saying
+            Send it with every call as an Authorization header. Calls are counted per person with a token, up to
+            {limit:api_rate_user}, and per address without one, up to {limit:api_rate_anon}. Over the limit a call gets 429 Too Many Requests and a Retry-After header saying
             how many seconds to wait. A token lasts at most {limit:api_token_days}.
         tags: [api, token, rate limit, 429, retry-after, automation, integration]
         guide: getting-started
@@ -160,7 +160,8 @@ topics:
         a:
           - >-
             Before the due date you can un-confirm and upload again. After it, choose Ask to reopen on the filing's page and say why;
-            a CPUC approver decides. Approved, the correction is a new version: the version you correct stays as it was confirmed,
+            a CPUC approver decides. (That is the usual rule: the CPUC can set a module so that a correction opens at once, with
+            a reason, or not at all.) Approved, the correction is a new version: the version you correct stays as it was confirmed,
             and the new one is published with a change letter saying what changed. Subscribers to the PA and followers of the
             programs it changed are told.
         tags: [reopen, correction, refile, change letter, version, un-confirm]

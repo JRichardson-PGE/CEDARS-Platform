@@ -38,8 +38,8 @@ makes a CPUC administrator: system administrator, data steward and every permiss
 
 ## Calculations locally
 
-Runs are priced by the ReCET worker (`recet worker run`), which the platform starts as its own process. (The Results, Compare, Edit inputs and
-Walk through a measure pages do call the engine's code, installed unchanged in the web image: `engine/README.md`.) With the engine installed
+Runs are priced by the ReCET worker (`recet worker run`), which the platform starts as its own process. (Several pages, such as Results, Edit inputs
+and the filing checks, call the engine's code, installed unchanged in the web image: `docs/ARCHITECTURE_AS_BUILT.md` section 10.4.) With the engine installed
 (`engine/README.md`), add a release on the Engine releases page (CPUC system administrator), start a run on New run, and price queued
 runs with:
 
