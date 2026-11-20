@@ -8,7 +8,8 @@
 administrators change these on the program's change form, which offers only the values listed here; a retired value stays on the
 versions that have it.</p>
 
-<nav aria-labelledby="toc-h" class="toc">
+<div class="has-side-toc">
+<nav aria-labelledby="toc-h" class="toc side-toc">
 <h2 id="toc-h">Fields</h2>
 <ul class="links">{% for f in fields %}<li><a href="#{{ f.entry.anchor }}">{{ f.entry.label }}</a></li>{% endfor %}</ul>
 </nav>
@@ -48,4 +49,5 @@ versions that have it.</p>
 {% else %}<p>{{ f.entry.values_note|default:"Any text." }}</p>{% endif %}
 </section>
 {% endfor %}
+</div>
 {% endblock %}

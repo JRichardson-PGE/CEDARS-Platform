@@ -310,10 +310,27 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .engine-doc thead th { background: var(--surface-2); }
 .engine-doc pre { margin: 0; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
 .doc-toc { margin: 1rem 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 0 1rem; }
-.doc-toc > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.doc-toc > summary { cursor: pointer; min-height: 44px; display: list-item; padding: .65rem 0; box-sizing: border-box; font-weight: 600; }   /* list-item keeps the disclosure arrow, so it reads as something to open */
 .doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
 .doc-toc li { margin: .3rem 0; }
 .doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+/* Long reference pages (program fields, a specification version, built-in checks, the engine's documents): the contents sit in a
+   column of their own beside the text on a wide screen and stay in view while it scrolls, below the sticky header. Narrower, they come
+   first as before. .side-toc-only shows only in the side column (the engine documents keep their closed box above the text when narrow). */
+.side-toc-only { display: none; }
+@media (min-width: 75rem) {
+  .has-side-toc { display: grid; grid-template-columns: 17rem minmax(0, 1fr); column-gap: 2.5rem; align-items: start; }
+  .has-side-toc > * { grid-column: 2; min-width: 0; }
+  .has-side-toc > .side-toc { grid-column: 1; grid-row: 1 / span 500; position: sticky; top: calc(var(--header-h, 6rem) + .75rem);
+    max-height: calc(100vh - var(--header-h, 6rem) - 1.5rem); overflow-y: auto; margin: 0; padding: .25rem .75rem .5rem 0; font-size: .92rem; }
+  .has-side-toc > .side-toc h2 { font-size: 1rem; margin: .25rem 0 .4rem; }
+  .has-side-toc > .side-toc ul { margin: 0; padding-left: 0; list-style: none; }
+  .has-side-toc > .side-toc ul ul { padding-left: .9rem; }
+  .has-side-toc > .side-toc li { margin: .25rem 0; }
+  .has-side-toc > .side-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }
+  .side-toc-only { display: block; }
+  .has-side-toc > .doc-toc { display: none; }
+}
 #input-templates li { overflow-wrap: anywhere; }   /* template file names (template_electric_8760_profiles.csv) wrap at 320 px */
 .engine-doc { overflow-wrap: break-word; }
 .engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }

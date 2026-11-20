@@ -113,7 +113,8 @@
   {% if in_use %}<ul class="compact">{% for d in in_use %}<li>{{ d.plain_name }}</li>{% endfor %}</ul>{% else %}<p>No filing on the calendar uses this version.</p>{% endif %}{% endif %}
 </section>
 
-<nav aria-labelledby="tables-h" class="contents">
+<div class="has-side-toc">
+<nav aria-labelledby="tables-h" class="contents side-toc">
   <h2 id="tables-h">Tables</h2>
   <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}
     {% if not v.historic %}<li><a href="#checks-h">Built-in checks</a></li>{% endif %}</ul>
@@ -170,4 +171,5 @@
   {% empty %}<p>No built-in checks.</p>
   {% endfor %}
 </section>{% endif %}
+</div>
 {% endblock %}

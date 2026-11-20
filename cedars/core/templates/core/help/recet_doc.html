@@ -7,7 +7,13 @@
 <p class="small muted">ReCET's own document, from ReCET {{ engine.version }} (commit <span class="mono">{{ engine.short }}</span>), the
 engine version CEDARS runs. Where it describes ReCET's own web site or desktop window, the CEDARS Calculations pages do the same things but
 may look different. <a href="{{ source }}">This document on GitHub</a>.</p>
+<div class="has-side-toc">
 {% if page.toc %}
+<nav aria-labelledby="side-toc-h" class="side-toc side-toc-only">
+  <h2 id="side-toc-h">On this page</h2>
+  <ul>{% for h in page.toc %}<li><a href="#{{ h.id }}">{{ h.name }}</a>{% if h.children %}
+    <ul>{% for c in h.children %}<li><a href="#{{ c.id }}">{{ c.name }}</a></li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>
+</nav>
 <details class="doc-toc">
   <summary>On this page</summary>
   <nav aria-label="On this page">
@@ -18,6 +24,7 @@ may look different. <a href="{{ source }}">This document on GitHub</a>.</p>
 {% endif %}
 <div class="engine-doc">
 {{ page.html|safe }}
+</div>
 </div>
 <h2>Other ReCET documents</h2>
 <ul class="links">
