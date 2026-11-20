@@ -125,5 +125,3 @@ A page names a thing in words, never by its code, and each kind of thing has one
 | a data pack check | `refdata.models.check_words` | "Matches the published workbook"; the checks page keeps its name (source_workbook) in small type for scripts |
 | a link into the engine's documents | `core.engine_docs.reference` | "1.3 Keys that select prices, profiles and rates, in the engine's Input fields", linked to that section |
 | a renamed field in a finding | `rules.canonical_text` | "AC_Elec_Impact_Profile (E3MeaElecEndUseShape)" |
-
-From the UI review of 2026-10-30, still planned: a `/ui/` gallery page that the axe suite visits.

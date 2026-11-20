@@ -1197,7 +1197,33 @@ Budgets, claims and monthly reports share one state machine in `cedars.services.
 module on a reporting period or a filing cycle; an organization's filing for it is a **submission**, whose **versions** carry the
 files, findings, the pricing run and the packs it was priced with.
 
-**Which specification.** Each deadline names the filing specification version its filings use (`Deadline.specification_version`), pinned when the deadline is put on the calendar (the current version of its module's specification, `specifications.for_new_deadline`); a legacy CEDARS year imported as published names none, and neither does the 13th-month report, which is generated. Each validated version records the version it was checked against (`SubmissionVersion.specification_version`, beside `rule_set`). **Filings read their version** for how they are checked and priced, on any date, corrections and re-checks included (`specifications.of_filing`: the deadline's version, else, for a deadline pinned to none, its module's current one): the rule set (`rule_set_of`: the one the version names; a version that takes rules but names no rule set, because none of its code was published when it was made, as in a new environment, takes the one of that code in force), the engine release (`engine_release_of`; blank: the default release) and the cost-test set (`cost_test_set_of`; blank: the filing set's, else the set in force for the program year). The submissions service's `price` hands the version's release and set to the pricer, so the Calculations module prices on a named release only while it is active, offers ReCET's own calculation and has the filing's ACC (otherwise the refusal goes to the CPUC's administrators as for the default release), and a release that an in-use version names cannot be retired (`specifications.naming_release`). So do the tables and their fields (`specifications.layout_for_filing`, a `VersionLayout`: each table's names an upload may give it, keys, how a later upload replaces records, whether it is a vault table, the columns an upload is refused without, and each field's other accepted names, requirement, type and length): the claims module reads its tables, columns, keys, the tables replaced by claim and the columns CEDARS fills in from it (`claims/spec.py`, `Layout`), so its uploads, compiled tables, field checks, corrections and record pages follow the filing's version; the PII vault reads the vault tables of the claims filing's version; budget filings and monthly reports read the columns an upload is refused without (their tables are the engine's Measure and ProgramCost inputs, and Commitments). The modules hold no layout of their own: a database with no version of a specification (one emptied and not loaded again) reads the starting version as the platform ships it (`starting/<code>.json`). Each module's template link (`/claims/template.xlsx`, `/budgets/...`, `/monthly/...`) leads to the version's own template download, the filing's version when the upload form names the filing (`?filing=`). A rule set published on the rule pages reaches filings once a specification version names it. Each filing page links its deadline's version from the upload's "Before you upload" line, and its findings name the version they were checked under.
+**Which specification.** Filings read their specification version for how they are checked and priced, on any date, corrections and
+re-checks included:
+
+1. **The pin.** Each deadline names the version its filings use (`Deadline.specification_version`), pinned when the deadline is put on
+   the calendar (the current version of its module's specification, `specifications.for_new_deadline`); a legacy CEDARS year imported as
+   published names none, and neither does the 13th-month report, which is generated. Each validated version records the version it was
+   checked against (`SubmissionVersion.specification_version`, beside `rule_set`). `specifications.of_filing` gives a filing's version:
+   the deadline's, else, for a deadline pinned to none, its module's current one.
+2. **Rules.** `rule_set_of` gives the rule set the version names; a version that takes rules but names no rule set, because none of its
+   code was published when it was made, as in a new environment, takes the one of that code in force. A rule set published on the rule
+   pages reaches filings once a specification version names it.
+3. **Pricing.** `engine_release_of` gives the engine release (blank: the default release) and `cost_test_set_of` the cost-test set (blank:
+   the filing set's, else the set in force for the program year). The submissions service's `price` hands both to the pricer, so the
+   Calculations module prices on a named release only while it is active, offers ReCET's own calculation and has the filing's ACC
+   (otherwise the refusal goes to the CPUC's administrators as for the default release), and a release that an in-use version names
+   cannot be retired (`specifications.naming_release`).
+4. **Tables and fields.** `specifications.layout_for_filing` gives a `VersionLayout`: each table's names an upload may give it, keys, how
+   a later upload replaces records, whether it is a vault table, the columns an upload is refused without, and each field's other
+   accepted names, requirement, type and length. The claims module reads its tables, columns, keys, the tables replaced by claim and the
+   columns CEDARS fills in from it (`claims/spec.py`, `Layout`), so its uploads, compiled tables, field checks, corrections and record
+   pages follow the filing's version; the PII vault reads the vault tables of the claims filing's version; budget filings and monthly
+   reports read the columns an upload is refused without (their tables are the engine's Measure and ProgramCost inputs, and
+   Commitments). The modules hold no layout of their own: a database with no version of a specification (one emptied and not loaded
+   again) reads the starting version as the platform ships it (`starting/<code>.json`).
+5. **What filers see.** Each module's template link (`/claims/template.xlsx`, `/budgets/...`, `/monthly/...`) leads to the version's own
+   template download, the filing's version when the upload form names the filing (`?filing=`). Each filing page links its deadline's
+   version from the upload's "Before you upload" line, and its findings name the version they were checked under.
 
 **Rules run by the filing's engine release.** A filing's rules are run by the worker of the engine release its specification version
 names, as its pricing is, so upgrading the website's own copy of the engine never changes a filing's findings
@@ -2250,14 +2276,14 @@ role or permission, a new setting that changes behavior, a new process or schedu
 ## 17. Each part in detail
 
 Where each part lives, the build phase it belongs to and what of it is built, and the choices made in code that the sections above
-summarize. A pull request that builds part of a service or module updates its row here.
+summarize. A pull request that builds part of a service or module updates its subsection here.
 
 ### 17.1 Layout
 
 | Path | What |
 | --- | --- |
 | `cedars/settings/` | `base` (shared), `dev`, `test`, `sandbox`, `prod`; everything machine-specific from environment variables |
-| `cedars/core/` | Base templates, the page-wide announcer, security headers, health check, the About page, Help (`help.py`: user guides under `templates/core/help/`, support and feedback from `CEDARS_SUPPORT_EMAIL` / `CEDARS_FEEDBACK_URL`, the guided tour's steps and `static/core/tour.js`), ReCET's own documents (`engine_docs.py`: `/calculations/engine-docs/` and `/calculations/engine-docs/<document>/`, public, under the Calculations menu; the old `/help/recet/` addresses redirect; the pinned engine's `recet/docs/*.md` copied unchanged into `data/recet_docs/` by `scripts/export_recet_docs.py` with a manifest of the engine version, commit and SHA-256s, rendered with ReCET's own Python-Markdown extensions so the anchors match; its Mermaid diagrams drawn as SVG by the export (the engine's own Mermaid in Chromium) and shown as images with their text; links between them stay here and other links go to GitHub at the pin; `tests/test_engine_docs.py` checks the copies are the pinned engine's), and help for each page (`page_help.py`, a (?) beside every page's heading, `{% page_help %}`, opens a guide to the page and a tour of it; the content is data in each app's `page_help.yaml`, keyed by template; `/help/pages/` lists every page's help and `/help/pages/<key>/` is the same help written out, for use without scripts; tests check every heading has its help and every tour step not marked optional finds its part of each page, and walk every page's tour as each kind of user: signed out, CPUC system administrator and approver, IOU, REN and CCA filers made with `manage.py demo_account`, an organization administrator, an analyst and a member of no organization, measuring what each step shows (its spotlight, one box laid over the page that outlines the part and dims the rest, covers the part, a heading's with what it heads, in the window below the sticky header and clear of the tour dialog); a step whose part is folded in a closed disclosure opens it while it is shown; a page's tour does not point at its own (?), which the front page's tour teaches once). `/` is the front page, `cedars.modules.data.front`. Site search (`search.py`, `/search/`): the box in the header's identity bar on every page (role=search, labeled "Search CEDARS") finds, in one server-rendered list, the header's pages (`search.PAGES`, listed only to the visitors the header shows them to; a test checks every header and footer link is there and every public one opens signed out), the user guides, each page's help and the FAQ, glossary terms (read from the glossary template) and PA codes, programs (the catalog's search), data dictionary fields (the dictionary's search, retired fields left out) and documents (the library's search, so unpublished ones only for those who may read them); nothing is indexed, each part shows its best `PER_PART` matches and links to its own page's search for the rest |
+| `cedars/core/` | The site shell (the list below the table) |
 | `cedars/services/` | One app per shared service |
 | `cedars/modules/` | One app per module |
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |
@@ -2266,43 +2292,1053 @@ summarize. A pull request that builds part of a service or module updates its ro
 | `infra/terraform/` | The AWS stack per environment (sandbox, staging, production): written and validated in CI, applied only by the CPUC's cloud team (`infra/terraform/README.md`) |
 | `scripts/` | One-off tools (the catalog export) |
 
+`cedars/core/` holds:
+
+- Base templates, the page-wide announcer, security headers, health check, the About page.
+- Help (`help.py`: user guides under `templates/core/help/`, support and feedback from `CEDARS_SUPPORT_EMAIL` / `CEDARS_FEEDBACK_URL`, the
+  guided tour's steps and `static/core/tour.js`).
+- ReCET's own documents (`engine_docs.py`: `/calculations/engine-docs/` and `/calculations/engine-docs/<document>/`, public, under the
+  Calculations menu; the old `/help/recet/` addresses redirect; the pinned engine's `recet/docs/*.md` copied unchanged into
+  `data/recet_docs/` by `scripts/export_recet_docs.py` with a manifest of the engine version, commit and SHA-256s, rendered with ReCET's
+  own Python-Markdown extensions so the anchors match; its Mermaid diagrams drawn as SVG by the export (the engine's own Mermaid in
+  Chromium) and shown as images with their text; links between them stay here and other links go to GitHub at the pin;
+  `tests/test_engine_docs.py` checks the copies are the pinned engine's).
+- Help for each page (`page_help.py`, a (?) beside every page's heading, `{% page_help %}`, opens a guide to the page and a tour of it;
+  the content is data in each app's `page_help.yaml`, keyed by template; `/help/pages/` lists every page's help and `/help/pages/<key>/`
+  is the same help written out, for use without scripts; tests check every heading has its help and every tour step not marked optional
+  finds its part of each page, and walk every page's tour as each kind of user: signed out, CPUC system administrator and approver, IOU,
+  REN and CCA filers made with `manage.py demo_account`, an organization administrator, an analyst and a member of no organization,
+  measuring what each step shows (its spotlight, one box laid over the page that outlines the part and dims the rest, covers the part, a
+  heading's with what it heads, in the window below the sticky header and clear of the tour dialog); a step whose part is folded in a
+  closed disclosure opens it while it is shown; a page's tour does not point at its own (?), which the front page's tour teaches once).
+- `/` is the front page, `cedars.modules.data.front`.
+- Site search (`search.py`, `/search/`): the box in the header's identity bar on every page (role=search, labeled "Search CEDARS") finds,
+  in one server-rendered list, the header's pages (`search.PAGES`, listed only to the visitors the header shows them to; a test checks
+  every header and footer link is there and every public one opens signed out), the user guides, each page's help and the FAQ, glossary
+  terms (read from the glossary template) and PA codes, programs (the catalog's search), data dictionary fields (the dictionary's search,
+  retired fields left out) and documents (the library's search, so unpublished ones only for those who may read them).
+- Nothing is indexed, each part shows its best `PER_PART` matches and links to its own page's search for the rest.
+
 ### 17.2 Shared services
 
-| Service | App | Phase | What is built |
-| --- | --- | --- | --- |
-| Identity and access (organizations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job, API tokens (`tokens.py`, `api_auth.TokenAuthentication`); each program administrator typed IOU, REN or CCA (CEDARS' codes typed on creation from `KNOWN_PA_TYPES`, others by a system administrator on the organization page, audited), which the Data module's `pa_type` dimension reads so dashboards and record downloads select a whole group of PAs, or view by PA type; `pa_picker` builds the one PA filter those pages and the Programs catalog share (`core/_pa_picker.html`: All PAs > IOUs / RENs / CCAs > their PAs, statewide programs beside it, tri-state boxes with a script, plain ones without); organization codes with their history (`OrganisationCode`, migration 0004): a rename keeps the organization's identity and closes its old code on a date (EBCE until 2023, AVA from 2024, from CEDARS' changelog, applied by the migration and kept in `KNOWN_RENAMES`), a code stays with one organization for good (PostgreSQL exclusion constraints), a former code can be recorded, and the same party added twice is merged (`successor`: the old organization keeps its own records and counts under the new). Data keeps codes as filed; `code_map` / `by_code` read any code as its party's current one, so the dashboards' PA dimension, PA filters, goal counting rules, the Spending view, record downloads (`CountedPA` beside the filed `CreditedPA`), legacy loads (`organisation_for_filed_code`), load-shape leads and old page links all count a former code under the PA. Rename, former code and merge are a CPUC system administrator's, with a reason, on the organization page, each audited |
-| Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); log page in Administration |
-| Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Built: programs with effective-dated versions (no overlaps, enforced in PostgreSQL), filing cycles, reporting periods, statewide allocation versions (import from a blank template with no weighted columns (PercentElectric required; electric and gas factors at most 4 decimal places, each fuel adding up to exactly 1.0000, a one-fuel program's other fuel equal to it (copied when blank), else the file is refused; weighted factors computed at 4 decimal places adding up to exactly 1.0000, the PA closest to rounding the other way moving first, `registry.weighted_factors`), check, confirm, ReCET CSV export, most recent for a year; page `/allocations/` read by everyone signed in; the funding PAs manage them: permission `allocation.manage`, grantable only in an organization marked `manages_allocation` (PG&E, SCE, SoCalGas, SDG&E by default; the CPUC changes it on the organization page), loads drafts and confirms or discards them alone, each version records the organization it was loaded and confirmed for, the audit history is on its page, and the other managing organizations are notified on confirmation); `import_programs`, `import_allocation` commands; `catalog()` reads every program in two queries; energy efficiency goal sets (`registry/goals.py`, each CPUC goals decision's cycle goals and annual targets per IOU, and optionally its counting rules for which PAs' claims count toward a territory, loaded from CSV as a draft, checked, and confirmed by a second CPUC system administrator; the newest confirmed set replaces earlier goals year by year and older sets stay for the record; `goals(kind, year)`, `counting_rules()`; pages `/admin/goals/`); statewide programs as the source of truth (`follow_statewide`, `manage.py follow_statewide`): each PA's ID of a statewide program (its code in front of the statewide PrgID, `statewide_part_of` / `allocated_ids`) follows it (`Program.follows` / `follows_from`, migration 0008): from that day its attributes are the statewide program's over the dates its own versions cover, written by the registry when the statewide program changes (`_start_version` / `_follow_from`; a dry run makes the changes and rolls them back), and nobody changes it otherwise (`can_edit`); the statewide program's record is filled once from its lead PA's ID, then its lead PA's administrators change it; a new ID of a followed program follows it from its first version; the statewide program and its IDs share their documents and evaluations on the program page (`family`, `program_records`); `register_document_filing` / `add_document` give every program page its Add a document link without Programs importing Documents; programs added on the catalog's Add a program page (`create_program`, `can_add_program`, `prg_id_problem`: a PA's administrators for their PA, CPUC system administrators for any PA and statewide programs; a PrgID starts with the PA's code and is never reused), a version's values corrected in place with its dates kept (`correct_version`, `corrected_at` / `corrected_by`, migration 0009; by CPUC system administrators and programs approvers, or requested by the program's administrators through a change request that `corrects` it; a statewide correction reaches the IDs that follow), and the delivery flags changed on the change form; a program's status, segment, primary sector, implementer and category values are value lists kept on the dictionary's Value lists pages (`field_guide.VALUE_LISTS`, registered with `value_lists.register_list`; the program fields guide's values are their first version) |
-| Dictionary and templates | `cedars.services.dictionary` | 1 | Built: catalog versions loaded from ReCET's export (`scripts/export_recet_dictionary.py`, `data/dictionary/`) plus the platform's own records (`dictionary/platform.py`, added by `load_dictionary` unless `--engine-only`: every column of the 91 tables in `platform.TABLES` as kind "record", named `<app>.<Model>.<column>`, its type, length and allowed values (choices) from the model, its definition from `dictionary/data/platform_fields.yaml`, the help text, the program fields guide or a rule for a common column, its audience from the table's, restricted for a column naming a person; every other model is in `NOT_DESCRIBED` with why, and a test fails on a new model in neither or a column with no definition; the field page shows the table and its allowed values, the index filters by platform table), aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads. Claims, budget and monthly tables join the catalog with their modules; value lists (code sets) kept by CPUC system administrators without a code change (`dictionary/value_lists.py`, `/dictionary/lists/`): each list the engine ships is versioned here, a draft copied from the newest version (the shipped list for the first), changed code by code or from a CSV (add, describe, retire with the last claim year accepted, reinstate; a code from an earlier version is never deleted, a draft drops only codes it added) and published with its effective date and reason; published versions and their codes never change (database triggers, migration 0002); every change is an audit event; the version in force is handed to the engine before the rules check a file or Edit inputs offers dropdowns (`value_lists.apply_to_engine` over `recet.editor.set_value_list_changes`; an engine code the version lacks is not accepted). The ReCET worker's own filing checks still read the engine's shipped lists. Fields are retired, never dropped (`dictionary/changes.py`): a CPUC system administrator retires a field from a date (today or later) after a usage, audience and regulatory review, which makes a new catalog version (a copy of the current one, `based_on`, labeled "<label> rev N") with the field's `state` retired, `retired_from`, reason and the three reviews (database check: a retired field has a date); reinstating makes another; both audited (`dictionary.field_retired` / `.field_reinstated`); a field a published, in-force entry of the register of CPUC-mandated changes links to is refused until that entry is superseded or withdrawn; a retired field stays in the catalog and resolves, leaves `table_fields` (templates, schemas, `map_headers`' wanted columns, where it is reported as `retired` and ignored) from its date, and a later `load_catalog` keeps the retirement and carries forward a retired field the export leaves out. The specification change log (`/dictionary/changes/`, `/dictionary/changes/<id>/`, `/dictionary/changes.csv`, public): each catalog version against the one before it, field by field (added, retired with its reason, reinstated, changed attribute by attribute with other names and uses, dropped), beside every published value-list and rule-set version; each field's page has its history; the dictionary lists retired fields on request (`?state=retired` / `all`) |
-| Validation rule library | `cedars.services.rules` | 1 | Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 215 / 221 rules), published versions never change, the version in force by date (what a specification version without a rule set of its own takes), suggested fixes, set comparison, the engine's runner (`recet.filing_rules.check_frame`) over the stored rules, findings in one format; the pre-upload checker (`rules/precheck.py`): each filing module registers the rule-set step its own validation runs (Claims: the table read as its upload reads it, the claim year as the filing year; Budgets: year by year), and the page `/rules/check/`, the API `POST /api/v1/rules/check` (file, module, table, optionally a published rule set's id, or the draft rule set of a specification version proposed for comment (`precheck.proposed_version`), and the filing year; JSON or CSV findings; a session or a token with the module's scope; nothing kept) and the `check_file` command run that step, so a table gets the same findings there as on upload, against the version in force or any other published one; the published rule sets as data (`GET /api/v1/rules/sets`, `sets/<id>`, and each rule set page's JSON download; signed in, as the rule library pages are since 2026-11-02, with drafts shown only to system administrators): every rule's test, the specification's columns, the value lists in force that its rules read, and how each kind of rule is checked, for systems that check files without sending them; administrators change the rules without a code change: a new version of a published set is a draft copy with a later effective date and a reason, in which a CPUC system administrator adds rules (a test on a record with up to five conditions, or a field constraint: filled in, number, length, value list, range; a set named by a specification version may test any of its tables, and a condition may read the linked record of another of its tables by their keys, the program's registry record (`PROGRAM_FIELDS`) or who files (`FILER_FIELDS`), alone or in up to two groups joined by all or any; tests include contains, true or not, date comparisons with a date, a date field or the upload date, a date within a number of years of the upload and a code in effect on a date), changes a rule's test or wording, or takes a rule out, from `/rules/<set>/add/` and each rule's page; a rule is run once on a blank record by the engine before it is saved, its ID is the engine's content hash of its test, and a changed test takes the new ID and records the one it `replaces`, which the set comparison lists as changed; published sets and their rules never change (database triggers, migration 0002); every change is an audit event with its reason; a filing's rules run as check jobs by the worker of the engine release its specification version names (`jobs.py`, `CheckJob`, migrations 0003 and 0004 with the `check_job` retention class; the filing workflow's "Rules run by the filing's engine release") |
-| Filing specifications | `cedars.services.specifications` | 1 | Built so far: `Specification` (claims, budget and application filings, monthly reports; one per filing module) and its `SpecificationVersion`s, each with a name the CPUC gives it and no number, a status (draft, proposed, published, withdrawn, historic), the rule set it takes, the engine release and cost-test set that price it (blank: today's default release, and the set the filing set names or the one in force for the program year), its file format, a fingerprint of its content, and its `SpecTable`s (names, keys, how a later upload replaces records, vault tables, columns an upload is refused without), `SpecField`s (requirement, type from a fixed list, length, decimals, value list by name, default, example, other accepted names, definition), `CheckSetting`s (the built-in checks that apply, with the settings the CPUC may change) and `ExampleSet`s; database triggers freeze every version that is not a draft (migration 0001). The starting version of each was generated from the filing modules' code as it stood before filings read their version (claims: CEDARS' 2026 Claims specification plus the vault's two PII tables; budgets and monthly: their required columns and the engine's input tables in the shipped field catalog), each field's value list from the value-list rules of the rule set the pinned engine ships, and the built-in check lists, kept as JSON documents (`starting/<code>.json`, the same format `as_document` gives) and published by migration 0002 with the rule set in force; that code is gone, and the documents are what a database with no version reads. Every deadline already on the calendar was pinned to its module's starting version (submissions migration 0011; not a legacy year imported as published, nor the 13th-month report); a deadline put on the calendar is pinned to the current version (`for_new_deadline`); a legacy import clears the pin of a deadline nobody filed on the platform; a validated version records the version it was checked against. Filings read their version: they are checked against the rule set it names and priced with the engine release and cost-test set it names (blank: the default release, and the filing set's set or the one in force; tests/test_specification_filings.py), and take their tables, keys, fields and the columns an upload is refused without from it (`layout_for_filing`), and run the built-in checks it lists with the severities it gives (`apply_checks`: CEDARS' own processing always runs; an optional check only when the version lists it). The editor (`editor.py`, `editor_views.py`, `forms.py`): drafts copied from a published version with a draft copy of its rule set, settings (name, summary, engine release, cost-test set), fields added from the dictionary or new, changed, moved and removed, table names and guidance, locked fields (`locks`: keys, refused-without columns, the fields each module's code reads by `register_locked_fields`, and the installed engine's pricing inputs), what changes, which optional built-in checks run and their severity (`set_checks`), renaming a field with its rules and the data dictionary following (`rename_field`), new value lists for new codes, published with the version and checked by the filing modules (`new_value_list`), example files generated from the fields and checked as a filing with a report of what needs a person (`examples.py`), the impact test on the latest confirmed filings (`impact.py`), choosing a version when a filing set is set up and moving a set to a later version (`moving.py`), editing the draft in a workbook loaded back after a preview of every difference (`workbook.py`), export and import between environments (`transfer.py`), proposing a draft for comment with filers' comments and the CPUC's answers, a comment period that can be moved or ended, returning it to draft and publishing it as proposed (`propose`, `comments.py`, `SpecComment`, migration 0008), legacy CEDARS' download layouts as read-only historic versions linked from the imported years (`historic.py`, `legacy_layouts`, migration 0009), the checks before publishing (`problems`), and publishing with the release notes' notice or a reason, a release note and the draft rule set published the same day; `effective_on` decides when new filing sets take a version (migration 0003); an imported version keeps where it came from (`imported`, migration 0007). Public pages (the specifications and their versions, a version's tables, fields, rules in words and built-in checks, comparing two versions), downloads made from the version (upload and PII templates as a workbook or .zip, the fields-and-rules workbook with the value lists' codes and the changes, the specification document as an accessible tagged PDF/UA-1 file typeset by Typst (`printable.py`), JSON, a JSON Schema per table, example sets) and the API `/api/v1/specifications/` (published and withdrawn versions; `current` follows the newest published one); proposed versions are shown to anyone signed in, drafts to CPUC system administrators; the filing pages link the version |
-| Submissions and workflow | `cedars.services.submissions` | 1 | Built: one state machine for every module's filings (draft, validated, confirmed, published; a version is never edited once confirmed), the filing calendar (deadlines per period or cycle; each deadline's page `/filings/calendar/<id>/`, public, shows its dates, notes and audit history, and there a CPUC system administrator changes its due date, opening date or notes with a reason (`change_deadline`: `deadline.moved` for a new due date, so reminders are sent again, else `deadline.changed`) and cancels any one filing, a set-up's or one added by hand, that no organization has started, or restores it (`retire_deadline` / `restore_deadline`, migration 0005; also from the set-up page's Filings in this set); canceled deadlines leave the calendar, reminders and new filings, the modules' pages mark them Canceled, and administrators list them with `?retired=1`; the Filing sets page (`/filings/calendar/sets/`) lists every set-up with an Edit link to its set-up page (`register_setup_link`); every change notifies the calendar's subscribers), confirm only on a finished run over the current rows (`record_calculation` + the rows' hash), publication through hooks modules register (`register_publisher`), un-confirm before the due date on the same version, after it a reopen as version n+1 under the module's policy (approval, open, closed) decided by an approver or their delegate; the workflow settings page (`/filings/workflow-settings/`, system administrators, a reason each change, a release note offered when it tightens the rule) and the delegates page (`/filings/delegates/`: an approver names CPUC staff with read on the module as a delegate for a date range and can end it early; a system administrator can act for an approver); calendar and reopen-request pages; comments on filing versions (`comments.py`, migration 0004): the filing organization and CPUC staff discuss a filing on each Budgets, Claims and Monthly version page (`{% filing_comments v %}`), the whole submission's thread on every version, with files checked and stored as the document library's are (`cedars.core.files`: accepted types, `DOCUMENTS_MAX_FILE_MB`, the uploads area under the version), never public and never edited (a database trigger), at most `CEDARS_COMMENT_MAX_CHARS` characters and `CEDARS_UPLOAD_MAX_FILES` files; posting and each file download are audit events on the version, and subscribers hear of a comment (`submission.commented`), while a filing organization's comment goes straight to the module's CPUC reviewers (holders of `<module>.approve` in the CPUC and today's delegates; `comments.tell_reviewers`, a direct message, one per user with a subscriber's by `notice_key`); My queue (`/queue/`, `cedars.core.queue`): the work waiting on the signed-in user, read live from providers each service or module registers (correction requests and program changes to decide, data steward and access decisions, versions priced and ready to confirm, fund shifts to acknowledge, comments whose reply is the user's side's, documents to publish, responses to recommendations, unanswered questions); records corrected in place (`corrections.py`, the architecture's "a cell corrected in place: that row re-validated"): on an open draft only (never a confirmed version), a submitter finds a record by key or any value (also the records filed before the version that a module offers, e.g. Claims' year so far: correcting one adds the corrected record to the version; a table whose rows for a claim are one set carries the set in whole), changes, adds or deletes it on a server-rendered form, or uploads a partial correction (only the changed and new records, a Delete table naming those to remove; a column left out keeps its values), previewed field by field before it is applied and applied only to the records it was previewed against (`state`), at most `CEDARS_CORRECTION_MAX_ROWS` records; each record changed is an audit event `submission.record_corrected` (table, key, fields, before and after, how: record editor or the file's name and SHA-256), the version's file is rewritten as a new file set (`attach_files`, so its pricing is void) and the module re-checks only the changed records and those whose checks they affect (`Scope`: each old line's new line and the changed lines), carrying every other record's findings over; each module registers an `Editor` (tables, keys, fields, rows, earlier rows, save), or for a module whose records are CSV tables kept whole with each version (Budgets, Monthly reports) a `FileTables` editor (its tables, keys, required and number columns, how it reads its files; the fields are the file's own columns, described from the data dictionary in force); pages `/filings/versions/<id>/records/...`; change letters and refile notices say how many records were corrected in place (`summary`) |
-| Notifications | `cedars.services.notifications` | 1 | Built: subscriptions per event type (a filing published is offered per module: budget filings, monthly reports, claims; optionally per organization) fed from the audit trail after commit, so a rolled-back change notifies nobody; what a user follows: the PAs (every PA, the ones they choose, or none), which narrow every subscribed event about a PA (approvers' work is never narrowed), and programs by PrgID (settings page, or Follow on the program's page), whose followers hear whatever their PA choice of the events they keep ticked: a filing or its correction that includes the program, a fund shift moving its funds, a change to its record, a document about it; what an event concerns (its PAs, programs, a summary and the page to open) comes from hooks a module registers (`register_filing(module, describe)`, `register_concerns(object_type, describe)`), so the service never imports a module; publications are public, events about filings in progress (un-confirmed, reopened, declined) go only to the organization's members and CPUC staff; a published correction (a refile) reaches every subscriber of its PA and every follower of a program it changed, with a summary of what changed and a link to its change letter; one message per user per event; every notification on the user's page, email per subscription through Django's mail backend (SES SMTP in production) with failures kept on the notification; `notify(user, ...)` for modules (a run failed or was refused, or finished after more than the run notice limit, 60 seconds by default, counted from when it was queued; honoring the user's preference); deadline reminders at the lead times each user chooses (`DeadlineReminder`: days before, 0 to 365, per module or every module, several per user; `send_deadline_reminders` daily sends the shortest lead time still ahead of each deadline once per due date, so a moved deadline is reminded of again; migration 0002 turned the old fixed 7-day and 1-day subscriptions into reminders); notifications page, settings page and an unread count in the navigation |
-| Release notes and limits | `cedars.services.releases` | 1 | Built: release notes as data (`ReleaseNote` with its `Change`s: kind specification / rule / limit / system, the part of CEDARS, what changes, what to do, and for a limit change the limit and its new value); drafted and published by CPUC system administrators (/releases/manage/), published only before the date they take effect and at least `CEDARS_RELEASE_NOTICE_DAYS` (14) days before unless a reason is given and shown; a published note never changes and is never deleted (database trigger), only withdrawn with a reason; `release.published` / `release.withdrawn` are notification events (any user may subscribe, Send me each release note on /releases/); public pages /releases/ (coming, this release with the guides revised for it, in effect and withdrawn), a note's page, /releases/feed.xml (RSS); every page announces notes taking effect within the notice period. The Limits page (/limits/, also ?format=json) lists each limit from the setting that enforces it (`releases/limits.py`: upload size `CEDARS_UPLOAD_MAX_MB` and files per upload `CEDARS_UPLOAD_MAX_FILES`, enforced in `core/uploads.py` for filings and calculation jobs on pages and API, and stated beside every upload field; document, load-shape and custom-profile sizes; run records; Edit inputs rows; download rows and jobs; API rates and token life) with the announced changes to it. User guides and the FAQ carry the release they were revised for (`core/revisions.py`, `core/help_revisions.json`; `manage.py help_revisions --update`, a test fails on a guide changed without it); the `releases.notes` health check flags a running release without notes, a limit change in effect that the setting does not match, and a guide not revised for a release that changed its part of CEDARS. The FAQ (`core/faq.yaml`, /help/faq/: search by words and topic without scripts, worked examples, limits filled in as they stand). The register of CPUC-mandated data and calculation changes (`releases/mandates.py`, `Mandate` and `MandateLink`, migration 0002; public `/mandates/`, `/mandates/<id>/`, `?format=csv`; CPUC system administrators `/mandates/manage/`): each entry names the decision or resolution, what it requires, what it changes (data, calculations or both), when it takes effect, its implementation status (not started, in progress, implemented with its date, superseded, withdrawn) and the published records that carry it (a rule set, catalog version, value list version, field, reference-data pack or release note, each checked to exist and be published when linked); a draft is seen only by administrators; a published entry is never deleted (database trigger; withdrawn instead), each later change and link needs a reason and is audited (`mandate.changed`, `mandate.link_added`, `mandate.link_removed`), and the entry's page shows that history without who made it; only public CPUC information (a document link must be https on a ca.gov site); published with the specification change log (linked both ways, and from the release notes) |
-| Reference data (pack registry) | `cedars.services.refdata` | 1 | Built: eTRM's published permutations as a pack of their own (`etrm_permutations`, `refdata/etrm.py`: eTRM permutations downloads loaded with `manage.py load_etrm_permutations`, every row indexed by Measure Detail ID with the deemed values the platform reads, its offering keys as columns under one index for the input editor's narrowing lookup and a summary per measure package (`EtrmPackage`), and the field maps from eTRM's columns to the claims-template fields; a lookup on the pack's page) until the eTRM database replica carries them; pack versions by kind (ACC electric / gas, impact profiles, eTRM, DEER, value lists, run parameters, engine releases) with a SHA-256 manifest, a fingerprint (the manifest's SHA-256) and a storage URI; registered as drafts (analysis runs only), published once the tie-outs their kind requires pass (`TieOutRequirement`, data; a difference over the stated precision fails); published packs never change and are withdrawn, never deleted (database trigger); `in_force`, `usable(pack, purpose)`, `pin()` for runs and submissions; `register_pack` / `record_tie_out` commands; pages to view, publish, withdraw. Cost-test definition sets are packs of their own (kind `cost_tests`, `refdata/cost_tests.py`, ReCET's COST_TESTS.md): one ReCET `definition.yaml` each, registered on the Cost-test sets page or with `manage.py register_cost_tests`, published once its `engine_check` tie-out passes (the engine loads it, and a set ReCET ships is byte for byte the engine's file; a file marked `draft: true` is never published), in force by program year (`cost_tests.for_year`: the newest published set whose first program year is not after the job's); its page shows the set in words as the engine installed here writes it out (`cost_tests.in_words`: ReCET's `describe`, or what the engine says is wrong with it) and anyone signed in downloads its file (`/reference-data/<pack>/definition.yaml`, checked against the pack's SHA-256 on the way out). The set builder (`refdata/builder.py`, `CostTestBuild`; every signed-in user builds sets for their own analysis runs, only the CPUC's cost-test pack managers register them) keeps a set being built as its YAML mapping (in the set's own order: kept as JSON text, since jsonb reorders keys), started from a registered set, one of the user's own, a set the engine ships, an uploaded file (keys the format does not have set aside) or nothing, private or shared with the organization the user may start runs for; its pages edit the header, pricings, the engine's streams (from ReCET 0.1.92's `engine_streams()` catalog: include, pricings, unit and definition only), input streams (their Measure columns and 2nd-baseline columns each chosen with the core two-list column picker, sent as `columns_picked` / `columns_2nd_picked`), aggregates and tests (added, changed, renamed with the shares that name them, ordered, removed), check every save with the engine's validator and file each message under its step, and Review shows the set in words, what changed since the set it was copied from (`builder.changes`), its file and Register (a draft pack, `cost_tests.register_set`); every change is audited (`cost_test_build.*`). Registering a set records its `engine_check` tie-out at once with the engine installed in the web process (`cost_tests.engine_check`: its validator finds nothing and a set the engine ships is the engine's own file), and the pack page checks it again on request. A builder offers a set to the CPUC with a note (`builder.offer`; withdrawn with `withdraw_offer`): the cost-test pack managers see every offered set (Offered to the CPUC on the Cost-test sets page) and register it or decline it with a reason (`builder.decline`), and its builder is notified either way. New run's "Or one of my cost-test sets" prices an analysis run on one of the user's sets as its own file (`RunRequest.cost_test_build`, down the custom-set path; the run's context records the build). Every ReCET run is pinned to one (`calculations.service.cost_test_pack`): the set the request or the filing's setup names (`FilingSetup.cost_test_set`, `ClaimYear.cost_test_set`; published only), else the one in force for the job's first program year; a published set goes to the worker by its id (`settings.cost_test_set`), a draft (analysis runs only, never with filing checks or a filing purpose) as the file itself (`inputs.cost_tests`); the run's context and filing record carry the set's id, version and file SHA-256, and a receipt naming another file fails the run. A ReCET run is pinned to its ACC year's electric pack and the impact-profile library in force (`calculations.service.packs_for`: published, or for analysis runs a draft when none is; a filing refuses a draft): the files under the engine's reference-folder paths (`acc/<year>/`, `impact_profiles/`) become the job spec's `packs.files`, so the worker refuses a folder whose files differ, and `pin()` goes into the spec's context, the receipt and the input hash, and a filing's calculation keeps it (`calculation.packs`); `refdata/profiles.py` reads one profile's 8,760s back out of a library pack (its catalog's `profile_version` and `shape_id`, the hourly row group) and writes them as ReCET's supplied 8,760 file, for a true-up priced against its parent's pinned profile |
-| Retention | `cedars.services.retention` | 1 | Built: a period per record class (the design's default periods seeded, each changed on the Retention page with a reason), legal holds on one record or a whole class, the daily `purge_expired` job (dry run, one audit event per class, a purge log); notifications and idle unconfirmed filing drafts register their deletion step, Calculations adds scratch runs |
-| PII vault | `cedars.services.vault` | 4 | Built: PII_Contact and PII_Site (CEDARS' PII data rules; their fields, types and lengths the vault tables of the claims filing's specification version) in their own database, the `vault` alias from `VAULT_DATABASE_URL` (its own RDS instance and KMS key in Terraform; `VaultRouter` keeps every other table off it and it off the core database; tests use `<name>_vault`; the sandbox has none and refuses PII). A file is attached to a submission version and checked at once (`PII-*`: key filled in, PA prefix, once, named by the claim's ContactClaim / Site / Claim / ClaimSite records, lengths, digits-only phones, an @ in emails, an electric or gas account per site); only a file with no findings is stored, superseding the version's earlier one (its rows deleted), a rejected one keeps its findings only. Uploading needs claims.pii in the organization, reading it there or in the CPUC organization (a data steward approves every grant; the federated-session policy applies); uploads, rejections and every download are audited with counts, keys and the reason, never values. No other part of the platform reads its tables |
-| Legacy CEDARS years (phase 7) | `cedars.services.legacy` | 7 | Built: the crosswalk from the public record-level downloads' labels to canonical names (`dictionary/legacy.py`, `dictionary/data/legacy_crosswalk.csv` and `legacy_layouts.json`: all six published layouts, 1,083 columns, each mapped to a Measure, Claim, Participant, program (Prg_) or output field, or kept as `Legacy_*`; none dropped; listed in the dictionary's crosswalk download); imported versions in the submissions service (`origin` "imported", always published, `submissions.import_version`; every change, pricing, un-confirm, reopen and correction path refuses a submission that holds one); `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`); `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and reconciliation; refused while a hard check fails). Budget filings load built: `manage.py load_legacy_filings [--filing KEY] [--pa CODE]` (`modules/budgets/legacy.py`) loads each staged filing (the 2017-2023 ABALs, the 2024-2027 application, the 2024-2025 true-up, the archived 2026-2027 TUAL, the 2026-2027 mid-cycle, the 2028-2031 application's archived snapshot then its current files) as one imported version per PA under a Budgets deadline with the filing's ACC; each version keeps the records as Measure / Outputs / Programs parquet, budget lines (the ten weighted cost fields summed by program and year) and CEDARS' CET outputs as results (run `legacy-cedars`, not re-priced); the registry gains the program years it lacked (`registry.add_history`, the registry's own versions kept). Hard checks (rows against the per-PA file, numbers readable, rows written, additive outputs exact, weighted costs = Weighted Program Cost) refuse a PA; soft checks (benefits = ratio x cost, budget lines = Budget) and ratios without a cost are recorded in the reconciliation. Claims load built: `manage.py load_legacy_claims [--year YEAR] [--pa CODE]` (`modules/claims/legacy.py`) streams each staged claim year (2016-2026) and splits it by PA (`legacy.tables`), then loads each PA as one imported version on the year's annual (final) claim (the Q1-Q4 deadlines stay empty; ClaimYearQuarter is kept on every record; the ClaimYear takes the claims ACC from the engine's table): the records as Measure / Claim / Outputs / Programs (and, 2026, Participant) parquet, a claim record per claim (a repeated ClaimID gets #2, #3), program lines and CEDARS' CET outputs as results (run `legacy-cedars`). From 2023 the statewide unallocated claims (PA SW) load as the SW version, outside every total (`year_totals` gives none; the totals come from the PA files, which hold the statewide claims allocated). Pages built: Claims and Budgets list legacy years and filings as "Imported from legacy CEDARS"; an imported version's page names its source download at CEDARS, links the historic specification version of its layout and shows its reconciliation (`legacy/_imported.html`, from `legacy.imported`), lists its loaded tables and report for download, marks the statewide version as outside every total, and offers no un-confirm, reopen or correction. Dashboard snapshots built (`legacy/snapshot.py`): each import but the statewide unallocated claims gets one measure-level file joined from its stored Measure / Outputs / Programs tables (TRCBen, PACBen, RIMBen where the layout lacks them as the loads build them, `legacy.tables.benefits`: TRCBen = ElecBen + GasBen + OtherBen, PACBen = RIMBen = ElecBen + GasBen (on a filed PAC Benefits column, claims from 2023, which already holds Other Benefits: TRCBen = RIMBen = PACBen), ratio x cost only for a record with no benefit values, since CEDARS' published ratios are the benefit columns over the costs and the files' ratios are rounded; TotalExpenditures = WeightedProgramCost + the four incentive outputs and RebatesandIncents = those outputs where the file lacks them), frozen as its snapshot with one release per load; `manage.py snapshot_legacy` gives imports loaded earlier theirs (`--replace` builds them all again). Years loaded when the missing benefits were ratio x cost are corrected by `load_legacy_claims --rebuild-benefits` and `load_legacy_filings --rebuild-benefits` (results rebuilt from the stored Outputs table, audited). Level 3 of the reconciliation (the published dashboard totals) is checked by `manage.py dashboard_parity` (`data/parity.py`) on an instance with the years loaded; the totals are not in this repository. Not done: the pages |
-| Publication snapshots | `cedars.services.snapshots` | 3 | Built: a published, priced version's measure-level results frozen in the snapshots area (`Snapshot`: dataset claims / forecast / monthly, organization, year, run, SHA-256, rows), copied once the confirming transaction commits (a submissions listener, `register_listener`); numbered, never-changed `Release`s of the snapshots in force per dataset (every filing for forecast; for claims and monthly the latest year-to-date period per PA and year, so quarters never add up twice), made only when that set changes; an un-confirmation before the due date deletes the snapshot and releases without it; `as_of` and `release_files` for the Data module; `snapshot_published` command repairs a failed copy. Imported legacy versions are snapshotted from a file their load builds (`publish(area=, key=, release=False)`, then one `rebuild`). Every new snapshot is scanned for personal information before it can join a release (`snapshots/pii.py`, `PIIScan`): a hit holds it out of the releases (the filing's earlier version, or for claims and monthly the PA's previous period, stands), the filing's confirmers and the CPUC system administrators are told, and a system administrator releases it with a reason or scans it again after changing the settings (pages `/publication/`) |
-| Feedback | `cedars.services.feedback` | 1 | Built: a "Feedback on this page" link in every page's footer (signed in or not) opens `/feedback/?from=<page>`; a message is kept with the page it came from, the sender and the organization they act for (none when signed out: only a keyed hash of the address, to limit how often one sends), audited (`feedback.received`), and every CPUC system administrator is told (Notifications page, and email unless they turned direct emails off), as is the team inbox `CEDARS_FEEDBACK_EMAIL` when set; the message is a request with a kind and a conversation: administrators answer it, ask its sender a question, keep a note, close it with a note and reopen it with a reason at `/admin/feedback/`, and a signed-in sender follows it on My requests, replies and says it is settled; the support desk (`support.answer`) works on requests beside the system administrators, a sender's organization's administrators read its questions, problems and accessibility barriers unless kept private, and accessibility barriers and security concerns are urgent, a security concern for system administrators only ([Requests](#142-requests)); the form shows the page's help and, before a question is sent, the parts of Help that match it; limits `CEDARS_FEEDBACK_MAX_CHARS` and `CEDARS_FEEDBACK_PER_HOUR` on the Limits page; retention class `feedback` (730 days, closed messages only) |
-| Work items | `cedars.services.work` | 1 | Built (the record and the backlog): work items with a story, size, severity and workaround; requests joined to an item as its evidence, from the request's page; the one ordered backlog (accept, move up, down or to a position); declining an item and making one public proposed by a backlog manager (`work.manage`) and approved by the CPUC (`work.approve`); My queue for both acceptance tests on an item and the check that it is ready for a release; release plans filled from the backlog, proposed by a backlog manager and approved by the CPUC ([Work items and the backlog](#143-work-items-and-the-backlog)). What people outside see is built too: Known problems, Upcoming changes and a public item's page, following a public item, where a request's work stands on the sender's page, known problems on the form people report from, and telling senders and followers when an item is planned in an approved release or declined. Built too: the pre-filled issue for the developers with its address kept on the item, items marked built, and the CPUC's go or no-go on a built release. Built too: acceptance tests joined to the test scripts by test ID, a round of testing opened for an approved release from its page, and each test's results shown with the release and beside the go or no-go. Built too: signed events from the developers' tracker (pull requests that name an item shown on it; an item marked built when its issue closes). Built too: the site posting an item's issue to the tracker itself, as a GitHub App, after the backlog manager has read it; and the measures page (requests, delivery, what came back after the last release, testing) |
-| Testing | `cedars.services.testing` | 1 | Built (run and record): the test scripts loaded as versions (`load_test_scripts`), rounds of testing, scripts assigned to testers' own accounts and shown in My queue, the run page with one test at a time and a result saved per test, what the tester types kept as a draft, the test lead's results page and its Excel download, and the run link that keeps a run open while the site is signed in as a test account or signed out; on only where `CEDARS_TESTING` is set ([Testing on the site](#141-testing-on-the-site)). A failed or blocked result is sent to the requests inbox as a finding and follows its result. A round of testing is opened for a release from its plan's page, and the plan shows how its acceptance tests were answered ([Work items and the backlog](#143-work-items-and-the-backlog)). Not built yet: screenshots |
-| Sandbox refresh | `cedars.services.sandbox` | 1 | Built: `manage.py export_sandbox_bundle --to <folder or s3://...>` in production writes a bundle (manifest with each file's SHA-256, the rows, the snapshot files) of its published, non-PII data, as listed in `sandbox/bundle.py` SPECS: PA and other organizations with their codes, programs and versions, cycles, periods, confirmed allocation factors and goal sets, published and withdrawn reference packs (files read in place), dictionary versions, published value list versions and rule sets, published and withdrawn filing specification versions with their tables, fields, checks and examples, and the publication snapshots in force with their published filing versions (without uploaded files); never a person (every "by" field blank), never the vault (the export runs in the jobs task, which has no vault URL; a test checks no spec names one). `manage.py refresh_sandbox --from <same>` (sandbox or a developer database only) matches each row by its natural key, adds what the sandbox lacks with its children in a savepoint, leaves what it has (bringing a few fields up to date: a version's end date, a pack's withdrawal), lists clashes with the sandbox's own records (a tester's filing for the same deadline, a draft under the same key) instead of overwriting them, records the rows it added (`CopiedRecord`, so the sandbox_data clean-up keeps copied filings) and the run (`Refresh`, audited `sandbox.refreshed`), then rebuilds the releases. Terraform schedules both (`sandbox_bundle_uri`, `sandbox_refresh_schedule`), off by default |
-| Document accessibility | `cedars.services.accessibility` | 1 | Built: every PDF and workbook stored as a document's file or attached to a comment on a document or a filing is checked as it is stored (`checks.py`: untagged or image-only PDFs, PDFs with no title or language; sheets with no marked header row, merged cells, pictures or charts with no alternative text, default sheet names; pure functions, no database), the check kept per file (`FileCheck`, audited), the uploader warned, the document page offers an accessible copy on request, and Administration, Document accessibility (`/admin/document-accessibility/`, system administrators) lists flagged files to mark reviewed with a note. Nothing is refused unless `CheckSettings.block` is on (settings page, reason, audited), for the findings it names; legacy imports are never refused. Every generated workbook (budget appendix, record and dashboard downloads, upload templates) is written by `cedars/core/workbooks.py`: title, subject and language, named sheets, the rows as an Excel table with a marked header row, print titles, frozen header, no merges or pictures; the tests hold each to no findings. Conformance report: `docs/ACCESSIBILITY_CONFORMANCE.md` |
+| Service | App | Phase |
+| --- | --- | --- |
+| [Identity and access (organizations, memberships, grants, recertification)](#1721-identity-and-access) | `cedars.services.accounts` | 1 |
+| [Audit and change log](#1722-audit-and-change-log) | `cedars.services.audit` | 1 |
+| [Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods)](#1723-program-registry) | `cedars.services.registry` | 1 |
+| [Dictionary and templates](#1724-dictionary-and-templates) | `cedars.services.dictionary` | 1 |
+| [Validation rule library](#1725-validation-rule-library) | `cedars.services.rules` | 1 |
+| [Filing specifications](#1726-filing-specifications) | `cedars.services.specifications` | 1 |
+| [Submissions and workflow](#1727-submissions-and-workflow) | `cedars.services.submissions` | 1 |
+| [Notifications](#1728-notifications) | `cedars.services.notifications` | 1 |
+| [Release notes and limits](#1729-release-notes-and-limits) | `cedars.services.releases` | 1 |
+| [Reference data (pack registry)](#17210-reference-data-pack-registry) | `cedars.services.refdata` | 1 |
+| [Retention](#17211-retention) | `cedars.services.retention` | 1 |
+| [PII vault](#17212-pii-vault) | `cedars.services.vault` | 4 |
+| [Legacy CEDARS years (phase 7)](#17213-legacy-cedars-years-phase-7) | `cedars.services.legacy` | 7 |
+| [Publication snapshots](#17214-publication-snapshots) | `cedars.services.snapshots` | 3 |
+| [Feedback](#17215-feedback) | `cedars.services.feedback` | 1 |
+| [Work items](#17216-work-items) | `cedars.services.work` | 1 |
+| [Testing](#17217-testing) | `cedars.services.testing` | 1 |
+| [Sandbox refresh](#17218-sandbox-refresh) | `cedars.services.sandbox` | 1 |
+| [Document accessibility](#17219-document-accessibility) | `cedars.services.accessibility` | 1 |
+
+#### 17.2.1 Identity and access
+
+`cedars.services.accounts`, phase 1.
+
+- Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job,
+  API tokens (`tokens.py`, `api_auth.TokenAuthentication`).
+- Each program administrator typed IOU, REN or CCA (CEDARS' codes typed on creation from `KNOWN_PA_TYPES`, others by a system
+  administrator on the organization page, audited), which the Data module's `pa_type` dimension reads so dashboards and record downloads
+  select a whole group of PAs, or view by PA type.
+- `pa_picker` builds the one PA filter those pages and the Programs catalog share (`core/_pa_picker.html`: All PAs > IOUs / RENs / CCAs >
+  their PAs, statewide programs beside it, tri-state boxes with a script, plain ones without).
+- Organization codes with their history (`OrganisationCode`, migration 0004): a rename keeps the organization's identity and closes its
+  old code on a date (EBCE until 2023, AVA from 2024, from CEDARS' changelog, applied by the migration and kept in `KNOWN_RENAMES`), a
+  code stays with one organization for good (PostgreSQL exclusion constraints), a former code can be recorded, and the same party added
+  twice is merged (`successor`: the old organization keeps its own records and counts under the new).
+- Data keeps codes as filed.
+- `code_map` / `by_code` read any code as its party's current one, so the dashboards' PA dimension, PA filters, goal counting rules, the
+  Spending view, record downloads (`CountedPA` beside the filed `CreditedPA`), legacy loads (`organisation_for_filed_code`), load-shape
+  leads and old page links all count a former code under the PA.
+- Rename, former code and merge are a CPUC system administrator's, with a reason, on the organization page, each audited.
+
+#### 17.2.2 Audit and change log
+
+`cedars.services.audit`, phase 1.
+
+- Built: append-only in the database (migration 0002).
+- Log page in Administration.
+
+#### 17.2.3 Program registry
+
+`cedars.services.registry`, phase 1.
+
+- Built:
+  - Programs with effective-dated versions (no overlaps, enforced in PostgreSQL), filing cycles, reporting periods.
+  - Statewide allocation versions (import from a blank template with no weighted columns (PercentElectric required; electric and gas
+    factors at most 4 decimal places, each fuel adding up to exactly 1.0000, a one-fuel program's other fuel equal to it (copied when
+    blank), else the file is refused; weighted factors computed at 4 decimal places adding up to exactly 1.0000, the PA closest to
+    rounding the other way moving first, `registry.weighted_factors`), check, confirm, ReCET CSV export, most recent for a year; page
+    `/allocations/` read by everyone signed in; the funding PAs manage them: permission `allocation.manage`, grantable only in an
+    organization marked `manages_allocation` (PG&E, SCE, SoCalGas, SDG&E by default; the CPUC changes it on the organization page), loads
+    drafts and confirms or discards them alone, each version records the organization it was loaded and confirmed for, the audit history
+    is on its page, and the other managing organizations are notified on confirmation).
+- `import_programs`, `import_allocation` commands.
+- `catalog()` reads every program in two queries.
+- Energy efficiency goal sets (`registry/goals.py`, each CPUC goals decision's cycle goals and annual targets per IOU, and optionally its
+  counting rules for which PAs' claims count toward a territory, loaded from CSV as a draft, checked, and confirmed by a second CPUC
+  system administrator; the newest confirmed set replaces earlier goals year by year and older sets stay for the record; `goals(kind, year)`, `counting_rules()`; pages `/admin/goals/`).
+- Statewide programs as the source of truth (`follow_statewide`, `manage.py follow_statewide`): each PA's ID of a statewide program (its
+  code in front of the statewide PrgID, `statewide_part_of` / `allocated_ids`) follows it (`Program.follows` / `follows_from`, migration
+  0008): from that day its attributes are the statewide program's over the dates its own versions cover, written by the registry when the
+  statewide program changes (`_start_version` / `_follow_from`; a dry run makes the changes and rolls them back), and nobody changes it
+  otherwise (`can_edit`).
+- The statewide program's record is filled once from its lead PA's ID, then its lead PA's administrators change it.
+- A new ID of a followed program follows it from its first version.
+- The statewide program and its IDs share their documents and evaluations on the program page (`family`, `program_records`).
+- `register_document_filing` / `add_document` give every program page its Add a document link without Programs importing Documents.
+- Programs added on the catalog's Add a program page (`create_program`, `can_add_program`, `prg_id_problem`: a PA's administrators for
+  their PA, CPUC system administrators for any PA and statewide programs; a PrgID starts with the PA's code and is never reused), a
+  version's values corrected in place with its dates kept (`correct_version`, `corrected_at` / `corrected_by`, migration 0009; by CPUC
+  system administrators and programs approvers, or requested by the program's administrators through a change request that `corrects` it;
+  a statewide correction reaches the IDs that follow), and the delivery flags changed on the change form.
+- A program's status, segment, primary sector, implementer and category values are value lists kept on the dictionary's Value lists pages
+  (`field_guide.VALUE_LISTS`, registered with `value_lists.register_list`; the program fields guide's values are their first version).
+
+#### 17.2.4 Dictionary and templates
+
+`cedars.services.dictionary`, phase 1.
+
+- Built: catalog versions loaded from ReCET's export (`scripts/export_recet_dictionary.py`, `data/dictionary/`) plus the platform's own
+  records (`dictionary/platform.py`, added by `load_dictionary` unless `--engine-only`: every column of the 91 tables in `platform.TABLES`
+  as kind "record", named `<app>.<Model>.<column>`, its type, length and allowed values (choices) from the model, its definition from
+  `dictionary/data/platform_fields.yaml`, the help text, the program fields guide or a rule for a common column, its audience from the
+  table's, restricted for a column naming a person; every other model is in `NOT_DESCRIBED` with why, and a test fails on a new model in
+  neither or a column with no definition; the field page shows the table and its allowed values, the index filters by platform table),
+  aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads.
+- Claims, budget and monthly tables join the catalog with their modules.
+- Value lists (code sets) kept by CPUC system administrators without a code change (`dictionary/value_lists.py`, `/dictionary/lists/`):
+  each list the engine ships is versioned here, a draft copied from the newest version (the shipped list for the first), changed code by
+  code or from a CSV (add, describe, retire with the last claim year accepted, reinstate; a code from an earlier version is never deleted,
+  a draft drops only codes it added) and published with its effective date and reason.
+- Published versions and their codes never change (database triggers, migration 0002).
+- Every change is an audit event.
+- The version in force is handed to the engine before the rules check a file or Edit inputs offers dropdowns
+  (`value_lists.apply_to_engine` over `recet.editor.set_value_list_changes`; an engine code the version lacks is not accepted).
+- The ReCET worker's own filing checks still read the engine's shipped lists.
+- Fields are retired, never dropped (`dictionary/changes.py`): a CPUC system administrator retires a field from a date (today or later)
+  after a usage, audience and regulatory review, which makes a new catalog version (a copy of the current one, `based_on`, labeled
+  "<label> rev N") with the field's `state` retired, `retired_from`, reason and the three reviews (database check: a retired field has a
+  date).
+- Reinstating makes another.
+- Both audited (`dictionary.field_retired` / `.field_reinstated`).
+- A field a published, in-force entry of the register of CPUC-mandated changes links to is refused until that entry is superseded or
+  withdrawn.
+- A retired field stays in the catalog and resolves, leaves `table_fields` (templates, schemas, `map_headers`' wanted columns, where it is
+  reported as `retired` and ignored) from its date, and a later `load_catalog` keeps the retirement and carries forward a retired field
+  the export leaves out.
+- The specification change log (`/dictionary/changes/`, `/dictionary/changes/<id>/`, `/dictionary/changes.csv`, public): each catalog
+  version against the one before it, field by field (added, retired with its reason, reinstated, changed attribute by attribute with other
+  names and uses, dropped), beside every published value-list and rule-set version.
+- Each field's page has its history.
+- The dictionary lists retired fields on request (`?state=retired` / `all`).
+
+#### 17.2.5 Validation rule library
+
+`cedars.services.rules`, phase 1.
+
+- Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 215 / 221 rules), published versions
+  never change, the version in force by date (what a specification version without a rule set of its own takes), suggested fixes, set
+  comparison, the engine's runner (`recet.filing_rules.check_frame`) over the stored rules, findings in one format.
+- The pre-upload checker (`rules/precheck.py`): each filing module registers the rule-set step its own validation runs (Claims: the table
+  read as its upload reads it, the claim year as the filing year; Budgets: year by year), and the page `/rules/check/`, the API
+  `POST /api/v1/rules/check` (file, module, table, optionally a published rule set's id, or the draft rule set of a specification version
+  proposed for comment (`precheck.proposed_version`), and the filing year; JSON or CSV findings; a session or a token with the module's
+  scope; nothing kept) and the `check_file` command run that step, so a table gets the same findings there as on upload, against the
+  version in force or any other published one.
+- The published rule sets as data (`GET /api/v1/rules/sets`, `sets/<id>`, and each rule set page's JSON download; signed in, as the rule
+  library pages are since 2026-11-02, with drafts shown only to system administrators): every rule's test, the specification's columns,
+  the value lists in force that its rules read, and how each kind of rule is checked, for systems that check files without sending them.
+- Administrators change the rules without a code change: a new version of a published set is a draft copy with a later effective date and
+  a reason, in which a CPUC system administrator adds rules (a test on a record with up to five conditions, or a field constraint: filled
+  in, number, length, value list, range; a set named by a specification version may test any of its tables, and a condition may read the
+  linked record of another of its tables by their keys, the program's registry record (`PROGRAM_FIELDS`) or who files (`FILER_FIELDS`),
+  alone or in up to two groups joined by all or any; tests include contains, true or not, date comparisons with a date, a date field or
+  the upload date, a date within a number of years of the upload and a code in effect on a date), changes a rule's test or wording, or
+  takes a rule out, from `/rules/<set>/add/` and each rule's page.
+- A rule is run once on a blank record by the engine before it is saved, its ID is the engine's content hash of its test, and a changed
+  test takes the new ID and records the one it `replaces`, which the set comparison lists as changed.
+- Published sets and their rules never change (database triggers, migration 0002).
+- Every change is an audit event with its reason.
+- A filing's rules run as check jobs by the worker of the engine release its specification version names (`jobs.py`, `CheckJob`,
+  migrations 0003 and 0004 with the `check_job` retention class; the filing workflow's "Rules run by the filing's engine release").
+
+#### 17.2.6 Filing specifications
+
+`cedars.services.specifications`, phase 1.
+
+- Built so far: `Specification` (claims, budget and application filings, monthly reports; one per filing module) and its
+  `SpecificationVersion`s, each with a name the CPUC gives it and no number, a status (draft, proposed, published, withdrawn, historic),
+  the rule set it takes, the engine release and cost-test set that price it (blank: today's default release, and the set the filing set
+  names or the one in force for the program year), its file format, a fingerprint of its content, and its `SpecTable`s (names, keys, how a
+  later upload replaces records, vault tables, columns an upload is refused without), `SpecField`s (requirement, type from a fixed list,
+  length, decimals, value list by name, default, example, other accepted names, definition), `CheckSetting`s (the built-in checks that
+  apply, with the settings the CPUC may change) and `ExampleSet`s.
+- Database triggers freeze every version that is not a draft (migration 0001).
+- The starting version of each was generated from the filing modules' code as it stood before filings read their version (claims: CEDARS'
+  2026 Claims specification plus the vault's two PII tables; budgets and monthly: their required columns and the engine's input tables in
+  the shipped field catalog), each field's value list from the value-list rules of the rule set the pinned engine ships, and the built-in
+  check lists, kept as JSON documents (`starting/<code>.json`, the same format `as_document` gives) and published by migration 0002 with
+  the rule set in force.
+- That code is gone, and the documents are what a database with no version reads.
+- Every deadline already on the calendar was pinned to its module's starting version (submissions migration 0011; not a legacy year
+  imported as published, nor the 13th-month report).
+- A deadline put on the calendar is pinned to the current version (`for_new_deadline`).
+- A legacy import clears the pin of a deadline nobody filed on the platform.
+- A validated version records the version it was checked against.
+- Filings read their version: they are checked against the rule set it names and priced with the engine release and cost-test set it names
+  (blank: the default release, and the filing set's set or the one in force; tests/test_specification_filings.py), and take their tables,
+  keys, fields and the columns an upload is refused without from it (`layout_for_filing`), and run the built-in checks it lists with the
+  severities it gives (`apply_checks`: CEDARS' own processing always runs; an optional check only when the version lists it).
+- The editor (`editor.py`, `editor_views.py`, `forms.py`):
+  - Drafts copied from a published version with a draft copy of its rule set.
+  - Settings (name, summary, engine release, cost-test set).
+  - Fields added from the dictionary or new, changed, moved and removed, table names and guidance.
+  - Locked fields (`locks`: keys, refused-without columns, the fields each module's code reads by `register_locked_fields`, and the
+    installed engine's pricing inputs).
+  - What changes.
+  - Which optional built-in checks run and their severity (`set_checks`).
+  - Renaming a field with its rules and the data dictionary following (`rename_field`).
+  - New value lists for new codes, published with the version and checked by the filing modules (`new_value_list`).
+  - Example files generated from the fields and checked as a filing with a report of what needs a person (`examples.py`).
+  - The impact test on the latest confirmed filings (`impact.py`).
+  - Choosing a version when a filing set is set up and moving a set to a later version (`moving.py`).
+  - Editing the draft in a workbook loaded back after a preview of every difference (`workbook.py`).
+  - Export and import between environments (`transfer.py`).
+  - Proposing a draft for comment with filers' comments and the CPUC's answers, a comment period that can be moved or ended,
+    returning it to draft and publishing it as proposed (`propose`, `comments.py`, `SpecComment`, migration 0008).
+  - Legacy CEDARS' download layouts as read-only historic versions linked from the imported years (`historic.py`, `legacy_layouts`,
+    migration 0009).
+  - The checks before publishing (`problems`).
+  - Publishing with the release notes' notice or a reason, a release note and the draft rule set published the same day.
+- `effective_on` decides when new filing sets take a version (migration 0003).
+- An imported version keeps where it came from (`imported`, migration 0007).
+- Public pages (the specifications and their versions, a version's tables, fields, rules in words and built-in checks, comparing two
+  versions), downloads made from the version (upload and PII templates as a workbook or .zip, the fields-and-rules workbook with the value
+  lists' codes and the changes, the specification document as an accessible tagged PDF/UA-1 file typeset by Typst (`printable.py`), JSON,
+  a JSON Schema per table, example sets) and the API `/api/v1/specifications/` (published and withdrawn versions; `current` follows the
+  newest published one).
+- Proposed versions are shown to anyone signed in, drafts to CPUC system administrators.
+- The filing pages link the version.
+
+#### 17.2.7 Submissions and workflow
+
+`cedars.services.submissions`, phase 1.
+
+- Built:
+  - One state machine for every module's filings (draft, validated, confirmed, published; a version is never edited once confirmed).
+  - The filing calendar (deadlines per period or cycle; each deadline's page `/filings/calendar/<id>/`, public, shows its dates, notes and
+    audit history, and there a CPUC system administrator changes its due date, opening date or notes with a reason (`change_deadline`:
+    `deadline.moved` for a new due date, so reminders are sent again, else `deadline.changed`) and cancels any one filing, a set-up's or
+    one added by hand, that no organization has started, or restores it (`retire_deadline` / `restore_deadline`, migration 0005; also from
+    the set-up page's Filings in this set); canceled deadlines leave the calendar, reminders and new filings, the modules' pages mark them
+    Canceled, and administrators list them with `?retired=1`; the Filing sets page (`/filings/calendar/sets/`) lists every set-up with an
+    Edit link to its set-up page (`register_setup_link`); every change notifies the calendar's subscribers).
+  - Confirm only on a finished run over the current rows (`record_calculation` + the rows' hash).
+  - Publication through hooks modules register (`register_publisher`).
+  - Un-confirm before the due date on the same version; after it, a reopen as version n+1 under the module's policy (approval, open, closed) decided by an approver or their delegate.
+- The workflow settings page (`/filings/workflow-settings/`, system administrators, a reason each change, a release note offered when it
+  tightens the rule) and the delegates page (`/filings/delegates/`: an approver names CPUC staff with read on the module as a delegate for
+  a date range and can end it early; a system administrator can act for an approver).
+- Calendar and reopen-request pages.
+- Comments on filing versions (`comments.py`, migration 0004): the filing organization and CPUC staff discuss a filing on each Budgets,
+  Claims and Monthly version page (`{% filing_comments v %}`), the whole submission's thread on every version, with files checked and
+  stored as the document library's are (`cedars.core.files`: accepted types, `DOCUMENTS_MAX_FILE_MB`, the uploads area under the version),
+  never public and never edited (a database trigger), at most `CEDARS_COMMENT_MAX_CHARS` characters and `CEDARS_UPLOAD_MAX_FILES` files.
+- Posting and each file download are audit events on the version, and subscribers hear of a comment (`submission.commented`), while a
+  filing organization's comment goes straight to the module's CPUC reviewers (holders of `<module>.approve` in the CPUC and today's
+  delegates; `comments.tell_reviewers`, a direct message, one per user with a subscriber's by `notice_key`).
+- My queue (`/queue/`, `cedars.core.queue`): the work waiting on the signed-in user, read live from providers each service or module
+  registers (correction requests and program changes to decide, data steward and access decisions, versions priced and ready to confirm,
+  fund shifts to acknowledge, comments whose reply is the user's side's, documents to publish, responses to recommendations, unanswered
+  questions).
+- Records corrected in place (`corrections.py`, the architecture's "a cell corrected in place: that row re-validated"): on an open draft
+  only (never a confirmed version), a submitter finds a record by key or any value (also the records filed before the version that a
+  module offers, e.g. Claims' year so far: correcting one adds the corrected record to the version; a table whose rows for a claim are one
+  set carries the set in whole), changes, adds or deletes it on a server-rendered form, or uploads a partial correction (only the changed
+  and new records, a Delete table naming those to remove; a column left out keeps its values), previewed field by field before it is
+  applied and applied only to the records it was previewed against (`state`), at most `CEDARS_CORRECTION_MAX_ROWS` records.
+- Each record changed is an audit event `submission.record_corrected` (table, key, fields, before and after, how: record editor or the
+  file's name and SHA-256), the version's file is rewritten as a new file set (`attach_files`, so its pricing is void) and the module
+  re-checks only the changed records and those whose checks they affect (`Scope`: each old line's new line and the changed lines),
+  carrying every other record's findings over.
+- Each module registers an `Editor` (tables, keys, fields, rows, earlier rows, save), or for a module whose records are CSV tables kept
+  whole with each version (Budgets, Monthly reports) a `FileTables` editor (its tables, keys, required and number columns, how it reads
+  its files; the fields are the file's own columns, described from the data dictionary in force).
+- Pages `/filings/versions/<id>/records/...`.
+- Change letters and refile notices say how many records were corrected in place (`summary`).
+
+#### 17.2.8 Notifications
+
+`cedars.services.notifications`, phase 1.
+
+- Built: subscriptions per event type (a filing published is offered per module: budget filings, monthly reports, claims; optionally per
+  organization) fed from the audit trail after commit, so a rolled-back change notifies nobody.
+- What a user follows: the PAs (every PA, the ones they choose, or none), which narrow every subscribed event about a PA (approvers' work
+  is never narrowed), and programs by PrgID (settings page, or Follow on the program's page), whose followers hear whatever their PA
+  choice of the events they keep ticked: a filing or its correction that includes the program, a fund shift moving its funds, a change to
+  its record, a document about it.
+- What an event concerns (its PAs, programs, a summary and the page to open) comes from hooks a module registers (`register_filing(module, describe)`, `register_concerns(object_type, describe)`), so the service never imports a module.
+- Publications are public, events about filings in progress (un-confirmed, reopened, declined) go only to the organization's members and
+  CPUC staff.
+- A published correction (a refile) reaches every subscriber of its PA and every follower of a program it changed, with a summary of what
+  changed and a link to its change letter.
+- One message per user per event.
+- Every notification on the user's page, email per subscription through Django's mail backend (SES SMTP in production) with failures kept
+  on the notification.
+- `notify(user, ...)` for modules (a run failed or was refused, or finished after more than the run notice limit, 60 seconds by default,
+  counted from when it was queued; honoring the user's preference).
+- Deadline reminders at the lead times each user chooses (`DeadlineReminder`: days before, 0 to 365, per module or every module, several
+  per user; `send_deadline_reminders` daily sends the shortest lead time still ahead of each deadline once per due date, so a moved
+  deadline is reminded of again; migration 0002 turned the old fixed 7-day and 1-day subscriptions into reminders).
+- Notifications page, settings page and an unread count in the navigation.
+
+#### 17.2.9 Release notes and limits
+
+`cedars.services.releases`, phase 1.
+
+- Built: release notes as data (`ReleaseNote` with its `Change`s: kind specification / rule / limit / system, the part of CEDARS, what
+  changes, what to do, and for a limit change the limit and its new value).
+- Drafted and published by CPUC system administrators (/releases/manage/), published only before the date they take effect and at least
+  `CEDARS_RELEASE_NOTICE_DAYS` (14) days before unless a reason is given and shown.
+- A published note never changes and is never deleted (database trigger), only withdrawn with a reason.
+- `release.published` / `release.withdrawn` are notification events (any user may subscribe, Send me each release note on /releases/).
+- Public pages /releases/ (coming, this release with the guides revised for it, in effect and withdrawn), a note's page,
+  /releases/feed.xml (RSS).
+- Every page announces notes taking effect within the notice period.
+- The Limits page (/limits/, also ?format=json) lists each limit from the setting that enforces it (`releases/limits.py`: upload size
+  `CEDARS_UPLOAD_MAX_MB` and files per upload `CEDARS_UPLOAD_MAX_FILES`, enforced in `core/uploads.py` for filings and calculation jobs on
+  pages and API, and stated beside every upload field; document, load-shape and custom-profile sizes; run records; Edit inputs rows;
+  download rows and jobs; API rates and token life) with the announced changes to it.
+- User guides and the FAQ carry the release they were revised for (`core/revisions.py`, `core/help_revisions.json`;
+  `manage.py help_revisions --update`, a test fails on a guide changed without it).
+- The `releases.notes` health check flags a running release without notes, a limit change in effect that the setting does not match, and a
+  guide not revised for a release that changed its part of CEDARS.
+- The FAQ (`core/faq.yaml`, /help/faq/: search by words and topic without scripts, worked examples, limits filled in as they stand).
+- The register of CPUC-mandated data and calculation changes (`releases/mandates.py`, `Mandate` and `MandateLink`, migration 0002; public
+  `/mandates/`, `/mandates/<id>/`, `?format=csv`; CPUC system administrators `/mandates/manage/`): each entry names the decision or
+  resolution, what it requires, what it changes (data, calculations or both), when it takes effect, its implementation status (not
+  started, in progress, implemented with its date, superseded, withdrawn) and the published records that carry it (a rule set, catalog
+  version, value list version, field, reference-data pack or release note, each checked to exist and be published when linked).
+- A draft is seen only by administrators.
+- A published entry is never deleted (database trigger; withdrawn instead), each later change and link needs a reason and is audited
+  (`mandate.changed`, `mandate.link_added`, `mandate.link_removed`), and the entry's page shows that history without who made it.
+- Only public CPUC information (a document link must be https on a ca.gov site).
+- Published with the specification change log (linked both ways, and from the release notes).
+
+#### 17.2.10 Reference data (pack registry)
+
+`cedars.services.refdata`, phase 1.
+
+- Built: eTRM's published permutations as a pack of their own (`etrm_permutations`, `refdata/etrm.py`: eTRM permutations downloads loaded
+  with `manage.py load_etrm_permutations`, every row indexed by Measure Detail ID with the deemed values the platform reads, its offering
+  keys as columns under one index for the input editor's narrowing lookup and a summary per measure package (`EtrmPackage`), and the field
+  maps from eTRM's columns to the claims-template fields; a lookup on the pack's page) until the eTRM database replica carries them.
+- Pack versions by kind (ACC electric / gas, impact profiles, eTRM, DEER, value lists, run parameters, engine releases) with a SHA-256
+  manifest, a fingerprint (the manifest's SHA-256) and a storage URI.
+- Registered as drafts (analysis runs only), published once the tie-outs their kind requires pass (`TieOutRequirement`, data; a difference
+  over the stated precision fails).
+- Published packs never change and are withdrawn, never deleted (database trigger).
+- `in_force`, `usable(pack, purpose)`, `pin()` for runs and submissions.
+- `register_pack` / `record_tie_out` commands.
+- Pages to view, publish, withdraw.
+- Cost-test definition sets are packs of their own (kind `cost_tests`, `refdata/cost_tests.py`, ReCET's COST_TESTS.md): one ReCET
+  `definition.yaml` each, registered on the Cost-test sets page or with `manage.py register_cost_tests`, published once its `engine_check`
+  tie-out passes (the engine loads it, and a set ReCET ships is byte for byte the engine's file; a file marked `draft: true` is never
+  published), in force by program year (`cost_tests.for_year`: the newest published set whose first program year is not after the job's).
+- Its page shows the set in words as the engine installed here writes it out (`cost_tests.in_words`: ReCET's `describe`, or what the
+  engine says is wrong with it) and anyone signed in downloads its file (`/reference-data/<pack>/definition.yaml`, checked against the
+  pack's SHA-256 on the way out).
+- The set builder (`refdata/builder.py`, `CostTestBuild`; every signed-in user builds sets for their own analysis runs, only the CPUC's
+  cost-test pack managers register them) keeps a set being built as its YAML mapping (in the set's own order: kept as JSON text, since
+  jsonb reorders keys), started from a registered set, one of the user's own, a set the engine ships, an uploaded file (keys the format
+  does not have set aside) or nothing, private or shared with the organization the user may start runs for.
+- Its pages edit the header, pricings, the engine's streams (from ReCET 0.1.92's `engine_streams()` catalog: include, pricings, unit and
+  definition only), input streams (their Measure columns and 2nd-baseline columns each chosen with the core two-list column picker, sent
+  as `columns_picked` / `columns_2nd_picked`), aggregates and tests (added, changed, renamed with the shares that name them, ordered,
+  removed), check every save with the engine's validator and file each message under its step, and Review shows the set in words, what
+  changed since the set it was copied from (`builder.changes`), its file and Register (a draft pack, `cost_tests.register_set`).
+- Every change is audited (`cost_test_build.*`).
+- Registering a set records its `engine_check` tie-out at once with the engine installed in the web process (`cost_tests.engine_check`:
+  its validator finds nothing and a set the engine ships is the engine's own file), and the pack page checks it again on request.
+- A builder offers a set to the CPUC with a note (`builder.offer`; withdrawn with `withdraw_offer`): the cost-test pack managers see every
+  offered set (Offered to the CPUC on the Cost-test sets page) and register it or decline it with a reason (`builder.decline`), and its
+  builder is notified either way.
+- New run's "Or one of my cost-test sets" prices an analysis run on one of the user's sets as its own file (`RunRequest.cost_test_build`,
+  down the custom-set path; the run's context records the build).
+- Every ReCET run is pinned to one (`calculations.service.cost_test_pack`): the set the request or the filing's setup names
+  (`FilingSetup.cost_test_set`, `ClaimYear.cost_test_set`; published only), else the one in force for the job's first program year.
+- A published set goes to the worker by its id (`settings.cost_test_set`), a draft (analysis runs only, never with filing checks or a
+  filing purpose) as the file itself (`inputs.cost_tests`).
+- The run's context and filing record carry the set's id, version and file SHA-256, and a receipt naming another file fails the run.
+- A ReCET run is pinned to its ACC year's electric pack and the impact-profile library in force (`calculations.service.packs_for`:
+  published, or for analysis runs a draft when none is; a filing refuses a draft): the files under the engine's reference-folder paths
+  (`acc/<year>/`, `impact_profiles/`) become the job spec's `packs.files`, so the worker refuses a folder whose files differ, and `pin()`
+  goes into the spec's context, the receipt and the input hash, and a filing's calculation keeps it (`calculation.packs`).
+- `refdata/profiles.py` reads one profile's 8,760s back out of a library pack (its catalog's `profile_version` and `shape_id`, the hourly
+  row group) and writes them as ReCET's supplied 8,760 file, for a true-up priced against its parent's pinned profile.
+
+#### 17.2.11 Retention
+
+`cedars.services.retention`, phase 1.
+
+- Built: a period per record class (the design's default periods seeded, each changed on the Retention page with a reason), legal holds on
+  one record or a whole class, the daily `purge_expired` job (dry run, one audit event per class, a purge log).
+- Notifications and idle unconfirmed filing drafts register their deletion step, Calculations adds scratch runs.
+
+#### 17.2.12 PII vault
+
+`cedars.services.vault`, phase 4.
+
+- Built: PII_Contact and PII_Site (CEDARS' PII data rules; their fields, types and lengths the vault tables of the claims filing's
+  specification version) in their own database, the `vault` alias from `VAULT_DATABASE_URL` (its own RDS instance and KMS key in
+  Terraform; `VaultRouter` keeps every other table off it and it off the core database; tests use `<name>_vault`; the sandbox has none and
+  refuses PII).
+- A file is attached to a submission version and checked at once (`PII-*`: key filled in, PA prefix, once, named by the claim's
+  ContactClaim / Site / Claim / ClaimSite records, lengths, digits-only phones, an @ in emails, an electric or gas account per site).
+- Only a file with no findings is stored, superseding the version's earlier one (its rows deleted), a rejected one keeps its findings
+  only.
+- Uploading needs claims.pii in the organization, reading it there or in the CPUC organization (a data steward approves every grant; the
+  federated-session policy applies).
+- Uploads, rejections and every download are audited with counts, keys and the reason, never values.
+- No other part of the platform reads its tables.
+
+#### 17.2.13 Legacy CEDARS years (phase 7)
+
+`cedars.services.legacy`, phase 7.
+
+- Built: the crosswalk from the public record-level downloads' labels to canonical names (`dictionary/legacy.py`,
+  `dictionary/data/legacy_crosswalk.csv` and `legacy_layouts.json`: all six published layouts, 1,083 columns, each mapped to a Measure,
+  Claim, Participant, program (Prg_) or output field, or kept as `Legacy_*`; none dropped; listed in the dictionary's crosswalk download).
+- Imported versions in the submissions service (`origin` "imported", always published, `submissions.import_version`; every change,
+  pricing, un-confirm, reopen and correction path refuses a submission that holds one).
+- `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
+  layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
+- `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and
+  reconciliation; refused while a hard check fails).
+- Budget filings load built: `manage.py load_legacy_filings [--filing KEY] [--pa CODE]` (`modules/budgets/legacy.py`) loads each staged
+  filing (the 2017-2023 ABALs, the 2024-2027 application, the 2024-2025 true-up, the archived 2026-2027 TUAL, the 2026-2027 mid-cycle, the
+  2028-2031 application's archived snapshot then its current files) as one imported version per PA under a Budgets deadline with the
+  filing's ACC.
+- Each version keeps the records as Measure / Outputs / Programs parquet, budget lines (the ten weighted cost fields summed by program and
+  year) and CEDARS' CET outputs as results (run `legacy-cedars`, not re-priced).
+- The registry gains the program years it lacked (`registry.add_history`, the registry's own versions kept).
+- Hard checks (rows against the per-PA file, numbers readable, rows written, additive outputs exact, weighted costs = Weighted Program
+  Cost) refuse a PA.
+- Soft checks (benefits = ratio x cost, budget lines = Budget) and ratios without a cost are recorded in the reconciliation.
+- Claims load built: `manage.py load_legacy_claims [--year YEAR] [--pa CODE]` (`modules/claims/legacy.py`) streams each staged claim year
+  (2016-2026) and splits it by PA (`legacy.tables`), then loads each PA as one imported version on the year's annual (final) claim (the
+  Q1-Q4 deadlines stay empty; ClaimYearQuarter is kept on every record; the ClaimYear takes the claims ACC from the engine's table): the
+  records as Measure / Claim / Outputs / Programs (and, 2026, Participant) parquet, a claim record per claim (a repeated ClaimID gets #2,
+  #3), program lines and CEDARS' CET outputs as results (run `legacy-cedars`).
+- From 2023 the statewide unallocated claims (PA SW) load as the SW version, outside every total (`year_totals` gives none; the totals
+  come from the PA files, which hold the statewide claims allocated).
+- Pages built: Claims and Budgets list legacy years and filings as "Imported from legacy CEDARS".
+- An imported version's page names its source download at CEDARS, links the historic specification version of its layout and shows its
+  reconciliation (`legacy/_imported.html`, from `legacy.imported`), lists its loaded tables and report for download, marks the statewide
+  version as outside every total, and offers no un-confirm, reopen or correction.
+- Dashboard snapshots built (`legacy/snapshot.py`): each import but the statewide unallocated claims gets one measure-level file joined
+  from its stored Measure / Outputs / Programs tables (TRCBen, PACBen, RIMBen where the layout lacks them as the loads build them,
+  `legacy.tables.benefits`: TRCBen = ElecBen + GasBen + OtherBen, PACBen = RIMBen = ElecBen + GasBen (on a filed PAC Benefits column,
+  claims from 2023, which already holds Other Benefits: TRCBen = RIMBen = PACBen), ratio x cost only for a record with no benefit values,
+  since CEDARS' published ratios are the benefit columns over the costs and the files' ratios are rounded; TotalExpenditures =
+  WeightedProgramCost + the four incentive outputs and RebatesandIncents = those outputs where the file lacks them), frozen as its
+  snapshot with one release per load.
+- `manage.py snapshot_legacy` gives imports loaded earlier theirs (`--replace` builds them all again).
+- Years loaded when the missing benefits were ratio x cost are corrected by `load_legacy_claims --rebuild-benefits` and
+  `load_legacy_filings --rebuild-benefits` (results rebuilt from the stored Outputs table, audited).
+- Level 3 of the reconciliation (the published dashboard totals) is checked by `manage.py dashboard_parity` (`data/parity.py`) on an
+  instance with the years loaded.
+- The totals are not in this repository.
+- Not done: the pages.
+
+#### 17.2.14 Publication snapshots
+
+`cedars.services.snapshots`, phase 3.
+
+- Built: a published, priced version's measure-level results frozen in the snapshots area (`Snapshot`: dataset claims / forecast /
+  monthly, organization, year, run, SHA-256, rows), copied once the confirming transaction commits (a submissions listener,
+  `register_listener`).
+- Numbered, never-changed `Release`s of the snapshots in force per dataset (every filing for forecast; for claims and monthly the latest
+  year-to-date period per PA and year, so quarters never add up twice), made only when that set changes.
+- An un-confirmation before the due date deletes the snapshot and releases without it.
+- `as_of` and `release_files` for the Data module.
+- `snapshot_published` command repairs a failed copy.
+- Imported legacy versions are snapshotted from a file their load builds (`publish(area=, key=, release=False)`, then one `rebuild`).
+- Every new snapshot is scanned for personal information before it can join a release (`snapshots/pii.py`, `PIIScan`): a hit holds it out
+  of the releases (the filing's earlier version, or for claims and monthly the PA's previous period, stands), the filing's confirmers and
+  the CPUC system administrators are told, and a system administrator releases it with a reason or scans it again after changing the
+  settings (pages `/publication/`).
+
+#### 17.2.15 Feedback
+
+`cedars.services.feedback`, phase 1.
+
+- Built: a "Feedback on this page" link in every page's footer (signed in or not) opens `/feedback/?from=<page>`.
+- A message is kept with the page it came from, the sender and the organization they act for (none when signed out: only a keyed hash of
+  the address, to limit how often one sends), audited (`feedback.received`), and every CPUC system administrator is told (Notifications
+  page, and email unless they turned direct emails off), as is the team inbox `CEDARS_FEEDBACK_EMAIL` when set.
+- The message is a request with a kind and a conversation: administrators answer it, ask its sender a question, keep a note, close it with
+  a note and reopen it with a reason at `/admin/feedback/`, and a signed-in sender follows it on My requests, replies and says it is
+  settled.
+- The support desk (`support.answer`) works on requests beside the system administrators, a sender's organization's administrators read
+  its questions, problems and accessibility barriers unless kept private, and accessibility barriers and security concerns are urgent, a
+  security concern for system administrators only ([Requests](#142-requests)).
+- The form shows the page's help and, before a question is sent, the parts of Help that match it.
+- Limits `CEDARS_FEEDBACK_MAX_CHARS` and `CEDARS_FEEDBACK_PER_HOUR` on the Limits page.
+- Retention class `feedback` (730 days, closed messages only).
+
+#### 17.2.16 Work items
+
+`cedars.services.work`, phase 1.
+
+- Built (the record and the backlog): work items with a story, size, severity and workaround.
+- Requests joined to an item as its evidence, from the request's page.
+- The one ordered backlog (accept, move up, down or to a position).
+- Declining an item and making one public proposed by a backlog manager (`work.manage`) and approved by the CPUC (`work.approve`).
+- My queue for both acceptance tests on an item and the check that it is ready for a release.
+- Release plans filled from the backlog, proposed by a backlog manager and approved by the CPUC ([Work items and the
+  backlog](#143-work-items-and-the-backlog)).
+- What people outside see is built too: Known problems, Upcoming changes and a public item's page, following a public item, where a
+  request's work stands on the sender's page, known problems on the form people report from, and telling senders and followers when an
+  item is planned in an approved release or declined.
+- Built too: the pre-filled issue for the developers with its address kept on the item, items marked built, and the CPUC's go or no-go on
+  a built release.
+- Built too: acceptance tests joined to the test scripts by test ID, a round of testing opened for an approved release from its page, and
+  each test's results shown with the release and beside the go or no-go.
+- Built too: signed events from the developers' tracker (pull requests that name an item shown on it; an item marked built when its issue
+  closes).
+- Built too: the site posting an item's issue to the tracker itself, as a GitHub App, after the backlog manager has read it.
+- And the measures page (requests, delivery, what came back after the last release, testing).
+
+#### 17.2.17 Testing
+
+`cedars.services.testing`, phase 1.
+
+- Built (run and record): the test scripts loaded as versions (`load_test_scripts`), rounds of testing, scripts assigned to testers' own
+  accounts and shown in My queue, the run page with one test at a time and a result saved per test, what the tester types kept as a draft,
+  the test lead's results page and its Excel download, and the run link that keeps a run open while the site is signed in as a test
+  account or signed out.
+- On only where `CEDARS_TESTING` is set ([Testing on the site](#141-testing-on-the-site)).
+- A failed or blocked result is sent to the requests inbox as a finding and follows its result.
+- A round of testing is opened for a release from its plan's page, and the plan shows how its acceptance tests were answered ([Work items
+  and the backlog](#143-work-items-and-the-backlog)).
+- Not built yet: screenshots.
+
+#### 17.2.18 Sandbox refresh
+
+`cedars.services.sandbox`, phase 1.
+
+- Built: `manage.py export_sandbox_bundle --to <folder or s3://...>` in production writes a bundle (manifest with each file's SHA-256, the
+  rows, the snapshot files) of its published, non-PII data, as listed in `sandbox/bundle.py` SPECS: PA and other organizations with their
+  codes, programs and versions, cycles, periods, confirmed allocation factors and goal sets, published and withdrawn reference packs
+  (files read in place), dictionary versions, published value list versions and rule sets, published and withdrawn filing specification
+  versions with their tables, fields, checks and examples, and the publication snapshots in force with their published filing versions
+  (without uploaded files).
+- Never a person (every "by" field blank), never the vault (the export runs in the jobs task, which has no vault URL; a test checks no
+  spec names one).
+- `manage.py refresh_sandbox --from <same>` (sandbox or a developer database only) matches each row by its natural key, adds what the
+  sandbox lacks with its children in a savepoint, leaves what it has (bringing a few fields up to date: a version's end date, a pack's
+  withdrawal), lists clashes with the sandbox's own records (a tester's filing for the same deadline, a draft under the same key) instead
+  of overwriting them, records the rows it added (`CopiedRecord`, so the sandbox_data clean-up keeps copied filings) and the run
+  (`Refresh`, audited `sandbox.refreshed`), then rebuilds the releases.
+- Terraform schedules both (`sandbox_bundle_uri`, `sandbox_refresh_schedule`), off by default.
+
+#### 17.2.19 Document accessibility
+
+`cedars.services.accessibility`, phase 1.
+
+- Built: every PDF and workbook stored as a document's file or attached to a comment on a document or a filing is checked as it is stored
+  (`checks.py`: untagged or image-only PDFs, PDFs with no title or language; sheets with no marked header row, merged cells, pictures or
+  charts with no alternative text, default sheet names; pure functions, no database), the check kept per file (`FileCheck`, audited), the
+  uploader warned, the document page offers an accessible copy on request, and Administration, Document accessibility
+  (`/admin/document-accessibility/`, system administrators) lists flagged files to mark reviewed with a note.
+- Nothing is refused unless `CheckSettings.block` is on (settings page, reason, audited), for the findings it names.
+- Legacy imports are never refused.
+- Every generated workbook (budget appendix, record and dashboard downloads, upload templates) is written by `cedars/core/workbooks.py`:
+  title, subject and language, named sheets, the rows as an Excel table with a marked header row, print titles, frozen header, no merges
+  or pictures.
+- The tests hold each to no findings.
+- Conformance report: `docs/ACCESSIBILITY_CONFORMANCE.md`.
 
 ### 17.3 Modules
 
-| Module | App | Phase | What is built |
-| --- | --- | --- | --- |
-| Programs | `cedars.modules.programs` | 2 | Built: catalog and program pages public, signed in or not (signed out, a page leaves out who entered each version and pending change requests; changes and requests need an account); catalog (search by name or PrgID, PA, open or closed, segment, program year; an Other filters panel for any other attribute (`programs/filters.py`: status, sectors, category, implementer, contractor, direct install, financing, statewide and parent program, start and end year ranges, the CEDARS flags and exclusions), each a GET parameter so a filtered catalog is a link, applied filters shown as chips that each remove themselves; works without scripts; CSV download of the filtered list), program page (definition in force, versions with field-level changes, statewide allocation history, and every record about the program, each linked to its record: budget filing lines by version and program year with the priced TSB and TRC, fund shifts, claims by confirmation, monthly reports, evaluations and documents; one program year at a time with `?year=`, which carries to a filing's page. The modules supply the rows through `registry.register_program_records` / `program_records(program, user, year)`, each applying its own read rules: published filings, claims, reports and documents are shown signed out, unpublished versions and fund shifts only to their PA's readers and CPUC staff), effective-dated change form for the program's administrators and the CPUC; change requests for locked attributes (the registry's dated `ProgramChangePolicy` names them, a CPUC programs approver or their delegate decides, approval starts the version; pages `/programs/requests/` and `/programs/locked/`); program fields guide (`/programs/fields/`, public): every field's definition (the data dictionary's Prg_ field where it has one), how to fill it in and its valid values with how many programs carry each, from `registry/program_fields.yaml` (`registry.field_guide`; a value is retired from a date, never deleted); the change form shows each field's guidance under it and offers only the listed values for status, segment, primary sector, implementer and category (a program keeps a retired value it already has), and each label on the program page links to its entry) |
-| Calculations (ReCET) | `cedars.modules.calculations` | 2 | Built: engine releases as data (CPUC page: release, worker image, Batch job definition, calculations and their ACCs, default, retire, return to service; a release is named by its version number only and a new ReCET version is a release of its own, added with the default's calculations filled in and optionally retiring the old default in the same step, so each run keeps naming the release it ran on (`Run.engine_release`); Change edits a release's calculations, ACCs, image and job definition with a reason, never its number; the Calculations box takes the codes `recet` / `cet-25.1` or the names the table shows), run records (organization or own, settings, inputs by key and SHA-256; the job as a .zip of Measure.csv and ProgramCost.csv or as ReCET's job workbook, told apart by its contents and handed to the worker as its `job_zip` or `workbook` input, a CET replica refusing a workbook's RunParameters, SWAllocation, GasProfiles and Profiles8760 sheets (`jobfiles.py`); ReCET's optional input files (run parameters, 8,760 electric profiles, gas monthly profiles) in the zip, as workbook sheets or uploaded on their own (`jobfiles.OPTIONAL`), each its own worker input, the zip handed on with only Measure.csv and ProgramCost.csv; a job's own program metadata and statewide factors noted as not used, since the program registry and the allocation version are every run's; a replica takes none; input hash, lane, job spec, progress, receipt), the job spec for ReCET's `recet worker run` (`jobspec.py`), local and AWS Batch dispatch (`dispatch.py`, `calculations_worker`, `calculations_sync`; a local worker records the release it runs and its lanes as a `Worker` heartbeat and takes only that release's runs, New run says when no live worker serves a release, and the `calculations.workers` health check fails for a release that is the default or has queued runs with no worker), statewide allocation versions pinned per run, the registry's programs for the program year in every run, queue position and estimates, New run / runs / run pages with downloads (the run page shows the engine's input check from preflight.json, unpriced measures and the ACC check first, and the run's log.txt, which the worker sends while it runs from ReCET 0.1.90 and the page updates in place; every output file and every input download as one zip written as it is sent, `core/zipstream.py`), owner notices, scratch-run retention, a finished filing run priced into its submission version, a published filing's job priced again as an analysis run for a restatement (`restate_version`, registered with the submissions service; never linked to the version; an ACC per record pins each named ACC's pack too, `RunRequest.record_accs`); the output template page's two-list field picker (the core `field_picker.js` and `_field_picker.html` over the field catalog, also Results' and Compare's Choose columns, `template_views.picker_fields`: fields by kind and output group with search and definitions on the left, the template in file order with add, remove and reorder on the right, the Columns box kept in step; without scripts the box and tick boxes); New run's engine options (an ACC comparison, whose second ACC's pack is pinned too and whose Results get a tab per ACC and one for the engine's `comparison_summary` table; First Year, market effects, ACC components, the combined 8,760 and its years, Exclude_From_CE in the summary, "Priced for" with each budget filing and the "Which ACC applies" table from the engine's `recet.versions`). Job API, Results, Compare, templates, Edit inputs and parallel runs follow. Edit inputs offers and checks end uses from the impact-profile library pack in force (its catalog, as ReCET's editor does from its own library; `drafts.choices`), runs "Check with the engine" as a check-only run of the draft whose `preflight.json` cells are mapped back onto the draft's rows (`drafts.check_findings`, while the tables' hash is the one checked; `InputDraft.check_run`, migration 0006), and downloads a draft as an accessible job workbook (`drafts.workbook_bytes`). Rerun with different settings (`/calculations/new/?from=<run>`) fills New run from a run and uses its stored job file and optional inputs again unless others are uploaded (`service.reused_inputs`); an owner deletes their own ended run (`service.delete_run`, audited `calculation_run.deleted`; never an organization's, a filing's or a held run); the run page's tile help and the day retention deletes a run (`service.deletion_dates`: the scratch_run period from its end, kept with a filing or under a hold), each run's settings line, run time and input-check tag on the runs list, New run's table of what each cost-test set prices, upload progress (`new_run.js`, the plain post without scripts), a default name (the job file's and the ACC, `service.run_name`), Walk through a measure (`walkthrough.py`, `/calculations/runs/<id>/walkthrough/`): any measure of a finished run followed in ten steps from its inputs to its cost-test ratios in plain words, read from the kept measure-level table, run_settings.json and the run's cost-test set, each sum, product and ratio set beside the engine's output; on a CET replica's run the steps follow that release (its column names and discount rates, quarterly tables, CET's own tests) and a difference caused by a CET error the replica keeps is named as that error; check jobs for the rules service (`dispatch.submit_check`, `check_one`, `run_check_local`, `BatchBackend.submit_check` and `sync_checks`; the local worker takes its release's check jobs before runs); and an analysis run's own cost-test set file (`RunRequest.cost_tests_file`: `inputs.cost_tests` with its SHA-256, the context's set marked custom; refused for a replica, a filing, filing checks, Priced for or beside a named set) |
-| Impact profiles | `cedars.modules.impact_profiles` | 2 | Built: nightly eTRM sync into a versioned snapshot with sync history and exclusions; a nightly sync that fails is tried again after each wait in `ETRM_SYNC_RETRY_MINUTES` (10 and 30 minutes) and, if its last attempt fails, every CPUC system administrator and `impact_profiles.admin` holder is alerted by notification and email (`etrm.nightly`, `alert_failure`) (against a fixture schema until we have database access); load-shape upload with the four validation stages as rules LS-F/T/S/E; generation with CEDARS' formula and ID formula, 2nd-baseline profiles, NR/NC mapping rows; custom profiles (upload, replace, retire); DEER/TOU/legacy import (a consolidated ReCET library too); identical profiles (only a 100% match, every zone's 8,760 and the calendar, `identical.py`, `ProfileVersion.content_sha256`) are one profile under several names: each name keeps its own versions, the profile page lists every name, an identical upload or generated profile is reported as another name of it; the library written in the engine's format (ReCET 0.1.87: one catalog row per name with `shape_id`, each stored profile's 8,760s written once), numbered and registered as a reference-data pack; per-PA job queues |
-| Budgets (filings, fund shifts) | `cedars.modules.budgets` | 3 | Budget filings built: a CPUC system administrator sets up each cycle filing (business plan application, TUAL, MCAL: a `budgets` deadline on a filing cycle) with the ACC it is priced on and, optionally, its allocation version (`FilingSetup`); a PA uploads a .zip of Measure and ProgramCost or an Excel workbook, which gives the version's budget lines (each program and year: the ten ProgramCost fields CET adds up, plus its measures' rebates and incentives), the module's checks (years in the cycle, PrgIDs in the registry and the PA's own, numbers) and the budget filing rule set run year by year; pricing goes through the submissions service to Calculations, and the run's group sums become the version's results by program, year and credited PA; confirm publishes; any two versions compare by program; programs excluded from the budget or from C/E are filtered, never zeroed, with a reconciliation of every line; a confirmed version publishes its inputs, job spec and receipt, and generates the appendix workbook. Fund shifts built (`budgets/shifts.py`): a PA moves dollars between its own and statewide programs across the cycle's years, with no calculation run; a statewide line changes every funding PA's portion of that program by its weighted allocation factor (the standing filing's pinned allocation version, else the most recent), recorded on submission; each PA's own lines plus its portion must add up to zero, and an unbalanced shift is rejected and stays a draft; each other funding PA is notified, places its portion among its own programs and acknowledges, and the shift takes effect with the last one; one in effect is undone by another shift, never withdrawn. Operating budget: the standing filing's lines plus the PA's part of the shifts in effect since it was confirmed (its own lines, and its portion on each statewide program's row), by program and year, page and CSV; each program year stands on the latest filing whose lines hold it (`service.standing_by_year`: a TUAL or MCAL that re-files only some of the cycle's years leaves the others on the earlier filing, as legacy CEDARS' 2024-2025 TUAL and 2026-2027 MCAL do), and a shift counts for a year when it took effect after that year's filing was confirmed. Change letters: a corrected version's publication writes an append-only `ChangeLetter` (migration 0004) with each program whose budget or priced results changed, before and after, and the totals; public change log at `/budgets/changes/`. Records corrected in place (`corrections.py`, a `FileTables` editor): a draft's Measure and ProgramCost records (keys CEInputID; PrgID + PrgYear), kept as the version's new job and checked again by `_store_and_check(scope=...)`: the module's checks on every record (they are file-wide and quick: years, PrgIDs, duplicates, program-year lines) and the budget filing rules only on the changed records and those with the same key, every other rule finding carried to its new line, a whole check when the rule set in force or a table's columns changed; a reopened version's inherited job is checked when its records are first opened (`ensure_checked`); the change letter has an "in_place" count. A fund shift that takes effect is announced to the followers of its PAs and programs (`shifts.notice`). |
-| Claims | `cedars.modules.claims` | 4 | Claim years, uploads, checks, pricing and confirmation built: a CPUC system administrator sets up each claim year (`ClaimYear`: five `claims` deadlines on its quarters and the year, Q1 to Q4 and the annual (final) confirmation, and five statewide confirmations due before them (by default two weeks before a quarter's, a month before the annual claim; each must come first), in which each statewide program's lead PA (`Program.lead`, recorded on the program page by any PA's administrators while it has none, then only by the lead's, `registry.can_set_lead` / `set_lead`; `registry.filing_problem` refuses another PA's program or a statewide one by any PA but its lead, in claims and budgets) files its statewide claims, compiled on their own (`service.same_run`), priced with allocation, never in a PA's own claims (CLM-SW); each funding PA sees its share of the confirmed statewide claims before it files (`statewide_share`, page `/claims/years/<year>/statewide/` and CSV) and `year_totals` counts it, so the 13th-month report has it and the lead never counts the whole program; the Filings page shows a PA that leads nothing as having nothing to file (`submissions.register_filers`) and the snapshots keep a lead's statewide claims in a slot beside its own (`submissions.register_stream`); the ACC, default the year's claims ACC, and optionally its allocation version); a PA uploads a .zip or workbook of the claims template (CEDARS' 2026 Claims specification under the canonical field names, CET and CEDARS names accepted, plus the fuel-substitution infrastructure cost table; PII tables refuse the upload); each upload is compiled over the year's earlier confirmations; module checks `CLM-*` (columns, required fields, types, keys, ClaimIDs, quarters, programs in the registry and the PA's own, references between tables, NMEC, SEM, deemed, fuel substitution, payments, CCA/REN rules) and CEDARS' claims rule set on Measure and ProgramCost; pricing the year to date through the submissions service; results by program and credited PA beside what was filed; confirm publishes the compiled non-PII inputs, the version's own upload, the job, spec and receipt; un-confirm before the due date and reopen after, in quarter order; the year's confirmed totals for Monthly reports (`submissions.claims_totals`); withdrawals (the template's Withdrawal table, `CLM-WD` checks, the records kept and marked, not priced or counted) and a public change letter for each correction (`ChangeLetter`, append-only; pages `/claims/changes/`); links between claims (`ClaimRecord`, per version: NMEC chains with `CLM-CHAIN` checks across years; a population claim's sites in the ClaimSite table; SEM participants across phases; ProjectID as the project key; page `/claims/links/` and each version's links CSV); a NMEC true-up priced against its parent's profile (ReCET 0.1.89): the check names each true-up's parent profile in ReCET's `AC_Elec_Impact_Profile_Parent` columns, pinned to the version the parent's standing confirmed version was priced on (its run's impact-profile library, `calculation.packs`, read back with `refdata/profiles.py`) as "<profile> (v<N>)", and keeps those 8,760s as the job's supplied profile file (`parent_profiles.parquet`, Parquet so every impact reads back exactly; the run's `profiles_8760` input, and a restatement's), so the true-up is priced on them whatever the library holds then; a parent filed in the same claims is named as it is (same run, same library); the version page shows the incremental benefits by program and each true-up's pinned parent profile, the chain page each true-up's change in total system benefit (from the run's measure-level results); reported only, never in the totals or ratios; personal information through the PII vault (`cedars.services.vault`, a PII file uploaded on the period page with the claims it belongs to, checked against them, a reopened version using its predecessor's until it has its own, an audited download for PII readers); deemed claims checked against eTRM by MeasDetailID (`CLM-ETRM`: the published eTRM permutations pack in force; blank Claim and Measure fields filled from it in the compiled tables, the stored upload unchanged; a filed value that differs rejects the record, except the NTG fields, which warn; eTRM's "Any" is the PA's to supply, never filled or compared; an unknown permutation of a loaded measure version rejects, an unloaded version warns, a permutation not in effect in the claim's quarter warns); the claims submissions API (`/api/v1/claims/`, `api.py`): reads first, claim years and their confirmations, a confirmation's versions for one organization, a version's check summary, totals, files, its run being priced and whether it is stale, its findings (the organization and CPUC readers only), its results by program (the version CSV's rows), its published files, change letters and NMEC chains; then the period page's writes for the organization the call acts for, through the same service functions: upload a confirmation's claims (`periods/<id>/upload`, checked at once, 201), check again, price (202, refused when already priced or a run was started since the records changed unless `again`) and confirm (`versions/<id>/check`, `/price`, `/confirm`; only on the confirmation's latest version, so a client confirms what it reviewed; claims.submit, confirm needs claims.confirm; a refusal is 409 with the service's message, an unreadable file 400); a token needs the claims scope, reads its own organization's versions and every published one, and never reaches the PII vault (PII files, un-confirming and reopening stay on the period page); restated results (`restatements.py`, `Restatement` / `RestatementLine`): a confirmed version's published job priced again as an analysis that never changes the filed record (pages `/claims/versions/<id>/restate`, `/claims/restatements/`), on a chosen release and ACC, with an optional ClaimID / ACC file that prices those claims on their own ACC through ReCET's ACCVersion column; when any record's ACC differs from the filed one a second "bridge" run prices the filed job on the filed ACC, so the change splits into the program and engine effect (bridge less filed: the release, today's program registry, the claim year's allocation version and cost-test set) and the ACC effect (restated less bridge), by program and in total, with a CSV; a restatement can be set beside the PA's confirmed claims of another year (on that year's ACC the difference is what the programs did); the runs go through `submissions.restate` and belong to the requester's organization (or are their own), like any run; records corrected in place (`corrections.py`, the submissions service's corrections): a draft's own records (its upload) and the year so far (the confirmation it is compiled on; a claim filed earlier is withdrawn, never deleted), checked again by `check(scope=...)`: the module's checks on the changed records and those related to them (same key; the claim's other records and true-ups naming it; a ProgramCost record's measures; a Site's records), the claims rule set on the changed Measure and ProgramCost records only, every other finding carried to its new line, and a whole check instead when the rule set in force or a table's columns changed since; the change letter has an "in_place" count |
-| Monthly reports | `cedars.modules.monthly` | 5 | Built: a CPUC system administrator sets up a program year (`YearSetup`: twelve `monthly` deadlines on the year's months, each opening when its month ends and due on a set day of the next, and the ACC and allocation version the estimates are priced on); a PA uploads a .zip or workbook of Commitments (the separate commitments file, with CEDARS' committed columns as reported today) and the year-to-date BCA inputs (Measure, ProgramCost); each program's spend is read from the BCA inputs as Budgets counts a budget (the ten ProgramCost cost fields plus NumUnits times the measures' four unit incentive fields; OnBillFinancing apart), and the month's spend is the change in the year-to-date spend since the previous confirmed month; module checks `MON-*` (PA, programs, month, numbers, duplicates, BCA years up to the month's quarter; warnings for year-to-date spend below the previous confirmed month's and measures without program costs); the BCA inputs get BCA-level validation only, the engine's input check when priced through the submissions service, and their savings and TSB are shown as preliminary estimates; a report with no measures has nothing to price and confirms without a run; un-confirm before the due date, reopen after; the report by program against the approved and operating budgets, with paid incentives (the measures' rebates and incentives, part of spend) and committed incentives (Commitments' YTDCommittedFunds, to be paid in the future) as separate figures that are never set against each other (no difference or ratio: they are not comparable), in the pages, CSVs, change letters and the program page and the year in one view with each month's spend and a flag where the year-to-date spend falls. CEDARS' monthly expenditure, MonthFundShifts and savings columns are named and not read. The 13th-month report is generated, never uploaded: each program's totals from the PA's confirmed claims through `submissions.claims_totals` (final once the annual claim is confirmed, provisional on the confirmed quarters before), against the operating budget, with December's confirmed report beside it and the programs whose claimed expenditures differ from December's year-to-date spend flagged. Change letters: a corrected report's publication writes an append-only `ChangeLetter` (migration 0003) with each program whose year-to-date spend, commitments or estimates changed, before and after; public change log at `/monthly/changes/`. Records corrected in place (`corrections.py`, a `FileTables` editor): a draft's Commitments, Measure and ProgramCost records (keys PrgID; CEInputID; PrgID + PrgYear), kept as the report's new files and checked again whole (every MON check is file-wide: one row per program, spend against the previous month's); the change letter has an "in_place" count. |
-| Data, dashboards, downloads | `cedars.modules.data` | 6 | Query layer built: `query.run` sums the metric catalog's fields by dimension (PA, segment, sector, implementer type, use category, year, program, measure, measure type, filing) over one release of the claims, forecast or monthly snapshots with DuckDB over Parquet (snapshots in S3 read from a local copy named by SHA-256, `DATA_CACHE`); filters, year range and the default exclusions (Pension and Benefits, Energy Savings Assistance and codes and standards on every page; programs flagged Exclude_From_CE on the cost-effectiveness page) are GET parameters (`from_params`, `Query.query_string`), so a link reproduces a view; forecast reads, for each PA and program year, the latest filing that holds that year (a true-up or mid-cycle filing covering some of its cycle's years stands for those, the rest keep the earlier filing; `pick_files`, `file_years`), or the filing asked for whole; an earlier release can be read by number. Metric catalog (`metrics.py`): each metric's canonical fields, unit, display scale and rounding; ratios from summed benefits and costs, blank over a zero cost; `/data/metrics.csv`. Stamped downloads (`downloads.py`): CSV, XLSX, Parquet at `/data/download.<fmt>?<query>`, public, carrying the release, as-of time, snapshots, filters, exclusions and fields; up to `DATA_DOWNLOAD_MAX_ROWS` rows. Record-level downloads (`records.py`): `/data/records/` filters the published measure-level records by dataset, filing, years, PA, program, measure and the other dashboard filters, leaves nothing out unless asked (each exclusion is a choice), shows the first hundred with the columns chosen, and downloads every matching record as one file for all PAs (CSV, XLSX, Parquet, streamed through DuckDB in batches, stamped with the release, as-of time, snapshots, the records each PA holds, filters, exclusions, columns and dictionary version); the column picker (the core two-list picker, in the file's order, sending the chosen columns as one comma field `cols` that the post reads as `col`; without scripts tick boxes by group) offers the release's columns under their canonical names in the data dictionary's groups and never a field the dictionary does not mark public; column choices are short GET parameters (`columns` key / all / none, `colgroup`, `col`, `drop`; the form posts and redirects to the shortest), so every choice has a link; with no parameters the page opens on the current year; up to `DATA_DOWNLOAD_MAX_ROWS` records are made in the request. Larger ones are background downloads (`jobs.py`, model `DownloadJob`): a signed-in person asks for one on the records page (CSV, Parquet, or XLSX up to a worksheet's rows; at most `DATA_DOWNLOAD_JOBS_PER_USER` waiting), pinned to the release they saw; `manage.py run_data_downloads` makes it (workers share the queue with SKIP LOCKED; an always-on ECS service in `infra/terraform/modules/platform/jobs.tf`; in the request with `DATA_DOWNLOAD_INLINE_JOBS`, on by default in development) into the results storage area under `downloads/<id>/` with its size and SHA-256, and the notification service tells the person (page and email) when it is ready or failed; `/data/downloads/` lists a person's own, each with a status page and its file (a pre-signed URL on S3); audited (`data_download.requested`, `.made`, `.failed`); retention class `data_download`, 7 days from the file being made. Dashboard framework built (`dashboard.py`): each page is one server-rendered GET form (series forecast / claimed, filing, years defaulting to the current cycle, or to the newest cycle the forecast release holds when the current one has no filing yet, view by, metric, gross or net, first year or lifecycle, each exclusion, filters whose values come from the registry), runs one query per series and shows them side by side (claimed less forecast, and % of forecast over the years both series have data for, stated when they differ), an SVG bar chart with no script (forecast hatched, claims solid, so they differ by pattern as well as color) above the table that is its text alternative; with scripts (`static/data/dashboard.js`) each chart is one tab stop whose rows the arrow keys move through, and the row under the pointer or with the focus shows its values (the same text a screen reader reads; Escape hides them), and each chart and each table fold away (native `<details>`), remembered in the browser for its own page; the controls sit folded under Change view below a one-line summary of the view (years, series, metric, grouping, basis, the forecast's filing, what is left out), open only when the view could not be shown; each page opens with one sentence saying what its first section shows (`takeaway.py`: the claimed total, the share of the forecast, how many rows reached it and which is lowest; the goals and budget pages their own), later sections under their headings; the tiles show their units and a line saying what each number is; each chart row prints its values short (`takeaway.compact`, `dashboard.label_values`) and the share claimed beside its bars; "What is ...?" explains the metric in plain words above its catalog definition, and pages showing claims say they are as filed, before evaluation, drill links one level down (PA > sector > program > measure), the applied filters with a link that removes each, and each series' download with the records behind its rows beside it (`records.behind`: the same query with every exclusion stated and the key columns, as files up to `DATA_DOWNLOAD_MAX_ROWS` records and a background download beyond, and a link to the records page to choose columns); pages at `/data/<page>/`, public. Pages built: Overview; Goals (`goal_view.py`: each IOU territory's annual targets or cycle goals from the goal set in force against forecast and claimed, CCA and REN results counted by the set's counting rules and shares, TSB without codes and standards, the C&S metrics on C&S programs only, a goal marker on the chart, drill to the overview by the PAs counted); Total system benefit (by sector, by year, a share matrix of each PA's total by sector, and by program); Cost effectiveness (each test's ratio with or without admin, from summed benefits and costs, by sector, year and program; no % of forecast for a ratio); Energy savings (kWh, therms, kW, gross or net, first year or lifecycle); Environmental impact (CO2, NOx, PM10 in metric tons). Program detail (programs ranked, each linked to its program page and drilling to its measures by use category; the chart shows the first 20); Measure detail (by use category and by measure, each measure linked to the records behind it for each series); the records page (`/data/records/`, `records.page`: the measure-level records a query keeps, 100 a page, with their total, which equals the row they came from). Budget and spending (`budget_view.py`, the operating budget from `registry.operating_budget` against the forecast budget, the monthly-reported year-to-date spending from `registry.reported_spend` (Monthly reports registers it; labeled preliminary) and claimed expenditure, by year with cumulative totals and the budget as the chart's marker, cost elements by sector, and by program). All nine pages built. Front page (`front.py`, `/`, redesigned 2026-11-11): what CEDARS is, then how the portfolio is doing from the published claims: five figures (total system benefit, electricity saved, peak demand avoided, gas saved, spending) for the chosen year, each with its change from the year before in words and a sparkline, and four server-drawn SVG charts of the chosen metric (by year with each year's change, the average and the current cycle shaded; against spending, each as a share of its first year; the largest PAs from the first published year to the chosen one; total system benefit per dollar spent), each with a table of its values and a link to the dashboard page that breaks it down; every choice (metric, PA type, year) is a link or a GET form, years before a metric was published are said in words, never drawn as zero; `static/data/front.js` adds values on hover and from the keyboard (one tab stop per chart, arrow keys, announced through the page-wide live region); one query (every metric by year, PA type and PA, with the dashboards' default exclusions) is kept, reread after the response once older than `front.FRESH_SECONDS` and in the request only for a new claims release; `manage.py warm_front_page` reads it ahead; then Help and the guided tour (a modal dialog, one step per part of the page, with steps for the parts only signed-in users and administrators see; `/help/tour/` without scripts). Saved views (`saved.py`, `saved_pages.py`, models `SavedView` and `RecordColumnDefault`): a signed-in person saves a dashboard page's or the records page's query string (its GET parameters, columns included, the release and page number dropped so it reruns on current data, checked by the page's own parser) under a name, from the Saved views part at the foot of each of those pages (or over one of their own views of the page); `/data/views/` lists their own, those shared with them and the published ones, and `/data/views/<id>/` opens one with its choices in words. The owner shares a view with named people (any active account, by email, told by notification; at most `DATA_SAVED_VIEW_SHARES`) and with the active members of one organization they belong to, renames it, asks the CPUC to publish it (the system administrators are told), or deletes it; a CPUC system administrator publishes, declines or unpublishes it with a reason; a published view is open to everyone, signed in or not, without its owner's name, and does not change until unpublished; others save a copy of their own. Each person may keep their own default columns for the records page, used when a link names none (`records.from_params(default_columns=)`). At most `DATA_SAVED_VIEWS_PER_USER` views each; both limits on /limits/. Every change is an audit event (`data_view.saved`, `.changed`, `.shared`, `.unshared`, `.deleted`, `.publication_requested`, `.publication_declined`, `.published`, `.unpublished`, `.default_columns_set`, `.default_columns_cleared`); the owner and administrators see a view's history on its page. Parity (`parity.py`, `manage.py dashboard_parity --expected CSV [--known CSV] [--report CSV]`): each published total (dataset, year, PA or ALL, filing, metric, value, scope) against the query layer, with the exclusions the page's scope implies and ALL limited to the IOUs unless it names CCAs and RENs; sums within 0.5% or half a unit, ratios within 0.005 (a published 0 agrees with a ratio left blank over a zero cost); Pension and Benefits always counted (CEDARS has no switch); a known-differences file marks explained gaps; fails on any other difference or missing number |
-| Documents & EM&V (replacing Reports & Documents, DEER Resources, the PDA and the PSR) | `cedars.modules.documents` | 6 (any time after 1) | Document library built: one record type for five collections (PA documents, CPUC staff guidance, DEER resources, program files, EM&V documents); each document at a permanent link (`/documents/<id>/`) with its PAs (a joint document names several, and each can see and manage it), programs, program years and attributes from value lists CPUC ED keeps (`/documents/lists/`: each collection's document types and the PDA's eight categories with its 82 options, PDA ids kept; options retired, never deleted); files in numbered versions (a replacement is a new version with its reason; a published version and its files never change, enforced in PostgreSQL by migration 0003); an implementation plan's version can be filed as a placeholder (migration 0016: the full plan comes as a later version; the flag of a published version never changes; the program page, the document page and the library mark it until a full plan is published); publication per version (documents.confirm), public read of published documents without an account; search by words, collection, type, PA, program, year, dates and attributes, with the result list as CSV; every download or view an audit event, listed per document. Evaluation study register built (replacing the PSR): one record per study with its PSR fields (`StudyID` `<year>_<sector>_<number>`, never changed), public at `/documents/studies/` with filters and a CSV of every public field, an activity report (next activities due, recently updated), each study's page with its documents and its history (every change audited with the reason; status and budget marked; contacts hidden from the public), the programs and program years it evaluates in whole or in part, shown on each program's page through `registry.evaluations` so Programs never imports Documents, and the EM&V plan's study and budget tables per funding cycle (`/documents/studies/budgets/`, planned against completed, CSV); CPUC ED keeps the work orders and their tasks (`/documents/work-orders/`), and an EM&V document may name its study, work order and task. EM&V deliverables built: an EM&V document marked as a study's deliverable keeps every stage on its one record (draft workplan, final workplan, draft study results, final study results, PA responses, CPUC ED reply; a version never goes back a stage; drafts numbered, finals revised with a reason), its page shows the revision history in order and search lists it once at its current stage; CPUC ED asks PAs to respond by a due date and each PA files and publishes its own response without managing the rest. Public comment built: any version may have a comment period (changed only with a reason); registered users post comments and questions with a section and an optional file while it is open, the author withdraws one until it is answered, CPUC ED, the document's PAs and the study manager respond, all public with name and organization (never an email), and the comment-and-response report downloads per document, study or work order; comments and responses never change (migration 0007). The aging review (`/documents/studies/aging/`, CPUC staff) lists what each study manager and PA owes and for how long; drafts are never purged. Search reads the files too: each file's text is read when it is stored (`documents/textract.py`: PDF through pypdf, Word / PowerPoint / Excel text runs, text and CSV; scanned PDFs, images, zips and the pre-2007 Office formats are found by title and file name only, with the reason kept) into `FileText` with a PostgreSQL full-text index; a search matches the details or the text (web-search syntax: phrases, or, -word) and shows a few words around each match, and only published versions' text is searched for those who do not see the unpublished work; `manage.py documents_read_text` reads files stored before. Subscriptions built: a signed-in user follows collections and any value documents carry (`/documents/subscriptions/`) and studies and work orders from their pages, and hears through the notification service (`notifications.send`, page only or also email) when a matching version is published, when a published version's comment period opens or moves, and when a followed study's status changes; one message per user per event, none for unpublished work; CPUC staff see who follows what (`/documents/subscribers/`, CSV). Key dates: CPUC ED posts and removes them (audited) on the library's home page beside the list of what is open for comment now. The PDA migration: `manage.py documents_import_pda` (`documents/pda_import.py`) files every published PDA document in the EM&V collection with its attributes (by the PDA option ids the value lists keep), work order and task, main file and attachments (a refused type such as .exe kept inside a zip), comment window, and comments and responses, with their original dates and the authors' names as the PDA shows them (no accounts: `author` is empty on migrated comments), from saved API responses and a folder of files or from the site itself; `--dry-run` reports what would be imported and what does not map, and a run can be repeated. Each migrated record keeps its PDA id, and the PDA's and PSR's old addresses redirect under `/documents/pda/` and `/documents/psr/` (docs/LEGACY_LINKS.md, with the rules for the old domains). The PSR migration: `manage.py documents_import_psr` (`documents/psr_import.py`) adds every PSR project to the study register under its project number and study ID, with its dates, from a saved `/api/projects` response or the site; its free-text lists (lead, status, study type, group, sectors, funding cycles, study manager) are matched to the register's lists and organizations, a CSV map (`--map`, written with every value by `--write-map`) settles the rest without a code change, and what maps to nothing is kept as the PSR had it on the study (`Study.psr`, seen only with the contacts; an unmatched manager leaves the study with the CPUC). CEDARS' own documents: `manage.py documents_import_cedars` (`documents/cedars_import.py`) files Reports & Documents (PA reports, CPUC staff guidance), DEER Resources and the program documents (implementation plans with their redlines and change summaries) from a manifest, one row per file of a version, with every version, its original date and its in-effect dates and notes, and each record's and file's old CEDARS addresses (`LegacyLink`), which then redirect to them (`/deer-resources/...`, `/documents/guidance-document/...`, `/documents/standalone/...`, `/documents/history/...`, `/documents/download/...`). The 2006-2013 EM&V site (energydataweb.com/cpuc, the PDA's predecessor): its document pages and files carry the PDA's deliverable ids, so its addresses redirect under `/documents/edw/` to the PDA's migrated documents (`views.edw_archive`), and the home-page files that never reached the PDA (quarterly meeting materials, project status spreadsheets, program information) come through the same manifest as EM&V records keyed `edw/...`, their old addresses kept under `/edw` |
-| Admin and configuration | `cedars.modules.administration` | 1-2 | Access pages built: account, organizations, members and grants, access requests, recertification, stewardship, access settings, audit log, statewide allocation versions; role templates (`accounts.RoleTemplate`, named bundles of module permissions a CPUC system administrator defines at `/admin/role-templates/`, offered by kind of organization, retired never deleted; an organization's administrators grant one on its page, `accounts.service.apply_role_template`: one grant per permission recording the template, all or nothing, audited `role_template.applied`; four starters, CPUC reviewer, Evaluator, Implementer and Consultant, to edit); People (`/admin/people/`, system administrators: find an account, correct its name, deactivate or reactivate it with a reason; deactivation revokes its API tokens and ends its sessions, never the last system administrator or data steward); people set their own name and change their email address (verified by link; the old address is told and other sessions end), and a community account may close itself; an organization's sign-in is switched on its page (a data steward confirms when its members hold PII access) and an organization is retired or brought back without merging |
+| Module | App | Phase |
+| --- | --- | --- |
+| [Programs](#1731-programs) | `cedars.modules.programs` | 2 |
+| [Calculations (ReCET)](#1732-calculations-recet) | `cedars.modules.calculations` | 2 |
+| [Impact profiles](#1733-impact-profiles) | `cedars.modules.impact_profiles` | 2 |
+| [Budgets (filings, fund shifts)](#1734-budgets-filings-fund-shifts) | `cedars.modules.budgets` | 3 |
+| [Claims](#1735-claims) | `cedars.modules.claims` | 4 |
+| [Monthly reports](#1736-monthly-reports) | `cedars.modules.monthly` | 5 |
+| [Data, dashboards, downloads](#1737-data-dashboards-downloads) | `cedars.modules.data` | 6 |
+| [Documents & EM&V (replacing Reports & Documents, DEER Resources, the PDA and the PSR)](#1738-documents--emv) | `cedars.modules.documents` | 6 (any time after 1) |
+| [Admin and configuration](#1739-admin-and-configuration) | `cedars.modules.administration` | 1-2 |
+
+#### 17.3.1 Programs
+
+`cedars.modules.programs`, phase 2.
+
+- Built: catalog and program pages public, signed in or not (signed out, a page leaves out who entered each version and pending change
+  requests; changes and requests need an account).
+- Catalog (search by name or PrgID, PA, open or closed, segment, program year; an Other filters panel for any other attribute
+  (`programs/filters.py`: status, sectors, category, implementer, contractor, direct install, financing, statewide and parent program,
+  start and end year ranges, the CEDARS flags and exclusions), each a GET parameter so a filtered catalog is a link, applied filters shown
+  as chips that each remove themselves; works without scripts; CSV download of the filtered list), program page (definition in force,
+  versions with field-level changes, statewide allocation history, and every record about the program, each linked to its record: budget
+  filing lines by version and program year with the priced TSB and TRC, fund shifts, claims by confirmation, monthly reports, evaluations
+  and documents; one program year at a time with `?year=`, which carries to a filing's page. The modules supply the rows through
+  `registry.register_program_records` / `program_records(program, user, year)`, each applying its own read rules: published filings,
+  claims, reports and documents are shown signed out, unpublished versions and fund shifts only to their PA's readers and CPUC staff),
+  effective-dated change form for the program's administrators and the CPUC.
+- Change requests for locked attributes (the registry's dated `ProgramChangePolicy` names them, a CPUC programs approver or their delegate
+  decides, approval starts the version; pages `/programs/requests/` and `/programs/locked/`).
+- Program fields guide (`/programs/fields/`, public): every field's definition (the data dictionary's Prg_ field where it has one), how to
+  fill it in and its valid values with how many programs carry each, from `registry/program_fields.yaml` (`registry.field_guide`; a value
+  is retired from a date, never deleted).
+- The change form shows each field's guidance under it and offers only the listed values for status, segment, primary sector, implementer
+  and category (a program keeps a retired value it already has), and each label on the program page links to its entry).
+
+#### 17.3.2 Calculations (ReCET)
+
+`cedars.modules.calculations`, phase 2.
+
+- Built:
+  - Engine releases as data (CPUC page: release, worker image, Batch job definition, calculations and their ACCs, default, retire,
+    return to service). A release is named by its version number only and a new ReCET version is a release of its own, added with the
+    default's calculations filled in and optionally retiring the old default in the same step, so each run keeps naming the release it
+    ran on (`Run.engine_release`). Change edits a release's calculations, ACCs, image and job definition with a reason, never its number;
+    the Calculations box takes the codes `recet` / `cet-25.1` or the names the table shows.
+  - Run records (organization or own, settings, inputs by key and SHA-256, input hash, lane, job spec, progress, receipt). The job is a
+    .zip of Measure.csv and ProgramCost.csv or ReCET's job workbook, told apart by its contents and handed to the worker as its `job_zip`
+    or `workbook` input, a CET replica refusing a workbook's RunParameters, SWAllocation, GasProfiles and Profiles8760 sheets
+    (`jobfiles.py`). ReCET's optional input files (run parameters, 8,760 electric profiles, gas monthly profiles) come in the zip, as
+    workbook sheets or uploaded on their own (`jobfiles.OPTIONAL`), each its own worker input, the zip handed on with only Measure.csv and
+    ProgramCost.csv. A job's own program metadata and statewide factors are noted as not used, since the program registry and the
+    allocation version are every run's; a replica takes none.
+  - The job spec for ReCET's `recet worker run` (`jobspec.py`).
+  - Local and AWS Batch dispatch (`dispatch.py`, `calculations_worker`, `calculations_sync`). A local worker records the release it runs
+    and its lanes as a `Worker` heartbeat and takes only that release's runs, New run says when no live worker serves a release, and the
+    `calculations.workers` health check fails for a release that is the default or has queued runs with no worker.
+  - Statewide allocation versions pinned per run, and the registry's programs for the program year in every run.
+  - Queue position and estimates; New run / runs / run pages with downloads. The run page shows the engine's input check from
+    preflight.json, unpriced measures and the ACC check first, and the run's log.txt, which the worker sends while it runs from ReCET
+    0.1.90 and the page updates in place; every output file and every input download as one zip written as it is sent
+    (`core/zipstream.py`).
+  - Owner notices and scratch-run retention.
+  - A finished filing run priced into its submission version, and a published filing's job priced again as an analysis run for a
+    restatement (`restate_version`, registered with the submissions service; never linked to the version; an ACC per record pins each
+    named ACC's pack too, `RunRequest.record_accs`).
+- The output template page's two-list field picker (the core `field_picker.js` and `_field_picker.html` over the field catalog, also
+  Results' and Compare's Choose columns, `template_views.picker_fields`: fields by kind and output group with search and definitions on
+  the left, the template in file order with add, remove and reorder on the right, the Columns box kept in step; without scripts the box
+  and tick boxes).
+- New run's engine options (an ACC comparison, whose second ACC's pack is pinned too and whose Results get a tab per ACC and one for the
+  engine's `comparison_summary` table; First Year, market effects, ACC components, the combined 8,760 and its years, Exclude_From_CE in
+  the summary, "Priced for" with each budget filing and the "Which ACC applies" table from the engine's `recet.versions`).
+- Job API, Results, Compare, templates, Edit inputs and parallel runs follow.
+- Edit inputs offers and checks end uses from the impact-profile library pack in force (its catalog, as ReCET's editor does from its own
+  library; `drafts.choices`), runs "Check with the engine" as a check-only run of the draft whose `preflight.json` cells are mapped back
+  onto the draft's rows (`drafts.check_findings`, while the tables' hash is the one checked; `InputDraft.check_run`, migration 0006), and
+  downloads a draft as an accessible job workbook (`drafts.workbook_bytes`).
+- Rerun with different settings (`/calculations/new/?from=<run>`) fills New run from a run and uses its stored job file and optional
+  inputs again unless others are uploaded (`service.reused_inputs`).
+- An owner deletes their own ended run (`service.delete_run`, audited `calculation_run.deleted`; never an organization's, a filing's or a
+  held run).
+- The run page's tile help and the day retention deletes a run (`service.deletion_dates`: the scratch_run period from its end, kept with a
+  filing or under a hold), each run's settings line, run time and input-check tag on the runs list, New run's table of what each cost-test
+  set prices, upload progress (`new_run.js`, the plain post without scripts), a default name (the job file's and the ACC,
+  `service.run_name`), Walk through a measure (`walkthrough.py`, `/calculations/runs/<id>/walkthrough/`): any measure of a finished run
+  followed in ten steps from its inputs to its cost-test ratios in plain words, read from the kept measure-level table, run_settings.json
+  and the run's cost-test set, each sum, product and ratio set beside the engine's output.
+- On a CET replica's run the steps follow that release (its column names and discount rates, quarterly tables, CET's own tests) and a
+  difference caused by a CET error the replica keeps is named as that error.
+- Check jobs for the rules service (`dispatch.submit_check`, `check_one`, `run_check_local`, `BatchBackend.submit_check` and
+  `sync_checks`; the local worker takes its release's check jobs before runs).
+- And an analysis run's own cost-test set file (`RunRequest.cost_tests_file`: `inputs.cost_tests` with its SHA-256, the context's set
+  marked custom; refused for a replica, a filing, filing checks, Priced for or beside a named set).
+
+#### 17.3.3 Impact profiles
+
+`cedars.modules.impact_profiles`, phase 2.
+
+- Built: nightly eTRM sync into a versioned snapshot with sync history and exclusions.
+- A nightly sync that fails is tried again after each wait in `ETRM_SYNC_RETRY_MINUTES` (10 and 30 minutes) and, if its last attempt
+  fails, every CPUC system administrator and `impact_profiles.admin` holder is alerted by notification and email (`etrm.nightly`,
+  `alert_failure`) (against a fixture schema until we have database access).
+- Load-shape upload with the four validation stages as rules LS-F/T/S/E.
+- Generation with CEDARS' formula and ID formula, 2nd-baseline profiles, NR/NC mapping rows.
+- Custom profiles (upload, replace, retire).
+- DEER/TOU/legacy import (a consolidated ReCET library too).
+- Identical profiles (only a 100% match, every zone's 8,760 and the calendar, `identical.py`, `ProfileVersion.content_sha256`) are one
+  profile under several names: each name keeps its own versions, the profile page lists every name, an identical upload or generated
+  profile is reported as another name of it.
+- The library written in the engine's format (ReCET 0.1.87: one catalog row per name with `shape_id`, each stored profile's 8,760s written
+  once), numbered and registered as a reference-data pack.
+- Per-PA job queues.
+
+#### 17.3.4 Budgets (filings, fund shifts)
+
+`cedars.modules.budgets`, phase 3.
+
+- Budget filings built: a CPUC system administrator sets up each cycle filing (business plan application, TUAL, MCAL: a `budgets` deadline
+  on a filing cycle) with the ACC it is priced on and, optionally, its allocation version (`FilingSetup`).
+- A PA uploads a .zip of Measure and ProgramCost or an Excel workbook, which gives the version's budget lines (each program and year: the
+  ten ProgramCost fields CET adds up, plus its measures' rebates and incentives), the module's checks (years in the cycle, PrgIDs in the
+  registry and the PA's own, numbers) and the budget filing rule set run year by year.
+- Pricing goes through the submissions service to Calculations, and the run's group sums become the version's results by program, year and
+  credited PA.
+- Confirm publishes.
+- Any two versions compare by program.
+- Programs excluded from the budget or from C/E are filtered, never zeroed, with a reconciliation of every line.
+- A confirmed version publishes its inputs, job spec and receipt, and generates the appendix workbook.
+- Fund shifts built (`budgets/shifts.py`): a PA moves dollars between its own and statewide programs across the cycle's years, with no
+  calculation run.
+- A statewide line changes every funding PA's portion of that program by its weighted allocation factor (the standing filing's pinned
+  allocation version, else the most recent), recorded on submission.
+- Each PA's own lines plus its portion must add up to zero, and an unbalanced shift is rejected and stays a draft.
+- Each other funding PA is notified, places its portion among its own programs and acknowledges, and the shift takes effect with the last
+  one.
+- One in effect is undone by another shift, never withdrawn.
+- Operating budget: the standing filing's lines plus the PA's part of the shifts in effect since it was confirmed (its own lines, and its
+  portion on each statewide program's row), by program and year, page and CSV.
+- Each program year stands on the latest filing whose lines hold it (`service.standing_by_year`: a TUAL or MCAL that re-files only some of
+  the cycle's years leaves the others on the earlier filing, as legacy CEDARS' 2024-2025 TUAL and 2026-2027 MCAL do), and a shift counts
+  for a year when it took effect after that year's filing was confirmed.
+- Change letters: a corrected version's publication writes an append-only `ChangeLetter` (migration 0004) with each program whose budget
+  or priced results changed, before and after, and the totals.
+- Public change log at `/budgets/changes/`.
+- Records corrected in place (`corrections.py`, a `FileTables` editor): a draft's Measure and ProgramCost records (keys CEInputID; PrgID +
+  PrgYear), kept as the version's new job and checked again by `_store_and_check(scope=...)`: the module's checks on every record (they
+  are file-wide and quick: years, PrgIDs, duplicates, program-year lines) and the budget filing rules only on the changed records and
+  those with the same key, every other rule finding carried to its new line, a whole check when the rule set in force or a table's columns
+  changed.
+- A reopened version's inherited job is checked when its records are first opened (`ensure_checked`).
+- The change letter has an "in_place" count.
+- A fund shift that takes effect is announced to the followers of its PAs and programs (`shifts.notice`).
+
+#### 17.3.5 Claims
+
+`cedars.modules.claims`, phase 4.
+
+- Claim years, uploads, checks, pricing and confirmation built: a CPUC system administrator sets up each claim year (`ClaimYear`: five
+  `claims` deadlines on its quarters and the year, Q1 to Q4 and the annual (final) confirmation, and five statewide confirmations due
+  before them (by default two weeks before a quarter's, a month before the annual claim; each must come first), in which each statewide
+  program's lead PA (`Program.lead`, recorded on the program page by any PA's administrators while it has none, then only by the lead's,
+  `registry.can_set_lead` / `set_lead`; `registry.filing_problem` refuses another PA's program or a statewide one by any PA but its lead,
+  in claims and budgets) files its statewide claims, compiled on their own (`service.same_run`), priced with allocation, never in a PA's
+  own claims (CLM-SW); each funding PA sees its share of the confirmed statewide claims before it files (`statewide_share`, page
+  `/claims/years/<year>/statewide/` and CSV) and `year_totals` counts it, so the 13th-month report has it and the lead never counts the
+  whole program; the Filings page shows a PA that leads nothing as having nothing to file (`submissions.register_filers`) and the
+  snapshots keep a lead's statewide claims in a slot beside its own (`submissions.register_stream`); the ACC, default the year's claims
+  ACC, and optionally its allocation version).
+- A PA uploads a .zip or workbook of the claims template (CEDARS' 2026 Claims specification under the canonical field names, CET and
+  CEDARS names accepted, plus the fuel-substitution infrastructure cost table; PII tables refuse the upload).
+- Each upload is compiled over the year's earlier confirmations.
+- Module checks `CLM-*` (columns, required fields, types, keys, ClaimIDs, quarters, programs in the registry and the PA's own, references
+  between tables, NMEC, SEM, deemed, fuel substitution, payments, CCA/REN rules) and CEDARS' claims rule set on Measure and ProgramCost.
+- Pricing the year to date through the submissions service.
+- Results by program and credited PA beside what was filed.
+- Confirm publishes the compiled non-PII inputs, the version's own upload, the job, spec and receipt.
+- Un-confirm before the due date and reopen after, in quarter order.
+- The year's confirmed totals for Monthly reports (`submissions.claims_totals`).
+- Withdrawals (the template's Withdrawal table, `CLM-WD` checks, the records kept and marked, not priced or counted) and a public change
+  letter for each correction (`ChangeLetter`, append-only; pages `/claims/changes/`).
+- Links between claims (`ClaimRecord`, per version: NMEC chains with `CLM-CHAIN` checks across years; a population claim's sites in the
+  ClaimSite table; SEM participants across phases; ProjectID as the project key; page `/claims/links/` and each version's links CSV).
+- A NMEC true-up priced against its parent's profile (ReCET 0.1.89): the check names each true-up's parent profile in ReCET's
+  `AC_Elec_Impact_Profile_Parent` columns, pinned to the version the parent's standing confirmed version was priced on (its run's
+  impact-profile library, `calculation.packs`, read back with `refdata/profiles.py`) as "<profile> (v<N>)", and keeps those 8,760s as the
+  job's supplied profile file (`parent_profiles.parquet`, Parquet so every impact reads back exactly; the run's `profiles_8760` input, and
+  a restatement's), so the true-up is priced on them whatever the library holds then.
+- A parent filed in the same claims is named as it is (same run, same library).
+- The version page shows the incremental benefits by program and each true-up's pinned parent profile, the chain page each true-up's
+  change in total system benefit (from the run's measure-level results).
+- Reported only, never in the totals or ratios.
+- Personal information through the PII vault (`cedars.services.vault`, a PII file uploaded on the period page with the claims it belongs
+  to, checked against them, a reopened version using its predecessor's until it has its own, an audited download for PII readers).
+- Deemed claims checked against eTRM by MeasDetailID (`CLM-ETRM`: the published eTRM permutations pack in force; blank Claim and Measure
+  fields filled from it in the compiled tables, the stored upload unchanged; a filed value that differs rejects the record, except the NTG
+  fields, which warn; eTRM's "Any" is the PA's to supply, never filled or compared; an unknown permutation of a loaded measure version
+  rejects, an unloaded version warns, a permutation not in effect in the claim's quarter warns).
+- The claims submissions API (`/api/v1/claims/`, `api.py`): reads first, claim years and their confirmations, a confirmation's versions
+  for one organization, a version's check summary, totals, files, its run being priced and whether it is stale, its findings (the
+  organization and CPUC readers only), its results by program (the version CSV's rows), its published files, change letters and NMEC
+  chains.
+- Then the period page's writes for the organization the call acts for, through the same service functions: upload a confirmation's claims
+  (`periods/<id>/upload`, checked at once, 201), check again, price (202, refused when already priced or a run was started since the
+  records changed unless `again`) and confirm (`versions/<id>/check`, `/price`, `/confirm`; only on the confirmation's latest version, so
+  a client confirms what it reviewed; claims.submit, confirm needs claims.confirm; a refusal is 409 with the service's message, an
+  unreadable file 400).
+- A token needs the claims scope, reads its own organization's versions and every published one, and never reaches the PII vault (PII
+  files, un-confirming and reopening stay on the period page).
+- Restated results (`restatements.py`, `Restatement` / `RestatementLine`): a confirmed version's published job priced again as an analysis
+  that never changes the filed record (pages `/claims/versions/<id>/restate`, `/claims/restatements/`), on a chosen release and ACC, with
+  an optional ClaimID / ACC file that prices those claims on their own ACC through ReCET's ACCVersion column.
+- When any record's ACC differs from the filed one a second "bridge" run prices the filed job on the filed ACC, so the change splits into
+  the program and engine effect (bridge less filed: the release, today's program registry, the claim year's allocation version and
+  cost-test set) and the ACC effect (restated less bridge), by program and in total, with a CSV.
+- A restatement can be set beside the PA's confirmed claims of another year (on that year's ACC the difference is what the programs did).
+- The runs go through `submissions.restate` and belong to the requester's organization (or are their own), like any run.
+- Records corrected in place (`corrections.py`, the submissions service's corrections): a draft's own records (its upload) and the year so
+  far (the confirmation it is compiled on; a claim filed earlier is withdrawn, never deleted), checked again by `check(scope=...)`: the
+  module's checks on the changed records and those related to them (same key; the claim's other records and true-ups naming it; a
+  ProgramCost record's measures; a Site's records), the claims rule set on the changed Measure and ProgramCost records only, every other
+  finding carried to its new line, and a whole check instead when the rule set in force or a table's columns changed since.
+- The change letter has an "in_place" count.
+
+#### 17.3.6 Monthly reports
+
+`cedars.modules.monthly`, phase 5.
+
+- Built: a CPUC system administrator sets up a program year (`YearSetup`: twelve `monthly` deadlines on the year's months, each opening
+  when its month ends and due on a set day of the next, and the ACC and allocation version the estimates are priced on).
+- A PA uploads a .zip or workbook of Commitments (the separate commitments file, with CEDARS' committed columns as reported today) and the
+  year-to-date BCA inputs (Measure, ProgramCost).
+- Each program's spend is read from the BCA inputs as Budgets counts a budget (the ten ProgramCost cost fields plus NumUnits times the
+  measures' four unit incentive fields; OnBillFinancing apart), and the month's spend is the change in the year-to-date spend since the
+  previous confirmed month.
+- Module checks `MON-*` (PA, programs, month, numbers, duplicates, BCA years up to the month's quarter; warnings for year-to-date spend
+  below the previous confirmed month's and measures without program costs).
+- The BCA inputs get BCA-level validation only, the engine's input check when priced through the submissions service, and their savings
+  and TSB are shown as preliminary estimates.
+- A report with no measures has nothing to price and confirms without a run.
+- Un-confirm before the due date, reopen after.
+- The report by program against the approved and operating budgets, with paid incentives (the measures' rebates and incentives, part of
+  spend) and committed incentives (Commitments' YTDCommittedFunds, to be paid in the future) as separate figures that are never set
+  against each other (no difference or ratio: they are not comparable), in the pages, CSVs, change letters and the program page and the
+  year in one view with each month's spend and a flag where the year-to-date spend falls.
+- CEDARS' monthly expenditure, MonthFundShifts and savings columns are named and not read.
+- The 13th-month report is generated, never uploaded: each program's totals from the PA's confirmed claims through
+  `submissions.claims_totals` (final once the annual claim is confirmed, provisional on the confirmed quarters before), against the
+  operating budget, with December's confirmed report beside it and the programs whose claimed expenditures differ from December's
+  year-to-date spend flagged.
+- Change letters: a corrected report's publication writes an append-only `ChangeLetter` (migration 0003) with each program whose
+  year-to-date spend, commitments or estimates changed, before and after.
+- Public change log at `/monthly/changes/`.
+- Records corrected in place (`corrections.py`, a `FileTables` editor): a draft's Commitments, Measure and ProgramCost records (keys
+  PrgID; CEInputID; PrgID + PrgYear), kept as the report's new files and checked again whole (every MON check is file-wide: one row per
+  program, spend against the previous month's).
+- The change letter has an "in_place" count.
+
+#### 17.3.7 Data, dashboards, downloads
+
+`cedars.modules.data`, phase 6.
+
+- Query layer built: `query.run` sums the metric catalog's fields by dimension (PA, segment, sector, implementer type, use category, year,
+  program, measure, measure type, filing) over one release of the claims, forecast or monthly snapshots with DuckDB over Parquet
+  (snapshots in S3 read from a local copy named by SHA-256, `DATA_CACHE`).
+- Filters, year range and the default exclusions (Pension and Benefits, Energy Savings Assistance and codes and standards on every page;
+  programs flagged Exclude_From_CE on the cost-effectiveness page) are GET parameters (`from_params`, `Query.query_string`), so a link
+  reproduces a view.
+- Forecast reads, for each PA and program year, the latest filing that holds that year (a true-up or mid-cycle filing covering some of its
+  cycle's years stands for those, the rest keep the earlier filing; `pick_files`, `file_years`), or the filing asked for whole.
+- An earlier release can be read by number.
+- Metric catalog (`metrics.py`): each metric's canonical fields, unit, display scale and rounding.
+- Ratios from summed benefits and costs, blank over a zero cost.
+- `/data/metrics.csv`.
+- Stamped downloads (`downloads.py`): CSV, XLSX, Parquet at `/data/download.<fmt>?<query>`, public, carrying the release, as-of time,
+  snapshots, filters, exclusions and fields.
+- Up to `DATA_DOWNLOAD_MAX_ROWS` rows.
+- Record-level downloads (`records.py`): `/data/records/` filters the published measure-level records by dataset, filing, years, PA,
+  program, measure and the other dashboard filters, leaves nothing out unless asked (each exclusion is a choice), shows the first hundred
+  with the columns chosen, and downloads every matching record as one file for all PAs (CSV, XLSX, Parquet, streamed through DuckDB in
+  batches, stamped with the release, as-of time, snapshots, the records each PA holds, filters, exclusions, columns and dictionary
+  version).
+- The column picker (the core two-list picker, in the file's order, sending the chosen columns as one comma field `cols` that the post
+  reads as `col`; without scripts tick boxes by group) offers the release's columns under their canonical names in the data dictionary's
+  groups and never a field the dictionary does not mark public.
+- Column choices are short GET parameters (`columns` key / all / none, `colgroup`, `col`, `drop`; the form posts and redirects to the
+  shortest), so every choice has a link.
+- With no parameters the page opens on the current year.
+- Up to `DATA_DOWNLOAD_MAX_ROWS` records are made in the request.
+- Larger ones are background downloads (`jobs.py`, model `DownloadJob`): a signed-in person asks for one on the records page (CSV,
+  Parquet, or XLSX up to a worksheet's rows; at most `DATA_DOWNLOAD_JOBS_PER_USER` waiting), pinned to the release they saw.
+- `manage.py run_data_downloads` makes it (workers share the queue with SKIP LOCKED; an always-on ECS service in
+  `infra/terraform/modules/platform/jobs.tf`; in the request with `DATA_DOWNLOAD_INLINE_JOBS`, on by default in development) into the
+  results storage area under `downloads/<id>/` with its size and SHA-256, and the notification service tells the person (page and email)
+  when it is ready or failed.
+- `/data/downloads/` lists a person's own, each with a status page and its file (a pre-signed URL on S3).
+- Audited (`data_download.requested`, `.made`, `.failed`).
+- Retention class `data_download`, 7 days from the file being made.
+- Dashboard framework built (`dashboard.py`): each page is one server-rendered GET form (series forecast / claimed, filing, years
+  defaulting to the current cycle, or to the newest cycle the forecast release holds when the current one has no filing yet, view by,
+  metric, gross or net, first year or lifecycle, each exclusion, filters whose values come from the registry), runs one query per series
+  and shows them side by side (claimed less forecast, and % of forecast over the years both series have data for, stated when they
+  differ), an SVG bar chart with no script (forecast hatched, claims solid, so they differ by pattern as well as color) above the table
+  that is its text alternative.
+- With scripts (`static/data/dashboard.js`) each chart is one tab stop whose rows the arrow keys move through, and the row under the
+  pointer or with the focus shows its values (the same text a screen reader reads; Escape hides them), and each chart and each table fold
+  away (native `<details>`), remembered in the browser for its own page.
+- The controls sit folded under Change view below a one-line summary of the view (years, series, metric, grouping, basis, the forecast's
+  filing, what is left out), open only when the view could not be shown.
+- Each page opens with one sentence saying what its first section shows (`takeaway.py`: the claimed total, the share of the forecast, how
+  many rows reached it and which is lowest; the goals and budget pages their own), later sections under their headings.
+- The tiles show their units and a line saying what each number is.
+- Each chart row prints its values short (`takeaway.compact`, `dashboard.label_values`) and the share claimed beside its bars.
+- "What is ...?" explains the metric in plain words above its catalog definition, and pages showing claims say they are as filed, before
+  evaluation, drill links one level down (PA > sector > program > measure), the applied filters with a link that removes each, and each
+  series' download with the records behind its rows beside it (`records.behind`: the same query with every exclusion stated and the key
+  columns, as files up to `DATA_DOWNLOAD_MAX_ROWS` records and a background download beyond, and a link to the records page to choose
+  columns).
+- Pages at `/data/<page>/`, public.
+- Pages built: Overview.
+- Goals (`goal_view.py`: each IOU territory's annual targets or cycle goals from the goal set in force against forecast and claimed, CCA
+  and REN results counted by the set's counting rules and shares, TSB without codes and standards, the C&S metrics on C&S programs only, a
+  goal marker on the chart, drill to the overview by the PAs counted).
+- Total system benefit (by sector, by year, a share matrix of each PA's total by sector, and by program).
+- Cost effectiveness (each test's ratio with or without admin, from summed benefits and costs, by sector, year and program; no % of
+  forecast for a ratio).
+- Energy savings (kWh, therms, kW, gross or net, first year or lifecycle).
+- Environmental impact (CO2, NOx, PM10 in metric tons).
+- Program detail (programs ranked, each linked to its program page and drilling to its measures by use category; the chart shows the first
+  20).
+- Measure detail (by use category and by measure, each measure linked to the records behind it for each series).
+- The records page (`/data/records/`, `records.page`: the measure-level records a query keeps, 100 a page, with their total, which equals
+  the row they came from).
+- Budget and spending (`budget_view.py`, the operating budget from `registry.operating_budget` against the forecast budget, the
+  monthly-reported year-to-date spending from `registry.reported_spend` (Monthly reports registers it; labeled preliminary) and claimed
+  expenditure, by year with cumulative totals and the budget as the chart's marker, cost elements by sector, and by program).
+- All nine pages built.
+- Front page (`front.py`, `/`, redesigned 2026-11-11): what CEDARS is, then how the portfolio is doing from the published claims: five
+  figures (total system benefit, electricity saved, peak demand avoided, gas saved, spending) for the chosen year, each with its change
+  from the year before in words and a sparkline, and four server-drawn SVG charts of the chosen metric (by year with each year's change,
+  the average and the current cycle shaded; against spending, each as a share of its first year; the largest PAs from the first published
+  year to the chosen one; total system benefit per dollar spent), each with a table of its values and a link to the dashboard page that
+  breaks it down.
+- Every choice (metric, PA type, year) is a link or a GET form, years before a metric was published are said in words, never drawn as zero.
+- `static/data/front.js` adds values on hover and from the keyboard (one tab stop per chart, arrow keys, announced through the page-wide
+  live region).
+- One query (every metric by year, PA type and PA, with the dashboards' default exclusions) is kept, reread after the response once older
+  than `front.FRESH_SECONDS` and in the request only for a new claims release.
+- `manage.py warm_front_page` reads it ahead.
+- Then Help and the guided tour (a modal dialog, one step per part of the page, with steps for the parts only signed-in users and
+  administrators see; `/help/tour/` without scripts).
+- Saved views (`saved.py`, `saved_pages.py`, models `SavedView` and `RecordColumnDefault`): a signed-in person saves a dashboard page's or
+  the records page's query string (its GET parameters, columns included, the release and page number dropped so it reruns on current data,
+  checked by the page's own parser) under a name, from the Saved views part at the foot of each of those pages (or over one of their own
+  views of the page).
+- `/data/views/` lists their own, those shared with them and the published ones, and `/data/views/<id>/` opens one with its choices in
+  words.
+- The owner shares a view with named people (any active account, by email, told by notification; at most `DATA_SAVED_VIEW_SHARES`) and
+  with the active members of one organization they belong to, renames it, asks the CPUC to publish it (the system administrators are
+  told), or deletes it.
+- A CPUC system administrator publishes, declines or unpublishes it with a reason.
+- A published view is open to everyone, signed in or not, without its owner's name, and does not change until unpublished.
+- Others save a copy of their own.
+- Each person may keep their own default columns for the records page, used when a link names none
+  (`records.from_params(default_columns=)`).
+- At most `DATA_SAVED_VIEWS_PER_USER` views each.
+- Both limits on /limits/.
+- Every change is an audit event (`data_view.saved`, `.changed`, `.shared`, `.unshared`, `.deleted`, `.publication_requested`,
+  `.publication_declined`, `.published`, `.unpublished`, `.default_columns_set`, `.default_columns_cleared`).
+- The owner and administrators see a view's history on its page.
+- Parity (`parity.py`, `manage.py dashboard_parity --expected CSV [--known CSV] [--report CSV]`): each published total (dataset, year, PA
+  or ALL, filing, metric, value, scope) against the query layer, with the exclusions the page's scope implies and ALL limited to the IOUs
+  unless it names CCAs and RENs.
+- Sums within 0.5% or half a unit, ratios within 0.005 (a published 0 agrees with a ratio left blank over a zero cost).
+- Pension and Benefits always counted (CEDARS has no switch).
+- A known-differences file marks explained gaps.
+- Fails on any other difference or missing number.
+
+#### 17.3.8 Documents & EM&V
+
+`cedars.modules.documents`, phase 6 (any time after 1).
+
+- Document library built: one record type for five collections (PA documents, CPUC staff guidance, DEER resources, program files, EM&V
+  documents).
+- Each document at a permanent link (`/documents/<id>/`) with its PAs (a joint document names several, and each can see and manage it),
+  programs, program years and attributes from value lists CPUC ED keeps (`/documents/lists/`: each collection's document types and the
+  PDA's eight categories with its 82 options, PDA ids kept; options retired, never deleted).
+- Files in numbered versions (a replacement is a new version with its reason; a published version and its files never change, enforced in
+  PostgreSQL by migration 0003).
+- An implementation plan's version can be filed as a placeholder (migration 0016: the full plan comes as a later version; the flag of a
+  published version never changes; the program page, the document page and the library mark it until a full plan is published).
+- Publication per version (documents.confirm), public read of published documents without an account.
+- Search by words, collection, type, PA, program, year, dates and attributes, with the result list as CSV.
+- Every download or view an audit event, listed per document.
+- Evaluation study register built (replacing the PSR): one record per study with its PSR fields (`StudyID` `<year>_<sector>_<number>`,
+  never changed), public at `/documents/studies/` with filters and a CSV of every public field, an activity report (next activities due,
+  recently updated), each study's page with its documents and its history (every change audited with the reason; status and budget marked;
+  contacts hidden from the public), the programs and program years it evaluates in whole or in part, shown on each program's page through
+  `registry.evaluations` so Programs never imports Documents, and the EM&V plan's study and budget tables per funding cycle
+  (`/documents/studies/budgets/`, planned against completed, CSV).
+- CPUC ED keeps the work orders and their tasks (`/documents/work-orders/`), and an EM&V document may name its study, work order and task.
+- EM&V deliverables built: an EM&V document marked as a study's deliverable keeps every stage on its one record (draft workplan, final
+  workplan, draft study results, final study results, PA responses, CPUC ED reply; a version never goes back a stage; drafts numbered,
+  finals revised with a reason), its page shows the revision history in order and search lists it once at its current stage.
+- CPUC ED asks PAs to respond by a due date and each PA files and publishes its own response without managing the rest.
+- Public comment built: any version may have a comment period (changed only with a reason).
+- Registered users post comments and questions with a section and an optional file while it is open, the author withdraws one until it is
+  answered, CPUC ED, the document's PAs and the study manager respond, all public with name and organization (never an email), and the
+  comment-and-response report downloads per document, study or work order.
+- Comments and responses never change (migration 0007).
+- The aging review (`/documents/studies/aging/`, CPUC staff) lists what each study manager and PA owes and for how long.
+- Drafts are never purged.
+- Search reads the files too: each file's text is read when it is stored (`documents/textract.py`: PDF through pypdf, Word / PowerPoint /
+  Excel text runs, text and CSV; scanned PDFs, images, zips and the pre-2007 Office formats are found by title and file name only, with
+  the reason kept) into `FileText` with a PostgreSQL full-text index.
+- A search matches the details or the text (web-search syntax: phrases, or, -word) and shows a few words around each match, and only
+  published versions' text is searched for those who do not see the unpublished work.
+- `manage.py documents_read_text` reads files stored before.
+- Subscriptions built: a signed-in user follows collections and any value documents carry (`/documents/subscriptions/`) and studies and
+  work orders from their pages, and hears through the notification service (`notifications.send`, page only or also email) when a matching
+  version is published, when a published version's comment period opens or moves, and when a followed study's status changes.
+- One message per user per event, none for unpublished work.
+- CPUC staff see who follows what (`/documents/subscribers/`, CSV).
+- Key dates: CPUC ED posts and removes them (audited) on the library's home page beside the list of what is open for comment now.
+- The PDA migration: `manage.py documents_import_pda` (`documents/pda_import.py`) files every published PDA document in the EM&V
+  collection with its attributes (by the PDA option ids the value lists keep), work order and task, main file and attachments (a refused
+  type such as .exe kept inside a zip), comment window, and comments and responses, with their original dates and the authors' names as
+  the PDA shows them (no accounts: `author` is empty on migrated comments), from saved API responses and a folder of files or from the
+  site itself.
+- `--dry-run` reports what would be imported and what does not map, and a run can be repeated.
+- Each migrated record keeps its PDA id, and the PDA's and PSR's old addresses redirect under `/documents/pda/` and `/documents/psr/`
+  (docs/LEGACY_LINKS.md, with the rules for the old domains).
+- The PSR migration: `manage.py documents_import_psr` (`documents/psr_import.py`) adds every PSR project to the study register under its
+  project number and study ID, with its dates, from a saved `/api/projects` response or the site.
+- Its free-text lists (lead, status, study type, group, sectors, funding cycles, study manager) are matched to the register's lists and
+  organizations, a CSV map (`--map`, written with every value by `--write-map`) settles the rest without a code change, and what maps to
+  nothing is kept as the PSR had it on the study (`Study.psr`, seen only with the contacts; an unmatched manager leaves the study with the
+  CPUC).
+- CEDARS' own documents: `manage.py documents_import_cedars` (`documents/cedars_import.py`) files Reports & Documents (PA reports, CPUC
+  staff guidance), DEER Resources and the program documents (implementation plans with their redlines and change summaries) from a
+  manifest, one row per file of a version, with every version, its original date and its in-effect dates and notes, and each record's and
+  file's old CEDARS addresses (`LegacyLink`), which then redirect to them (`/deer-resources/...`, `/documents/guidance-document/...`,
+  `/documents/standalone/...`, `/documents/history/...`, `/documents/download/...`).
+- The 2006-2013 EM&V site (energydataweb.com/cpuc, the PDA's predecessor): its document pages and files carry the PDA's deliverable ids,
+  so its addresses redirect under `/documents/edw/` to the PDA's migrated documents (`views.edw_archive`), and the home-page files that
+  never reached the PDA (quarterly meeting materials, project status spreadsheets, program information) come through the same manifest as
+  EM&V records keyed `edw/...`, their old addresses kept under `/edw`.
+
+#### 17.3.9 Admin and configuration
+
+`cedars.modules.administration`, phase 1-2.
+
+- Access pages built: account, organizations, members and grants, access requests, recertification, stewardship, access settings, audit
+  log, statewide allocation versions.
+- Role templates (`accounts.RoleTemplate`, named bundles of module permissions a CPUC system administrator defines at
+  `/admin/role-templates/`, offered by kind of organization, retired never deleted; an organization's administrators grant one on its
+  page, `accounts.service.apply_role_template`: one grant per permission recording the template, all or nothing, audited
+  `role_template.applied`; four starters, CPUC reviewer, Evaluator, Implementer and Consultant, to edit).
+- People (`/admin/people/`, system administrators: find an account, correct its name, deactivate or reactivate it with a reason;
+  deactivation revokes its API tokens and ends its sessions, never the last system administrator or data steward).
+- People set their own name and change their email address (verified by link; the old address is told and other sessions end), and a
+  community account may close itself.
+- An organization's sign-in is switched on its page (a data steward confirms when its members hold PII access) and an organization is
+  retired or brought back without merging.
 
 ### 17.4 Choices made in code
 
