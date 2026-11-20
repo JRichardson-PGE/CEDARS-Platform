@@ -178,6 +178,12 @@ only and is given no vault URL; `purge_expired` and the account jobs run with th
 database. `monitoring.tf` adds metric filters on `check_health`'s JSON line and alarms for failing or silent checks, unhealthy web
 tasks, a background service with no running task, 5xx answers, memory and database load.
 
+The web and jobs tasks get their settings from the module's variables and their secrets from one Secrets Manager value
+(`secrets.tf`): `support_email`, `feedback_url`, `issue_repository`, `issue_app_id` and `issue_app_installation_id` become the
+`CEDARS_*` settings of 2.5, and the tracker's two secrets (`CEDARS_ISSUE_WEBHOOK_SECRET`, `CEDARS_ISSUE_APP_PRIVATE_KEY`) are passed
+only once `issue_tracker` is set, as `ETRM_DATABASE_URL` is once `etrm_database` is (a key the secret lacks would stop the tasks
+starting).
+
 ### 2.5 Settings
 
 `cedars/settings/` has `base` (shared), `dev`, `test`, `sandbox` and `prod`. Everything machine-specific comes from the environment,
@@ -195,6 +201,7 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots |
 | `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | The front page's stale claims rows are reread on a thread after the response |
 | `IMPACT_PROFILES_INLINE_JOBS`, `DATA_DOWNLOAD_INLINE_JOBS` | off (on in dev) | Run queued jobs in the request instead of a worker |
+| `CEDARS_SUPPORT_EMAIL`, `CEDARS_FEEDBACK_URL` | blank | The support address the sign-in pages and Help give (blank: none shown), and a feedback form or survey Help links to (blank: an email to the support address) |
 | `CEDARS_ISSUE_APP_ID`, `CEDARS_ISSUE_APP_INSTALLATION_ID`, `CEDARS_ISSUE_APP_PRIVATE_KEY` | blank | A GitHub App installed on the issue repository with permission to write issues; with all three set a backlog manager can have the site post a work item's issue ([Work items](#143-work-items-and-the-backlog)) |
 | `CEDARS_ISSUE_REPOSITORY`, `CEDARS_ISSUE_WEBHOOK_SECRET` | blank | The developers' issue tracker (`owner/repository` on GitHub) that a ready work item's issue is started in, and the secret that tracker signs its events with; with both set the site takes signed events at `/hooks/issue-tracker/` ([Work items](#143-work-items-and-the-backlog)) |
 | `CEDARS_TESTING` | off (on in dev, test and the sandbox) | Testing on the site: testers step through the loaded test scripts and record results. Never on in production |
@@ -205,6 +212,10 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `CEDARS_NUM_PROXIES` | 0 (prod: 1) | Proxies in front; the API throttles and the sign-in rate limits take the caller's address from the entry the load balancer added to `X-Forwarded-For` |
 | `CEDARS_UPLOAD_MAX_MB`, `CEDARS_UPLOAD_MAX_FILES`, `CEDARS_UPLOAD_MAX_UNZIPPED_MB` | 150, 20, 1,024 | Each uploaded file; files in one upload; what an uploaded .zip or workbook unpacks to |
 | `HEALTH_*` | see `base.py` | Thresholds of the job and system health checks |
+| `CALCULATIONS_WORKERS_SMALL`, `CALCULATIONS_WORKERS_LARGE` | 1, 1 | How many runs each lane is taken to work on at once, for the queue's wait estimates only |
+| `DATA_QUERY_MEMORY`, `DATA_QUERY_SPILL` | 512MB; a folder in the system temp | DuckDB's memory limit per published-data query, and where it spills beyond it |
+| `ETRM_SCHEMA` | `etrm` | The schema of eTRM's database the sync reads |
+| `LOG_LEVEL`, `DJANGO_HSTS_SECONDS` | INFO; one year (prod) | The root logger's level; the HSTS header's age in production |
 
 Every limit people meet (upload size and files, run records, Edit inputs rows, download rows, API rates, comment length ...) is such a
 setting, listed by `cedars/services/releases/limits.py` on the public Limits page. A few are limits the CPUC sets without a release

@@ -26,7 +26,9 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 | Domain name and its ACM certificate | `domain_name` (placeholder `*.example.invalid`), `certificate_arn` |
 | Alarm recipients | `alarm_emails` (each address confirms the SNS subscription) |
 | Images | `web_image` (this repository's Dockerfile), `worker_image` (a ReCET release's worker image) |
-| Application secret | after the first apply: `DJANGO_SECRET_KEY`, `DATABASE_URL`, `VAULT_DATABASE_URL` (not in the sandbox), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (SES SMTP); `ETRM_DATABASE_URL` once eTRM grants a read-only role, then set `etrm_database = true` |
+| Application secret | after the first apply: `DJANGO_SECRET_KEY`, `DATABASE_URL`, `VAULT_DATABASE_URL` (not in the sandbox), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (SES SMTP); `ETRM_DATABASE_URL` once eTRM grants a read-only role, then set `etrm_database = true`; `CEDARS_ISSUE_WEBHOOK_SECRET` and `CEDARS_ISSUE_APP_PRIVATE_KEY` once the developers' tracker is connected, then set `issue_tracker = true` |
+| Support and feedback | `support_email` (the address the sign-in pages and Help give), `feedback_url` (a form or survey; blank sends feedback by email to the support address) |
+| Developers' tracker (optional) | `issue_repository` (owner/name, where a work item's issue is started), `issue_app_id` and `issue_app_installation_id` (for the site to post issues and read their events itself), with the two secrets above |
 | DNS | a record for `domain_name` pointing at the `load_balancer_dns` output |
 
 ## After the first apply
