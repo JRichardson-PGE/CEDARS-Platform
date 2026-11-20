@@ -62,7 +62,7 @@ CEDARS.
 | Reproducibility | a run can be repeated exactly | `run_settings.json` (every setting, file and version), inputs kept with the run, deterministic arithmetic, no sampling | `jobs.write_settings` |
 | Auditability | every number explained | documents checked by tests against the code (section 10) | `recet/docs`, `tests/` |
 | Security (web) | invitation-only, no account takeover, no cross-user access | argon2 passwords, hashed session and setup tokens, CSRF on every form, login rate limits, per-user run ownership, safe zip extraction (section 8.4) | `web/auth.py`, `web/jobzip.py` |
-| Accessibility (web) | WCAG 2.2 Level AA on every web page | the 2026-10-29 audit's gaps fixed in 0.1.67-0.1.68 (axe clean, keyboard checked) and NVDA's in 0.1.70 (`tests/screenreader`); column resizing is drag-only (section 8.7) | Jake, 2026-10-29 |
+| Accessibility (web) | WCAG 2.2 Level AA on every web page | axe clean, keyboard checked, NVDA checked (`tests/screenreader`); column resizing is drag-only (section 8.7) | a California state agency requirement |
 | Portability | Windows, macOS, Linux; x86 and ARM | pure Python (numpy, pandas, pyarrow); the web image builds for arm64 and amd64 | `pyproject.toml`, `Dockerfile` |
 | Data hygiene | large files never in git; nothing derived is the only copy | reference data folder with a checksummed manifest; caches rebuildable and deletable | `paths.py`, `datapack.py` |
 
@@ -556,14 +556,14 @@ would use the second vCPU but needs twice the pricing memory, so it waits for a 
 
 ## 11. Limits and what is not built
 
-* **Run status is only partly built.** Queue position, progress, time estimates and email on finish or failure are built; adding workers under heavy load and
-  per-run caps beyond the container limit and the time limit are not. With one worker, one large run makes every other run wait.
-* **One server, one database file.** The web app is a single container on a small instance with SQLite. It is a prototype's deployment, not a production
-  one. The production path is the worker instead (`recet worker run`, the README's "Batch worker"): the CEDARS platform submits each run as a job spec to a batch
-  service, with its files in object storage and its accounts in the platform's own database. On this server the state (the SQLite database, run and
-  draft folders) is copied to S3 every night and can be restored by `deploy/backup` (its README is the setup and restore runbook).
+What is not built of the requirements is in the Status column of 1.3 (lifecycle savings as input, run scaling and isolation, multi-file batch
+upload). The limits of the deployment itself:
+
+* **One server, one database file, one worker.** The web app is a single container on a small instance with SQLite and runs one job at a time, so one
+  large run makes every other run wait. It is a prototype's deployment, not a production one. The production path is the worker instead
+  ([Batch worker](WORKER.md)): the CEDARS platform submits each run as a job spec to a batch service, with its files in object storage and its accounts
+  in the platform's own database. On this server the state (the SQLite database, run and draft folders) is copied to S3 every night and can be
+  restored by `deploy/backup` (its README is the setup and restore runbook).
 * **No web API.** The web app's users upload files and download results. Another system calls ReCET through the worker and its job spec
-  (`recet worker run`, `jobspec.py`, [Batch worker](WORKER.md)) or through Python (`recet.jobs`).
-* **No lifecycle-savings input**: inputs stay the CET's per-unit annual values.
-* **Multi-file batch upload** is not built: one job zip holds one `Measure.csv`.
+  (`recet worker run`, `jobspec.py`) or through Python (`recet.jobs`).
 * **No integration with CEDARS or eTRM.** Profiles, programs and rules are files refreshed by hand.
