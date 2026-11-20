@@ -174,7 +174,9 @@ def test_charts_and_sections_on_the_page(both, client):
     assert '<span class="chart-tip sr-only"><strong class="tip-label">Residential</strong>' in page
     for key in ('data-part="filters"', 'data-part="overview:s1:chart"', 'data-part="overview:s1:table"'):
         assert key in page
-    assert page.count('<details class="section dash-part" open') == 3
+    # the chart and the table are open; the controls are folded under the one-line summary of the view, unless the view failed
+    assert page.count('<details class="section dash-part" open') == 2
+    assert '<details class="section dash-part" data-part="filters">' in page
     assert "data-keep-open" not in page
     assert "data-keep-open" in client.get("/data/overview/?by=colour").content.decode()
 
@@ -447,3 +449,41 @@ def test_percent_of_forecast_covers_only_the_years_both_series_have(both, filer,
 def test_registry_codes_read_as_words():
     assert dashboard.code_label("codes_and_standards") == "Codes and standards"
     assert dashboard.code_label("Residential") == "Residential" and dashboard.code_label(None) is None
+
+
+def test_the_page_says_what_it_shows(both, client):
+    """Dashboard best-practice review (Jake 2026-11-20): a sentence says the result, the view is summed up in one line above the folded
+    controls, the tiles show their units and say what each number is, the bars carry their values, and the metric is explained."""
+    page = client.get("/data/overview/?by=sector").content.decode()
+    assert "<li>Years: <strong>2028-2031</strong></li>" in page and "<li>Basis: <strong>Net</strong></li>" in page
+    left_out = "Pension and Benefits programs, Energy Savings Assistance programs, codes and standards"
+    assert f"<li>Left out: <strong>{left_out}</strong></li>" in page
+    assert (
+        '<p class="lede takeaway">Claimed total system benefit is $180, 50% of the $360 forecast. None of the 2 primary sectors has '
+        "claimed its forecast yet; Residential is lowest at 50%.</p>"
+    ) in page
+    assert '<dt>Claimed</dt><dd class="tile-value">$180</dd><dd class="tile-note">Confirmed claims to date</dd>' in page
+    assert '<span class="chart-value" data-series="claims">Claimed <strong>$150</strong></span>' in page
+    assert '<span class="chart-value chart-share">50% of forecast</span>' in page
+    assert "Claims are shown as the PAs filed them (ex ante), before evaluation." in page
+    assert "<summary>What is total system benefit?</summary>" in page
+    savings = client.get("/data/overview/?by=sector&metric=kwh&lifecycle=1").content.decode()
+    assert "<li>Basis: <strong>Net, lifecycle</strong></li>" in savings and "Net counts only what the programs caused" in savings
+    forecast = client.get("/data/overview/?by=sector&series=forecast").content.decode()
+    assert "Claims are shown as the PAs filed them" not in forecast
+    assert "Forecast total system benefit totals $360. Residential is the largest at $300 (83%)." in forecast
+
+
+def test_takeaway_sentences(both):
+    """Each kind of sentence: forecast and claims, one series, a ratio; and the short numbers."""
+    from cedars.modules.data import metrics as catalog
+    from cedars.modules.data import takeaway
+
+    assert takeaway.compact(catalog.get("tsb"), 1_503_000_000) == "$1.50B"
+    assert takeaway.compact(catalog.get("kwh_first_year_net"), 12_345) == "12.3K MWh"
+    assert takeaway.compact(catalog.get("trc"), 1.187) == "1.19"
+    assert takeaway.compact(catalog.get("tsb"), None) == "–"
+    view = dashboard.parse(dashboard.PAGES["cost-effectiveness"], {"by": ["sector"]})
+    ratio = takeaway.comparison(dashboard.compare(view, "sector"))
+    assert ratio.startswith("Claimed TRC ratio is ") and "overall" in ratio
+    assert takeaway.question(catalog.get("co2_first_year_net")) == "What is CO2 avoided, first year net?"

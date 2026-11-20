@@ -811,7 +811,7 @@ ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: cent
 .chart-legend li { display: inline-flex; align-items: center; gap: .4rem; }
 .chart-defs { position: absolute; }
 .chart-rows { list-style: none; padding: 0; margin: 0; }
-.chart-rows li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr; gap: .25rem .75rem; align-items: center; padding: .3rem 0; border-top: 1px solid var(--line-2); }
+.chart-rows li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr minmax(8rem, max-content); gap: .25rem .75rem; align-items: center; padding: .3rem 0; border-top: 1px solid var(--line-2); }
 .chart-rows li:first-child { border-top: 0; }
 .chart-label { font-size: .9rem; overflow-wrap: anywhere; }
 .chart-bars { display: block; overflow: visible; }
@@ -820,6 +820,10 @@ ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: cent
 .hatch-bg { fill: var(--surface); }
 .hatch-line { stroke: var(--chart-forecast); stroke-width: 3; }
 .zero { stroke: var(--fg); stroke-width: 1; }
+/* Each row's values printed beside its bars, one line per series and the share claimed, so the chart reads without pointing at it */
+.chart-values { display: flex; flex-direction: column; gap: .05rem; font-size: .85rem; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--fg-2); }
+.chart-values strong { color: var(--fg); font-weight: 600; }
+.chart-share { color: var(--fg); font-weight: 600; }
 @media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
 .goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */
 /* Chart values (data/dashboard.js): the row under the pointer or with the focus shows its values beside its bars. They stay while the
@@ -840,6 +844,18 @@ details.dash-part { margin: .75rem 0 0; }
 details.dash-part > summary h3 { margin: 0; font-size: 1rem; }
 details.dash-part > .section-body > .chart { margin-bottom: 0; border: 0; padding: .25rem 0 0; }
 details.dash-part > .section-body .dash-controls { margin: 0; }
+/* The view summed up in one line above the folded controls, the sentence that says what the numbers show, the tiles' second line */
+.view-summary { margin: .75rem 0 0; }
+ul.view-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+ul.view-chips li { background: var(--surface-2); border-radius: 999px; padding: .2rem .75rem; font-size: .9rem; overflow-wrap: anywhere; }
+ul.view-chips strong { font-weight: 600; }
+p.takeaway { max-width: 62rem; margin: .25rem 0 .75rem; }
+p.lede.takeaway { font-size: 1.1rem; line-height: 1.5; margin: 1rem 0 .5rem; }
+dl.tiles dd.tile-value { white-space: normal; overflow: visible; }   /* a short value ("12.3K MWh"): its unit may wrap, the number never breaks */
+dl.tiles dd.tile-note { font-size: .82rem; font-weight: 400; color: var(--fg-2); white-space: normal; overflow: visible; margin-top: .1rem; }
+details.metric-about { margin: 0 0 1rem; font-size: .92rem; }
+details.metric-about > summary { cursor: pointer; color: var(--link); text-decoration: underline; min-height: 24px; display: inline-flex; align-items: center; }
+details.metric-about > p { max-width: 62rem; margin: .35rem 0 0; }
 
 /* ---------- Front page (data/front.html): the introduction, the program cycle's cards, Help ---------- */
 .front-intro { margin-bottom: 1.5rem; }

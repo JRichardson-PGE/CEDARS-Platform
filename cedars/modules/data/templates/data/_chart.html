@@ -16,6 +16,7 @@ saying its values (`tip`), and shows the same values when the pointer is over a 
         {% if g.goal is not None %}<line class="goal" data-series="goal" x1="{{ g.goal }}%" x2="{{ g.goal }}%" y1="0" y2="100%"/>{% endif %}
         {% if chart.negative %}<line class="zero" x1="{{ chart.zero }}%" x2="{{ chart.zero }}%" y1="0" y2="100%"/>{% endif %}
       </svg>
+      {% if g.shown %}<span class="chart-values" aria-hidden="true">{% for code, label, text in g.shown %}<span class="chart-value" data-series="{{ code }}">{{ label }} <strong>{{ text }}</strong></span>{% endfor %}{% if g.share %}<span class="chart-value chart-share">{{ g.share }}</span>{% endif %}</span>{% endif %}
       {% if g.tip %}<span class="chart-tip sr-only"><strong class="tip-label">{{ g.label|default_if_none:"(blank)" }}</strong>{% for code, label, text in g.tip %}
         <span class="tip-row" data-series="{{ code }}"><svg width="14" height="10" focusable="false" aria-hidden="true">{% if code == "goal" %}<line class="goal" x1="7" x2="7" y1="0" y2="10"/>{% else %}<rect class="bar bar-{{ code }}" width="14" height="10"/>{% endif %}</svg> {{ label }}: {{ text }}{% if not forloop.last %}<span class="sr-only">;</span>{% endif %}</span>{% endfor %}
       </span>{% endif %}

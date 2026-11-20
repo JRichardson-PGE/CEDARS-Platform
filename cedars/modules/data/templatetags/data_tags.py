@@ -93,3 +93,11 @@ def cell(value):
     if isinstance(value, float) and not value.is_integer():
         return f"{value:,.2f}" if abs(value) >= 1000 else f"{value:.6g}"
     return f"{int(value):,}"
+
+
+@register.filter
+def short(value, metric):
+    """A metric's value short, with its unit visible: $1.50B, 12.3K MWh, 1.19 (data/takeaway.py)."""
+    from cedars.modules.data.takeaway import compact
+
+    return compact(metric, value)

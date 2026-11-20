@@ -11,7 +11,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from cedars.core import pickers
 
-from . import dashboard, downloads, metrics, query
+from . import dashboard, downloads, front, metrics, query
 
 
 @require_GET
@@ -92,6 +92,12 @@ def _dollars(v):
     return f"{'-' if v < 0 else ''}${abs(v):,.0f}"
 
 
+def _goal_short(goal_metric):
+    if goal_metric.unit == "$":
+        return front.money
+    return lambda v: f"{front._sig(v)} {goal_metric.unit}"
+
+
 def _goal_format(goal_metric):
     """A goal-page chart value as its table shows it (`data_tags.number`): whole dollars for TSB, two decimals for savings."""
     if goal_metric.unit == "$":
@@ -126,7 +132,7 @@ def dashboard_page(request, slug):
 
     from django.shortcuts import render
 
-    from . import budget_view, goal_view, saved_pages
+    from . import budget_view, goal_view, saved_pages, takeaway
 
     page = dashboard.PAGES.get(slug)
     if page is None:
@@ -148,8 +154,9 @@ def dashboard_page(request, slug):
                 "kind": "budget",
                 "part": "budget",
                 "s": spending,
-                "chart": dashboard.describe(budget_view.chart(spending), _dollars),
+                "chart": dashboard.label_values(dashboard.describe(budget_view.chart(spending), _dollars), front.money),
                 "caption": "Expenditure against the operating budget, by year ($ nominal)",
+                "takeaway": takeaway.spending(spending),
             }
         )
     elif page.kind == "goals":
@@ -160,8 +167,11 @@ def dashboard_page(request, slug):
                 "kind": "goals",
                 "part": "goals",
                 "comparison": goals,
-                "chart": dashboard.describe(goal_view.chart(goals), _goal_format(goals.metric)),
+                "chart": dashboard.label_values(
+                    dashboard.describe(goal_view.chart(goals), _goal_format(goals.metric)), _goal_short(goals.metric)
+                ),
                 "caption": _goal_caption(goals),
+                "takeaway": takeaway.goals(goals),
             }
         )
     else:
@@ -187,8 +197,13 @@ def dashboard_page(request, slug):
                     "kind": "compare",
                     "part": f"s{n}",
                     "comparison": c,
-                    "chart": dashboard.describe(dashboard.chart(c, sec.limit), _metric_format(metric)) if sec.chart else None,
+                    "chart": dashboard.label_values(
+                        dashboard.describe(dashboard.chart(c, sec.limit), _metric_format(metric)), lambda v: takeaway.compact(metric, v)
+                    )
+                    if sec.chart
+                    else None,
                     "caption": caption,
+                    "takeaway": takeaway.comparison(c),
                     "by_label": query.DIMENSIONS[sec.by].label,
                     "series_labels": [(sr, dashboard.SERIES[sr][0]) for sr in c.results],
                 }
@@ -210,6 +225,12 @@ def dashboard_page(request, slug):
         "sign_in": _sign_in(request),
         "max_rows": settings.DATA_DOWNLOAD_MAX_ROWS,
         "metric": metric,
+        # the first section's sentence opens the page; each later section says its own under its heading
+        "lede": blocks[0].get("takeaway", "") if blocks else "",
+        "tile_notes": _tile_notes(view, totals) if totals else {},
+        "claims_shown": "claims" in view.series,
+        "metric_question": takeaway.question(metric),
+        "metric_about": takeaway.about(metric),
         # the series' names in the tiles and table headers, and when each was published said once above them (UI review 2, #19)
         "series_labels": [(sr, dashboard.SERIES[sr][0]) for sr in first.results] if first else [],
         "as_of": [(dashboard.SERIES[sr][0], first.results[sr].as_of) for sr in first.results] if first else [],
@@ -238,8 +259,49 @@ def dashboard_page(request, slug):
         "program_picker": pickers.program_picker(selected.get("program", ()), id="dash-program"),
         "pa_picker": dashboard.pa_picker(selected, statewide=False),
     }
+    context["view_summary"] = _view_summary(view, context)
     context |= saved_pages.page_context(request, page.slug, None if error else urlencode(view.params, doseq=True))
     return render(request, "data/dashboard.html", context)
+
+
+def _view_summary(view, context) -> list[tuple[str, str]]:
+    """The view in one line, above the folded controls: (what, value) for the years, series, metric, grouping, basis, filing and what
+    is left out. The controls open with Change view."""
+    q = view.query
+    if q.year_from and q.year_to:
+        years = str(q.year_from) if q.year_from == q.year_to else f"{q.year_from}-{q.year_to}"
+    else:
+        years = f"from {q.year_from}" if q.year_from else (f"to {q.year_to}" if q.year_to else "all")
+    out = [("Years", years), ("Series", " and ".join(dashboard.SERIES[s][0].lower() for s in view.series).capitalize())]
+    out.append(("Metric", dict(context["metric_choices"]).get(view.metric_choice, view.metric.label)))
+    if context["view_by"]:
+        out.append(("By", dict(context["view_by"]).get(view.by, view.by)))
+    if context["page"].kind == "goals":
+        out.append(("Goals", "Cycle goals" if context["period"] else "Annual targets"))
+    code = view.metric.code
+    if code in ("tsb", "tsb_gross"):
+        out.append(("Basis", "Gross" if code == "tsb_gross" else "Net"))
+    elif code.endswith(("_net", "_gross")) and ("_first_year_" in code or "_lifecycle_" in code):
+        out.append(("Basis", f"{'Gross' if code.endswith('_gross') else 'Net'}, {'lifecycle' if '_lifecycle_' in code else 'first year'}"))
+    if "forecast" in view.series:
+        filing = dict(context["filings"]).get(q.filing, q.filing) if q.filing else "each PA's latest filing"
+        out.append(("Forecast", filing))
+    shown = {c for c, _label, _excluded in context["exclusions"]}
+    left = [query.EXCLUSIONS[e] for e in q.exclude if e in shown]
+    words = [e.label for e in left[:1]] + [e.phrase or e.label for e in left[1:]]
+    out.append(("Left out", ", ".join(words) if words else "nothing"))
+    return out
+
+
+def _tile_notes(view, totals) -> dict:
+    """The line under each tile saying what its number is: where the forecast comes from, what the claims are, what % compares."""
+    filing = view.query.filing
+    if filing:
+        filing = dict(dashboard.filings()).get(filing, filing)
+    notes = {"forecast": f"From {filing}" if filing else "From each PA's latest filing", "claims": "Confirmed claims to date"}
+    shared = getattr(totals, "shared_years", None)
+    notes["percent"] = "Claimed ÷ forecast" + (f", {dashboard._span(shared)}" if shared is not None else ", same years")
+    return notes
 
 
 def _record_downloads(first) -> list[dict]:
