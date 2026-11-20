@@ -21,6 +21,7 @@ from functools import cache
 from pathlib import Path
 
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.text import slugify
 
 FORMAT = 1
@@ -705,7 +706,7 @@ def settings_rows(version) -> list[list[str]]:
         ["Specification", version.specification.name],
         ["Version", version.name],
         ["Status", version.get_status_display()],
-        ["Published", version.published_at.date().isoformat() if version.published_at else ""],
+        ["Published", timezone.localtime(version.published_at).date().isoformat() if version.published_at else ""],
         ["Rules", f"The {rs.label} rules effective {rs.effective_from:%Y-%m-%d}" if rs else "Field checks only (no rule set)"],
         ["Engine release", f"ReCET {version.engine_release}" if version.engine_release else "The release marked default for new runs"],
         [
