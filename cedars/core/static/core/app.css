@@ -290,6 +290,9 @@ table.list tbody tr:last-child > * { border-bottom: 0; }
 table.list tbody tr:hover > * { background: color-mix(in srgb, var(--primary) 5%, transparent); }
 table.list tfoot td, table.list tfoot th { background: var(--bg); font-weight: 600; border-bottom: 0; }
 table.list tbody td[colspan] { color: var(--fg-2); padding: 1.4rem .8rem; text-align: center; }   /* "No programs match." reads as an empty state */
+/* My queue: one table per kind of work, all with the same columns, so Organization, Waiting since and Due line up down the page. */
+table.list.queue-table { width: 100%; max-width: 80rem; min-width: 46rem; table-layout: fixed; }   /* the same width for every kind, capped so a row stays readable */
+.queue-table col.org { width: 11rem; } .queue-table col.since { width: 10rem; } .queue-table col.due { width: 13rem; } .queue-table col.act { width: 11rem; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 table.data thead th a { color: inherit; display: inline-block; min-height: 24px; }   /* sort links: 24 px targets (2.5.8) */
 .hscroll { overflow-x: auto; position: relative; margin: .25rem 0 1rem; }   /* wide tables scroll inside their box at 320 px (1.4.10); relative so .sr-only text inside stays inside */
