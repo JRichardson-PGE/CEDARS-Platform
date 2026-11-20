@@ -1,0 +1,11 @@
+{% comment %}A role template's module permissions as a grid: a row per module, a column per action (read, submit, confirm, approve,
+administer), each box named "Programs: read" for a screen reader. The field's own fieldset and legend surround it.{% endcomment %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ widget.grid_label }}">
+<table class="list choice-grid permission-grid">
+  <caption class="sr-only">{{ widget.grid_label }}</caption>
+  <thead><tr><th scope="col">Module</th>{% for a in widget.actions %}<th scope="col" class="choice">{{ a }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for module, cells in widget.rows %}
+  <tr><th scope="row">{{ module }}</th>{% for o in cells %}<td class="choice">{% if o %}<input type="checkbox" name="{{ o.name }}" value="{{ o.value }}" id="{{ o.attrs.id }}"{% if o.selected %} checked{% endif %}><label for="{{ o.attrs.id }}" class="sr-only">{{ o.label }}</label>{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}</tbody>
+</table>
+</div>

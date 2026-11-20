@@ -72,6 +72,22 @@ class GiveAccessForm(forms.Form):
         )
 
 
+class PermissionGrid(forms.CheckboxSelectMultiple):
+    """Module permissions ticked in a grid, a row per module and a column per action, instead of some 45 boxes in one column."""
+
+    template_name = "administration/widgets/permission_grid.html"
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        options = {o["value"]: o for _, group, _ in context["widget"]["optgroups"] for o in group}
+        context["widget"]["grid_label"] = "Permissions by module and action"
+        context["widget"]["actions"] = list(perms.ACTIONS.values())
+        context["widget"]["rows"] = [
+            (module, [options.get(f"{key}.{action}") for action in perms.ACTIONS]) for key, module in perms.MODULES.items()
+        ]
+        return context
+
+
 def _module_permission_choices():
     return [(c, perms.label(c)) for c in perms.module_permissions()]
 
@@ -92,7 +108,7 @@ class RoleTemplateForm(forms.Form):
     )
     permissions = forms.MultipleChoiceField(
         label="Permissions it grants",
-        widget=forms.CheckboxSelectMultiple,
+        widget=PermissionGrid,
         choices=_module_permission_choices,
         help_text=("Module permissions only. An organization's administrator, PII access and the CPUC's own roles are granted one by one."),
     )
