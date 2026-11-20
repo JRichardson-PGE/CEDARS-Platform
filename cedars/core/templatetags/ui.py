@@ -109,6 +109,18 @@ def action_words(action, verb_only=False) -> str:
 
 
 @register.filter
+def record_kind(label) -> str:
+    """An audit event's record type in words: "submissions.submissionversion" reads "submission version" (the model's own name);
+    a label that is not a model is shown with its dots and underscores as spaces."""
+    from django.apps import apps
+
+    try:
+        return str(apps.get_model(str(label))._meta.verbose_name)
+    except (LookupError, ValueError):
+        return str(label or "").replace(".", " ").replace("_", " ")
+
+
+@register.filter
 def module_names(keys) -> str:
     """An API token's modules in words ("Claims, Impact profiles"), from permissions.MODULES."""
     from cedars.services.accounts import permissions

@@ -16,9 +16,9 @@
   <tr>
     <td class="nowrap">{{ e.at|datetime_words }}</td>
     <td>{{ e.actor_label }}{% if e.organisation %} <span class="small muted">for {{ e.organisation.code }}</span>{% endif %}{% if e.assurance %} <span class="small muted">({{ e.assurance }})</span>{% endif %}</td>
-    <th scope="row">{{ e.action|action_words }} <span class="small muted"><code>{{ e.action }}</code></span></th>
-    <td>{{ e.object_repr }} <span class="small muted">{{ e.object_type }} {{ e.object_id }}</span></td>
-    <td>{{ e.reason }}</td>
+    <th scope="row" class="audit-action">{{ e.action|action_words }}<br><span class="small muted"><code>{{ e.action }}</code></span></th>
+    <td>{% if e.object_repr %}{{ e.object_repr }}{% else %}{{ e.object_type|record_kind|capfirst }} {{ e.object_id }}{% endif %}</td>
+    <td>{% if e.reason %}{{ e.reason }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>
     <td class="small change-cell">{% if e.before or e.after %}<details><summary>Before and after<span class="sr-only"> for event {{ e.pk }}</span></summary>
       <table class="list changes"><caption class="sr-only">Before and after for event {{ e.pk }}</caption>
         <thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>

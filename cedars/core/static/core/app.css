@@ -61,7 +61,10 @@ code { font-size: .88em; overflow-wrap: anywhere; background: var(--surface-2); 
 pre { white-space: pre-wrap; word-break: break-word; font-size: .82rem; margin: .3rem 0; }
 pre code { background: none; padding: 0; }
 table.changes { margin-top: .4rem; }
-td.change-cell { min-width: 26rem; }   /* the audit log's before-and-after table: room for a hash on one or two lines */
+td.change-cell:has(details[open]) { min-width: 26rem; }   /* the audit log's before-and-after table, once opened: room for a hash on one or two lines */
+/* The audit log's action: its words, then the stored code on a line of its own that never breaks mid-word. */
+th.audit-action { min-width: 15rem; }
+th.audit-action code { white-space: nowrap; }
 table.changes pre { margin: 0; }
 mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word in a search extract: 15:1 in both schemes */
 [hidden] { display: none !important; }

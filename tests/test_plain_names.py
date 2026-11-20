@@ -100,3 +100,10 @@ def test_access_messages_name_the_permission_in_words(pge, pge_admin, make_user)
     someone = make_user("someone@example.com")
     with pytest.raises(AccessDenied, match="Calculations: submit permission in PGE"):
         drafts._create(someone, pge, "a job", "blank", None)
+
+
+def test_an_audit_records_type_reads_in_words():
+    from cedars.core.templatetags.ui import record_kind
+
+    assert record_kind("submissions.submissionversion") == "submission version"
+    assert record_kind("not_a.model_label") == "not a model label"
