@@ -26,4 +26,4 @@ def test_the_second_factor_page_shows_cards_with_buttons_not_a_list(client, make
     sign_in(client, make_user("someone@example.org", "Some One"))
     html = client.get("/accounts/2fa/").content.decode()
     assert html.count('class="card account-panel"') == 3
-    assert "<li><a class=\"button" not in html
+    assert '<li><a class="button' not in html
