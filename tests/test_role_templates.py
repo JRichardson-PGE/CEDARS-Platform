@@ -108,7 +108,11 @@ def test_the_pages(client, signed_in, make_user, cpuc_admin, pge, pge_admin, con
     )
     assert r.status_code == 302 and RoleTemplate.objects.get(name="Auditor").kinds == ["other"]
     t = RoleTemplate.objects.get(name="Auditor")
-    assert client.get(f"/admin/role-templates/{t.pk}/").status_code == 200
+    html = client.get(f"/admin/role-templates/{t.pk}/").content.decode()
+    # the permissions are a grid: a row per module, a column per action, each box named for a screen reader
+    assert 'class="list choice-grid permission-grid"' in html and '<th scope="row">Claims</th>' in html
+    assert 'value="claims.read" id="tpl_permissions_' in html and "checked" in html.split('value="claims.read"')[1][:60]
+    assert 'class="sr-only">Claims: read</label>' in html and 'class="sr-only">Claims: submit</label>' in html
     client.post(f"/admin/role-templates/{t.pk}/", {"action": "retire", "reason": "not needed"})
     t.refresh_from_db()
     assert not t.active

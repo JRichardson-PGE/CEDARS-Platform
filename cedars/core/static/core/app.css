@@ -394,6 +394,7 @@ fieldset { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .
 legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .form-narrow { max-width: 40rem; }
 .form-narrow:has(fieldset.column-choice .picker) { max-width: 64rem; }   /* the two lists need more room than one column of fields */
+.form-narrow:has(.permission-grid) { max-width: 52rem; }   /* a role template's grid of permissions: a row per module, five actions across */
 /* A long form that uses the window (New run): each section's fields flow into as many columns as fit, in reading order, left to right
    (1.3.2: the visual order is the DOM order). A .field-cell keeps fields that go together in one column (a box and the option it turns
    on). At 320 px every grid is one column (min(100%, ...): 1.4.10). Small sections share a row in .fieldset-row. */
@@ -720,6 +721,7 @@ ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
 table.choice-grid th.choice, table.choice-grid td.choice { text-align: center; width: 7.5rem; }
 table.choice-grid th.choice { white-space: normal; }
 table.choice-grid tbody th[scope=row] { font-weight: 400; }
+table.permission-grid th.choice, table.permission-grid td.choice { width: 6.5rem; }
 @media (max-width: 30rem) {   /* a phone: the three columns narrow and their headings wrap, so the table fits without scrolling sideways */
   table.choice-grid th, table.choice-grid td { padding-left: .3rem; padding-right: .3rem; }
   table.choice-grid th.choice, table.choice-grid td.choice { width: 3.4rem; letter-spacing: 0; white-space: normal; }
