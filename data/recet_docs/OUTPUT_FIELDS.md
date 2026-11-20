@@ -143,7 +143,7 @@ Wat(k)  = phased( k ;  AC_Net_kWh_Water_1st_Baseline * (NTGRkWh + MEB) / NTGRkWh
 
 ```text
 shape(i)  = the measure's 8,760-hour load shape: the share of its annual kWh falling in hour i of the year (the shares sum to 1).
-            The profile used is reported in `ProfileSource`; it is rotated once so its weekdays line up with the ACC's, which follow one calendar (2018, or 2020 for the 2021/2022 ACCs) in every
+            The profile used is reported in `ProfileSource`; it is rotated once so its weekdays line up with the ACC's, which follow one calendar (2018, 2020 for the 2021/2022 ACCs, or 2025 for the 2020 ACC) in every
             forecast year (CALCULATIONS C4.1, C4.2).
 AC(y, i)  = total_avoided_cost of the ACC row (utility of PA, "CZ" + AC_Climate_Zone, cost-test row, year y, hour i) / 1000
 Gen(y, i) = AC(y, i) - (transmission + distribution)(y, i) / 1000
@@ -194,7 +194,7 @@ One row per measure, in the order of the input file, column groups left to right
 Which ACC version the row was priced against. Unit: Text.
 
 **Formula:** the run's ACC label, which names both the ACC (the year the calculator was released) and CET's Avoided Cost Version (the first year it was in effect
-for claims or forecasts): `2021 ACC (Avoided Cost Version 2022)`, `2022 ACC (Avoided Cost Version 2024)`, `2024 ACC (Avoided Cost Version 2026)` or
+for claims or forecasts): `2020 ACC (Avoided Cost Version 2021)`, `2021 ACC (Avoided Cost Version 2022)`, `2022 ACC (Avoided Cost Version 2024)`, `2024 ACC (Avoided Cost Version 2026)` or
 `2026 ACC (Avoided Cost Version 2028)` for a built-in version, `Custom ACC '<label>'` for a new version defined by supplied files. **Inputs:** the "ACC version" setting (INPUT_FIELDS.md section 3).
 
 #### `Used_CostTestSet`
@@ -692,7 +692,7 @@ LifecycleBillReducGas, LifecycleBillIncrGas: the same with PV_gas
 ```
 
 **Where** `PV(s1, s2, rate)` is the annual stream, with `E = EUL_Yrs`, `R = RUL_Yrs`, `full = floor(E)`, `rem = E - full`, the number of billed years `ny = full + 1` if `rem > 0.000000001` else `full`,
-`yr1 = Y0 - BaseYear` (the run parameters' `BaseYear` of the ACC version: 2021, 2022, or 2024 for the 2024 and 2026 ACCs), `Raf = 1 + DiscountRateAnnual(PA)`:
+`yr1 = Y0 - BaseYear` (the run parameters' `BaseYear` of the ACC version: 2020, 2021, 2022, or 2024 for the 2024 and 2026 ACCs), `Raf = 1 + DiscountRateAnnual(PA)`:
 
 ```text
 floor_rul = floor(R) if R > 0 else full
@@ -1375,7 +1375,7 @@ AnnualkWh(k) = the per-unit annual kWh in force during quarter k, with  EQ = 4 *
 nox, pm10 = the NOx / PM10 rate (lb per kWh) of the Emissions table (CET's) for the key
             (PA, AC_Elec_Target_Sector, AC_Elec_Impact_Profile, AC_Climate_Zone); 0 where the table has no row
 NOxfactor = the NOx factor (lb per therm) of the CombustionType table (CET's) for CombustionType; 0 when CombustionType is blank or unknown
-CO2Gas    = metric tons of CO2 per therm, the run parameters' value for PA and the ACC version (0.00531; 0.00585 on the 2021 ACC)
+CO2Gas    = metric tons of CO2 per therm, the run parameters' value for PA and the ACC version (0.00531; 0.00585 on the 2020 and 2021 ACCs)
 G_firstyear = Th1                                  if RUL >= 1
             = RUL*Th1 + (1 - RUL)*Th2              if 0 < RUL < 1 <= EUL
             = RUL*Th1 + (EUL - RUL)*Th2            if RUL < EUL < 1
@@ -1959,7 +1959,7 @@ The portfolio's net electric savings hour by hour, for each requested calendar y
 | Field | Meaning and unit | Formula |
 |---|---|---|
 | `hour_of_year` | The ACC hour index, 1 = 1 January 00:00. 1-8760. | `1 ... 8760` |
-| `datetime` | That index laid on the ACC's calendar `A`: 2018 for the 2024/2026 ACCs, 2020 for the 2021/2022 ACCs (every forecast year of an ACC follows one calendar's weekdays, and the shapes are aligned to it; a 2020 calendar includes 29 February and ends on 30 December). Timestamp. | `A-01-01 00:00 plus (hour_of_year - 1) hours` |
+| `datetime` | That index laid on the ACC's calendar `A`: 2018 for the 2024/2026 ACCs, 2020 for the 2021/2022 ACCs, 2025 for the 2020 ACC (every forecast year of an ACC follows one calendar's weekdays, and the shapes are aligned to it; a 2020 calendar includes 29 February and ends on 30 December). Timestamp. | `A-01-01 00:00 plus (hour_of_year - 1) hours` |
 | `net_kwh_<Y>` | The portfolio's net kWh in that hour of calendar year `Y`, all IOUs. Positive = savings, negative = added load. kWh. | `SUM over measures m of weight_m(Y) * shape_m,Y(i)`, `i` = `hour_of_year` |
 | `net_kwh_<Y>_<PA>` | The same for the measures of one IOU territory `PA`. kWh. | the same sum over the measures with `IOU_AC_Territory` = `PA` |
 | `net_kwh_<Y>_CZ<zone>` | The same for the measures of one climate zone: the measure's `AC_Climate_Zone` as filed, `CZ` prepended when it is a bare number (`13` -> `CZ13`; `System` -> `CZSystem`). The zones add up to `net_kwh_<Y>`. kWh. | the same sum over the measures with that `AC_Climate_Zone` |
@@ -2161,7 +2161,7 @@ input column, from INPUT_FIELDS.md. With an output template it lists exactly the
 | `time_basis` | First year, average year, lifecycle undiscounted, lifecycle present value to the run's First Year, nominal dollars, a ratio of present values, or levelized. |
 | `aggregation` | How a group total (portfolio summary, Results levels) combines it: summed; recomputed from the summed numerator and denominator (ratios and levelized values); or not combined (inputs, labels, per-measure shares). |
 | `rounding` | Always "not rounded": ReCET writes full precision; the Results pages and Excel formats only change how numbers are shown. |
-| `years_in_use` | Which ACCs fill it ("2024 ACC on" for the SCT columns, blank on the TRC-only 2021 and 2022 ACCs; otherwise every ACC) and any earlier name of the column (renamed in 0.1.50 or from CET's E3 names). |
+| `years_in_use` | Which ACCs fill it ("2024 ACC on" for the SCT columns, blank on the TRC-only 2020, 2021 and 2022 ACCs; otherwise every ACC) and any earlier name of the column (renamed in 0.1.50 or from CET's E3 names). |
 
 These attributes follow rules on the column's name and its documented unit (`field_attributes.py`), so a column added later gets them
 without an entry of its own; `tests/test_field_attributes.py` checks the cost-test treatment against the cost tests' arithmetic.

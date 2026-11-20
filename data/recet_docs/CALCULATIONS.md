@@ -210,17 +210,17 @@ measure's `AC_Gas_Impact_Profile` contains `FuelSub` (a residential gas-to-elect
 **C3.3 E3 tables and run parameters.** Discount rates, `CO2Gas`, NOx/PM10 factors and retail rate schedules come from CET's E3 tables and are picked by **ACC
 version**. The packaged tables are CET exports, whose `Version` column uses CET's own numbering; each is mapped to the ACC it holds when the table is read:
 
-| CET Version | 2022 | 2024 | 2026 | 2027 |
-|---|---|---|---|---|
-| ACC | 2021 | 2022 | 2024 | 2026 |
+| CET Version | 2021 | 2022 | 2024 | 2026 | 2027 |
+|---|---|---|---|---|---|
+| ACC | 2020 | 2021 | 2022 | 2024 | 2026 |
 
-(from each version's release date in RunParameters `AvoidedCostVersion`; the older versions 2018-2021 map to the 2017-2020 ACCs). The discount rates, base year and
+(from each version's release date in RunParameters `AvoidedCostVersion`; the older versions 2018-2020 map to the 2017-2019 ACCs, which are not built in). The discount rates, base year and
 `CO2Gas` (the RunParameters table) are the **run parameters**; a supplied run-parameters file replaces them for the PAs it lists. A built-in ACC uses its own tables, and a new
 ACC label borrows the tables of the ACC version you name (default: the newest built-in). The primary rate is `DiscountRateAnnual` (PG&E 7.66%, SCE 7.65%, SCG 7.38%,
-SDG&E 7.36%, the same in every built-in ACC); the societal rate `DiscountRateAnnual_SCT` is 5.03% for every utility. `BaseYear`: 2021 (2021 ACC), 2022 (2022 ACC),
-2024 (2024 and 2026 ACCs). The rate schedules have no SCG rows for the 2021 and 2022 ACCs, so SCG bill impacts are not priced on those versions.
+SDG&E 7.36%, the same in every built-in ACC); the societal rate `DiscountRateAnnual_SCT` is 5.03% for every utility. `BaseYear`: 2020 (2020 ACC), 2021 (2021 ACC), 2022 (2022 ACC),
+2024 (2024 and 2026 ACCs). The electric rate schedules have no SCG rows for the 2020, 2021 and 2022 ACCs, so SCG bill impacts are not priced on those versions.
 
-**C3.4 TRC-only ACCs.** The 2021 and 2022 ACCs have no Societal Cost Test avoided costs (no SCT rows in either file, and no air quality adder). A run on them prices
+**C3.4 TRC-only ACCs.** The 2020, 2021 and 2022 ACCs have no Societal Cost Test avoided costs (no SCT rows in any of the three files, and no air quality adder). A run on them prices
 TRC, PAC and RIM as usual and leaves every SCT Base / SCT High column (`*_SB`, `*_SH`, `SCB*`, `SCH*`) blank, with a note in the log and `run_settings.json`. The same
 applies to any supplied ACC file without SCT rows.
 
@@ -228,6 +228,21 @@ applies to any supplied ACC file without SCT rows.
 version: its electric and gas avoided costs, its run parameters (discount rates) and E3 tables (rate schedules, emissions), exactly as a run on that version would price
 it. The measure-level values of each version's measures are computed under that version, then joined, and the program costs (C11) are shared over all the job's measures
 and discounted at the rates of the run's own version. The societal tests are left blank for the whole job if any version in it is TRC only.
+
+**C3.6 The 2020 ACC.** The oldest built-in version, and the first E3 model built like the later ones. Four things are particular to it; each is in the
+avoided-cost tables themselves, not in a rule of ReCET's:
+
+* *Calendar.* Its hourly data follow the weekdays of **2025** (hour 1 is a Wednesday, no 29 February), although the model stamps its hours 2018 on some sheets and
+  2020 on others: the model's time-of-use periods have no peak hours on 2025's weekends and holidays. The electric table carries 2025 hour stamps and profiles are
+  aligned to them (C4.2).
+* *Distribution in three zones.* The model has no hourly distribution allocation for SCE in climate zones 13 and 16, and files SDG&E's zone 10 allocation under a
+  misspelled key that its own lookup does not find, so the model itself returns an error for these three. The table uses the misfiled SDG&E zone 10 column for
+  SDG&E zone 10, and **SCE's zone 10 allocation for SCE zones 13 and 16** (a stand-in: the model gives no basis for a choice among SCE's zones). Only the distribution
+  part of T&D in those zones depends on it. CET's own table for this ACC cannot settle it: there SCE's and SDG&E's T&D is the same in every climate zone.
+* *Methane leakage* is valued at the model's default 20-year global warming potential: 16.04% of the GHG value for upstream leakage (electric and gas) and 10.89%
+  behind the meter (gas), against 5.57% and 3.78% at the 100-year potential the 2021 and 2022 models default to.
+* *Gas years.* The gas model's dashboard pairs each year with the previous year's T&D cost **and** the previous year's NOx and CO2 prices (the 2021 and 2022 models
+  do this for T&D only). The table follows the dashboard, the model's published result and what CET loaded.
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -253,7 +268,7 @@ earlier ACC map, which followed the 2025 calendar, with `represents_year` = 2025
 **C4.2 Calendar alignment.** A profile is drawn on the weekdays of the year it represents (`represents_year`; 2009, the DEER reference year, when blank; 2018 for the TOU
 8,760s). An ACC's hourly avoided costs follow **one calendar's weekdays in every forecast year**: **2018** for the 2024 and 2026 ACCs (hour 1 is a Monday; the weekly
 low in distribution and transmission value falls on days 6-7 of every week of every year) and **2020** for the 2021 and 2022 ACCs (hour 1 is Wednesday 1 January
-2020). The calendar year `A` is read from the ACC file's hour stamps (2018 when a supplied file has none). Every profile is rotated **once**, onto `A`, and the same
+2020), and **2025** for the 2020 ACC (hour 1 is Wednesday 1 January 2025; C3.6). The calendar year `A` is read from the ACC file's hour stamps (2018 when a supplied file has none). Every profile is rotated **once**, onto `A`, and the same
 aligned shape prices every year. With Monday = 0:
 
 ```text
@@ -262,9 +277,9 @@ d          = d0 if d0 <= 3, else d0 - 7                         (the short way r
 shape_y(i) = shape( (i + 24 * d) mod 8760 )                     i = 0 ... 8759, the same for every year y
 ```
 
-Example: a 2025 profile (1 January a Wednesday) has `d = -2` on the 2024/2026 ACCs, so its 1 January lands on ACC day 3, a Wednesday; on the 2021/2022 ACCs `d = 0`.
-The TOU 8,760s (2018) need no rotation on the 2024/2026 ACCs; on the 2021/2022 ACCs they move `d = +2` days onto the 2020 weekdays, so their weekdays line up and
-their holidays and season boundaries are two days off 2020's. Leap years: an ACC year always has 8,760 hours (the last day of a leap year is dropped, so the 2020 calendar includes 29 February and ends on
+Example: a 2025 profile (1 January a Wednesday) has `d = -2` on the 2024/2026 ACCs, so its 1 January lands on ACC day 3, a Wednesday; on the 2020/2021/2022 ACCs `d = 0`.
+The TOU 8,760s (2018) need no rotation on the 2024/2026 ACCs; on the 2020/2021/2022 ACCs they move `d = +2` days onto the 2025 or 2020 weekdays, so their weekdays line up and
+their holidays and season boundaries are two days off that calendar's. Leap years: an ACC year always has 8,760 hours (the last day of a leap year is dropped, so the 2020 calendar includes 29 February and ends on
 30 December); hour `i` is the same position in every year, and only weekdays are aligned. This is **not** CEDARS' rule: CEDARS aligns the profile to each
 forecast year's own 1 January weekday (although the ACC data do not follow those calendars) and rotates one day too far when the offset is negative. Gas is monthly and is not shifted.
 
@@ -341,7 +356,7 @@ per-measure loop to floating-point rounding (relative differences below 1e-14). 
 this route.
 
 **C5.2 Retired (2026-10-02): the TOU (H-factor) route.** TOU end uses are priced by C5.1 from their 8,760s in the library (C4.1). The quarterly
-TOU-period route (CET's kWh term plus a demand-scaled T&D term from five period factors) is no longer used; its formulas are in the git history.
+TOU-period route (CET's kWh term plus a demand-scaled T&D term from five period factors) is no longer used.
 
 **C5.3 Retired (2026-10-02): CET's SCG table.** SCG measures are priced by C5.1 on the SCG routing of C3.1; CET's quarterly SCG table is no longer read.
 
@@ -467,7 +482,7 @@ The ratepayer bill change for RIM. Unlike C5 it is **annual**, not quarterly, an
 (`PA`, `AC_Gas_Target_Sector`). Like the benefits it uses `NTG + MEB` (CalcCE prices the bill on `Qty x (NTGRkWh + MEBens)` and `(NTGRThm + MEBens)`), and the measure-level
 `RateScheduleElec` / `RateScheduleGas` columns are not read.
 
-With `yr1 = Y0 - BaseYear` (RunParameters `BaseYear` of the ACC version, C3.3: 2021, 2022, or 2024 for the 2024 and 2026 ACCs), `E = EUL`, `R = RUL`, `full = floor(E)`, `rem = E - full`, `n = full + 1 if rem > 1e-9 else full`:
+With `yr1 = Y0 - BaseYear` (RunParameters `BaseYear` of the ACC version, C3.3: 2020, 2021, 2022, or 2024 for the 2024 and 2026 ACCs), `E = EUL`, `R = RUL`, `full = floor(E)`, `rem = E - full`, `n = full + 1 if rem > 1e-9 else full`:
 
 ```text
 floor_rul = floor(R) if R > 0 else full                                     boundary share of the 1st baseline:  b = R - floor(R) if R > 0 else 1
@@ -707,7 +722,7 @@ participant-cost columns match CET to the cent. CET's run used its avoided-cost 
 ## C14 Emissions
 
 Emission columns are produced when "Include emissions" is on. "First-year" is the measure's **first four quarters** of life (not the calendar year); "Lifecycle" is all of them; "Net" includes NTG (and `MEB`), "Gross" does not.
-Units: **CO2 in metric tons** (confirmed; the ACC's rate is `tonnes/kWh` and RunParameters `CO2Gas` = 0.00531 (0.00585 for the 2021 ACC) is metric tons per therm, so CET's SQL comments that say "lbs" for CO2 are wrong). NOx and PM10 are in **pounds** (confirmed).
+Units: **CO2 in metric tons** (confirmed; the ACC's rate is `tonnes/kWh` and RunParameters `CO2Gas` = 0.00531 (0.00585 for the 2020 and 2021 ACCs) is metric tons per therm, so CET's SQL comments that say "lbs" for CO2 are wrong). NOx and PM10 are in **pounds** (confirmed).
 
 **C14.1 Electric CO2 per annual kWh, by quarter** (`co2(qidx)`, `qidx = 4 * year + quarter`, quarter 1-4):
 
@@ -875,7 +890,7 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 * SCG electric is priced on the SCG routing of C3.1: one utility's whole bundle per zone, SCE unless SCE has no data for the zone (then PG&E). This matches CEDARS'
   DEER-path SCG values in zones 4, 5 (PG&E) and 13 (SCE); CEDARS' own SCG hourly files instead pair SCE generation with PG&E T&D in zones 4, 5 and 13, so ReCET
   differs from them there. CET's quarterly SCG table is not used.
-* Not validated against CET, because the real runs contain none: **`WaterEnergyCost`** and second-baseline water, the **2021, 2022 and 2026 ACCs** (no CET run has used them),
+* Not validated against CET, because the real runs contain none: **`WaterEnergyCost`** and second-baseline water, the **2020, 2021, 2022 and 2026 ACCs** (no hourly run has been compared with a CET run on them),
   statewide allocation of program costs, the Participant Cost Test (CET has none), already-scaled and load-shifting profiles (C4.5) and ACC versions per measure (C3.5).
   Market effects at 5% match CET jobs 121842 / 121841 on participant costs and bill impacts.
   These paths are covered by the hand-computed tests in `tests`.

@@ -28,11 +28,11 @@ from cedars.services.submissions.models import Deadline, ReopenRequest, Submissi
 from . import forms, jobfile, service, shifts
 from .models import PROGRAM_COST_FIELDS, ChangeLetter
 
-DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
+DEFAULT_ACCS = ["2020", "2021", "2022", "2024", "2026"]
 
 
 def accs() -> list[str]:
-    """The ACC years a filing can be priced on: those with a registered electric ACC pack, else the engine's four."""
+    """The ACC years a filing can be priced on: those with a registered electric ACC pack, else the engine's five."""
     years = (
         PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year__isnull=False)
         .exclude(status=PackVersion.Status.WITHDRAWN)

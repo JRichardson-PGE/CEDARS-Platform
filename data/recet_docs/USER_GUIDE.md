@@ -25,6 +25,7 @@ that the tool can calculate: benefits, supply costs, participant and bill-impact
 
 | Version key | Avoided-cost data | CET "Version" used for discount rates, emissions and retail rates |
 |---|---|---|
+| `2020` | the 2020 ACC (TRC only: no societal tests) | 2021 |
 | `2021` | the 2021 ACC (TRC only: no societal tests) | 2022 |
 | `2022` | the 2022 ACC (TRC only: no societal tests) | 2024 |
 | `2024` | the 2024 ACC | 2026 |
@@ -43,7 +44,7 @@ pip install recet-<version>-py3-none-any.whl          (or, from a checkout of th
 python -m recet                                     opens the window      (also: recet  or  recet-gui)
 ```
 
-Python 3.11 or newer; `numpy`, `pandas`, `pyarrow`, `openpyxl`, `sv-ttk` and `tksheet` (the Edit inputs grid) install automatically; the window needs `tkinter` (included with the python.org installers; on some Linux systems `apt install python3-tk`).
+Python 3.11 or newer; `numpy`, `pandas`, `pyarrow`, `openpyxl`, `pyyaml`, `sv-ttk` and `tksheet` (the Edit inputs grid) install automatically; the window needs `tkinter` (included with the python.org installers; on some Linux systems `apt install python3-tk`).
 The first time, set the **reference data folder** (below) so the large files can be found.
 
 ---------------------------------------------------------------------------------------------------------------------------------
@@ -95,7 +96,7 @@ A file box takes a typed or pasted path, or **Browse...**.
 
 | Control | What it does |
 |---|---|
-| **Run against** | Which avoided-cost version to price on. Choose **2021**, **2022**, **2024** or **2026** (the ACC of that year; the 2021 and 2022 ACCs are TRC only, so their SCT columns stay blank) from the list, or type a **new label** (one word, no spaces, e.g. `2030-draft`) and give its files in section 3. A built-in version's electric ACC comes from the reference data folder; its gas ACC ships in the package. Everything derived from the version - discount rates, emission factors, retail rates - follows it (C3.3). |
+| **Run against** | Which avoided-cost version to price on. Choose **2020**, **2021**, **2022**, **2024** or **2026** (the ACC of that year; the 2020, 2021 and 2022 ACCs are TRC only, so their SCT columns stay blank) from the list, or type a **new label** (one word, no spaces, e.g. `2030-draft`) and give its files in section 3. A built-in version's electric ACC comes from the reference data folder; its gas ACC ships in the package. Everything derived from the version - discount rates, emission factors, retail rates - follows it (C3.3). |
 | **First Year (blank = earliest claim year)** | CET's *First Year*: the reference point of all discounting (C2.5). Blank uses the earliest `ClaimYearQuarter` year in the job. Set it to the value on the CET run you are matching - it is on the run form, not in the input files. A whole number such as `2028`. |
 | **Priced for** | What the run is for: *Any filing* (the default), *Quarterly Claims*, or one budget filing. ReCET then flags every record priced on an ACC that does not normally apply to its program year (claims use the ACC of the year's final budget filing; a budget filing uses its own ACC for its program years): the `acc_not_for_program_year` finding in preflight, and counts by ACC and program year in `run_settings.json` (OUTPUT_FIELDS 2.9b). Nothing is stopped. |
 | **Cost tests** | The cost-test definition set the tests are priced on ([COST_TESTS.md](COST_TESTS.md)): *In force for the first program year* (the default), a built-in set such as `EE-2026`, or the path of a set's YAML file typed in the box for an analysis run. A run with CEDARS filing checks or priced for a filing takes a published built-in set only. The set is named in `Used_CostTestSet` and `run_settings.json`. |
@@ -159,7 +160,7 @@ Supplied files are validated before the run; a problem stops the run with the fi
 |---|---|
 | **8,760 electric profiles** | A CSV/Parquet of hourly load shapes, one row per (profile, climate zone, hour). A profile that matches a measure on (end use, IOU, sector) is used **instead of** the CEDARS library profile (which includes the TOU end uses as 8,760s); a profile that matches nothing is added. Each measure's `ProfileSource` output column says which was used. Shapes that do not sum to 1 are rescaled (with a note in the log). |
 | **Gas monthly profiles** | A CSV/Parquet of 12-month shapes (`Profile`, `Month`, `Impact`). A `Profile` name in the library replaces it; a new name is added. |
-| **Electric ACC file** | A file of hourly electric avoided costs. If the label in **Run against** is one the package ships (`2021`, `2022`, `2024`, `2026`), the file replaces that version's electric ACC for this run; if it is a new label, the file *defines* the new version. |
+| **Electric ACC file** | A file of hourly electric avoided costs. If the label in **Run against** is one the package ships (`2020`, `2021`, `2022`, `2024`, `2026`), the file replaces that version's electric ACC for this run; if it is a new label, the file *defines* the new version. |
 | **Run parameters** | Discount rates (regular and societal), base year and gas CO2 per PA. A listed PA's values replace the built-in ones (the RunParameters table) for this run; other PAs keep theirs. **Template...** saves the built-in values for the selected ACC, to edit. |
 | **SW allocation factors** | Each IOU's share of each statewide program, by year. A (`Year`, `ProgramID`) row replaces the built-in one and a new row is added. Used only when **Allocate statewide programs** is ticked. **Template...** saves the whole built-in table. |
 | **Gas ACC file** | The same for gas monthly avoided costs. |
@@ -172,7 +173,7 @@ If you define a new version but supply only one fuel, the other fuel uses the ne
 
 | Control | What it does |
 |---|---|
-| **Folder** | Where the large files live (`acc/2024/electric_hourly.parquet`, `acc/2026/electric_hourly.parquet`, optionally `acc/2021/...` and `acc/2022/...` for the TRC-only ACCs, `impact_profiles/catalog.parquet`, `impact_profiles/hourly.parquet`). Applies to this run. |
+| **Folder** | Where the large files live (`acc/2024/electric_hourly.parquet`, `acc/2026/electric_hourly.parquet`, optionally `acc/2020/...`, `acc/2021/...` and `acc/2022/...` for the TRC-only ACCs, `impact_profiles/catalog.parquet`, `impact_profiles/hourly.parquet`). Applies to this run. |
 | **Save as default** | Remembers the folder for every future run on this machine (writes `~/.recet/config.json`). |
 | status line | Green: every required file was found (and from where). Red: lists what is missing. It refreshes when you browse, save, load settings or save a template. A run that uses the built-in ACC or profile library needs these files; a run entirely on supplied files does not. |
 
@@ -191,7 +192,7 @@ The left box (**Modes**) holds the pricing switches; the right box (**Comparison
 | **Allocate statewide (SW_) programs across the IOUs** | Splits each statewide program's measures and program costs across PG&E, SDG&E, SCE and SCG with CET's allocation factors *before* pricing, so each IOU's share is its own row (`<IOU>_` prepended to `CEInputID` and `PrgID`). Off (the default) prices statewide rows as filed - the way the real CET runs were done. Needs `Measure.csv` and `ProgramCost.csv` to be allocated together, which the tool does. The run writes `statewide_reconciliation` (each allocated field before allocation and by IOU, and whether it adds back up; OUTPUT_FIELDS 2.13). | C15 |
 | **Leave Exclude_From_CE programs out of the portfolio summary** | Off by default. Measures whose program the program metadata flags `Exclude_From_CE` are left out of every summary row and totaled in one last `excluded` row. They are still priced and listed in the measure-level table. | |
 | **Also run another ACC version and compare measure by measure** | Runs the job twice - the selected version and the one in **Compare with** - each in its own process, then writes `comparison_acc<A>_vs_acc<B>` (per-measure value, change and percent change of the key outputs) and a portfolio summary. Supplied ACC files apply to the first version only; supplied 8,760 and gas profiles apply to both, so the ACC is the only thing that differs. The second version must differ from the first. | C16.4 |
-| &nbsp;&nbsp;**Compare with** | The second built-in version (`2021`, `2022`, `2024` or `2026`). Defaults to `2026` when the run is on `2024`, else `2024`. | |
+| &nbsp;&nbsp;**Compare with** | The second built-in version (`2020`, `2021`, `2022`, `2024` or `2026`). Defaults to `2026` when the run is on `2024`, else `2024`. | |
 | **Compare with a CET outputs file** | Matches your measures to a CET run's `*_outputs.csv` by ID and writes `cet_comparison_measures_*` (per measure and output: ReCET's value `<field>_poc`, CET's `<field>_cet`, the difference and the ratio) and `cet_comparison_summary_*` (portfolio totals: ReCET's in column `POC`, CET's, and the ratio `POC/CET`). Only meaningful when the job is run the way the CET run was: same First Year, ACC version and statewide allocation. Enter the file's path in the box below the checkbox. | C16.4 |
 | **Preflight check only (do not price)** | Reads and checks the inputs and stops: writes `preflight.txt` and `preflight_findings.xlsx` (the findings and every flagged cell, to filter in Excel) and reports what would and would not be priced (measures with no profile, unknown gas profile names, blank required values, values outside CET's ranges, program-cost mismatches, claim years outside the ACC's range). Takes seconds; use it first on a new file. | |
 | **CEDARS filing checks** | *none* (the default), *Quarterly Claims* or *Budget filing*: also applies CEDARS' own upload checks for that filing (its validation rules, warning rules and field constraints, as CEDARS publishes them) and flags the records it would reject or warn on: the `filing_validation` table (each failing record, with `FilingValidation` and `FilingRules`) and the findings in `preflight.txt` under each rule's ID. Nothing is stopped: every record is still priced. With **Preflight check only** it is a quick check of a file before uploading it to CEDARS. | |
@@ -262,7 +263,7 @@ with the error `too_many_records`, before the file is split: split it into files
 
 ## Common jobs
 
-**Price a job on one ACC.** Choose the files, pick the ACC (`2026`, `2024`, or the TRC-only `2022` / `2021`), leave the modes at their defaults, Run. Open `measure_level_acc<version>.csv`; check `ElecPricingStatus`, `GasPricingStatus` and `WaterPricingStatus` for `UNPRICED` rows first.
+**Price a job on one ACC.** Choose the files, pick the ACC (`2026`, `2024`, or the TRC-only `2022` / `2021` / `2020`), leave the modes at their defaults, Run. Open `measure_level_acc<version>.csv`; check `ElecPricingStatus`, `GasPricingStatus` and `WaterPricingStatus` for `UNPRICED` rows first.
 
 **Compare the 2024 and 2026 ACC.** Tick *Also run another ACC version...*, pick the other version. `comparison_acc2024_vs_acc2026.csv` holds each measure's value under both, the change and percent change.
 
@@ -312,7 +313,7 @@ result.files        # every file written
 
 ## Reference data, moving to another machine
 
-The electric ACC files (~1 GB each for the 2024 and 2026 ACCs; the 2021 and 2022 ones are smaller and optional) and the CEDARS 8,760-hour profile library (~9 GB) are too large for GitHub, so they are kept in a *reference data folder* outside the package. The folder can be anywhere and can be changed at any time:
+The electric ACC files (~1 GB each for the 2024 and 2026 ACCs; the 2020, 2021 and 2022 ones are smaller and optional) and the CEDARS 8,760-hour profile library (~9 GB) are too large for GitHub, so they are kept in a *reference data folder* outside the package. The folder can be anywhere and can be changed at any time:
 the window's box or `--data-dir` on a command (this run only), then the environment variable `RECET_DATA`, then the folder saved with `recet data set-dir PATH` or the window's "Save as default" (first match wins, in that order).
 `recet data status` shows what is present. To move it: `data pack` writes the folder as parts of at most 4 GB with checksums; `data unpack` rebuilds it; `data verify --full` checks sizes and SHA-256 against `manifest.json`.
 

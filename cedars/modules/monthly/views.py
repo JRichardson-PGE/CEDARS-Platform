@@ -27,12 +27,12 @@ from . import forms, service
 from . import upload as up
 from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, ChangeLetter, YearSetup
 
-DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
+DEFAULT_ACCS = ["2020", "2021", "2022", "2024", "2026"]
 PRELIMINARY = "Preliminary estimate"
 
 
 def accs() -> list[str]:
-    """The ACC years estimates can be priced on: those with a registered electric ACC pack, else the engine's four."""
+    """The ACC years estimates can be priced on: those with a registered electric ACC pack, else the engine's five."""
     years = (
         PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year__isnull=False)
         .exclude(status=PackVersion.Status.WITHDRAWN)

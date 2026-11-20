@@ -29,7 +29,7 @@ values), input checking (format, pricing coverage, CEDARS' own filing rules, the
 ACC files, comparisons between ACC versions, and the results views.
 
 Out of scope, by design: the CEDARS claims and budget-filing workflow (confirmation, reopening, Kiteworks PII handling), the Programs, Monthly Reports
-and Documents modules, and an integration API. ReCET reads the CEDARS Programs list and CEDARS' published rule files as data; it does not talk to
+and Documents modules, and a web API (other systems run ReCET through the batch worker's job spec, section 11 and [Batch worker](WORKER.md)). ReCET reads the CEDARS Programs list and CEDARS' published rule files as data; it does not talk to
 CEDARS.
 
 ### 1.3 Functional requirements and how they are met
@@ -40,7 +40,7 @@ CEDARS.
 | Hourly valuation, load shifting | value savings in the hour they occur; a measure that only moves load has value | each measure's 8,760 profile is multiplied by that hour's avoided cost **before** summing (C5.1); kWh-per-unit profiles (C4.5) | met |
 | ACC per measure | price records on the ACC that applies to them; flag the ones that are not | optional `ACCVersion` column (C3.5); the "Priced for" check flags records whose ACC does not normally apply to their program year (`versions.expected_accs`) | met |
 | Version labels | name each ACC release unambiguously | versions keyed and shown by ACC year ("2026 ACC"); CET's Avoided Cost Version numbers mapped on read (`versions.py`) | met |
-| Participant Cost Test | the SPM's fourth test, which the CET lacks; cost tests and value streams as configuration | `run_poc.participant_cost_test` (its streams); the tests are a versioned definition set (`data/cost_tests/EE-2026`, `cost_test_sets.py`, COST_TESTS.md) that every run pins and `pipeline/test_evaluator.py` prices | partly met: the PCT is added and the tests are a pinned set priced by one evaluator, which every summary, Results page and data-dictionary attribute follows; a set can add non-energy benefits as input streams from its own Measure columns (`pipeline/input_streams.py`), so adopting non-energy benefits takes a new set, not a new release; the platform's pack kind is the last step |
+| Participant Cost Test | the SPM's fourth test, which the CET lacks; cost tests and value streams as configuration | `run_poc.participant_cost_test` (its streams); the tests are a versioned definition set (`data/cost_tests/EE-2026`, `cost_test_sets.py`, COST_TESTS.md) that every run pins and `pipeline/test_evaluator.py` prices | met: the PCT is added and the tests are a pinned set priced by one evaluator, which every summary, Results page and data-dictionary attribute follows; a set can add non-energy benefits as input streams from its own Measure columns (`pipeline/input_streams.py`), so adopting non-energy benefits takes a new set, not a new release; the CEDARS platform keeps the sets as reference-data packs |
 | Filing checks | check a job against CEDARS' upload rules before upload | CEDARS' published claims and budget-filing rule files, shipped unchanged and versioned by effective date (`filing_rules.py`); failing records flagged, never blocked; the rule set used recorded in `run_settings.json` | met; multi-file batch upload dropped for ReCET |
 | Output templates and key metrics | choose and order output columns; headline results with definitions and drivers | `output_templates.py`, `key_metrics.py`, `field_definitions` written by every run (`field_docs.py`) | met |
 | Program costs need not line up | calculate measures whose program has no program-cost record | a measure with no `ProgramCost.csv` row is priced with no program costs, and a row with no measures is charged to none; preflight warns about both (`preflight._program_alignment`; C17 item 11) | met |
@@ -85,7 +85,7 @@ flowchart LR
         direction TB
         ui["Interfaces"] --> job["Job layer"] --> core["Pricing core"] --> out["Outputs and Results views"]
     end
-    acc["E3 ACC releases 2021 / 2022 / 2024 / 2026<br/>electric hourly, gas monthly<br/>(extracted and validated in CEDARS-Research)"] --> recet
+    acc["E3 ACC releases 2020 / 2021 / 2022 / 2024 / 2026<br/>electric hourly, gas monthly<br/>(extracted and validated in CEDARS-Research)"] --> recet
     cedars["CEDARS data<br/>impact-profile library (8,760s), Programs list,<br/>statewide factors, filing rule files"] --> recet
     cet["CET tables, exported once<br/>run parameters (E3Settings), emissions,<br/>combustion type, rate schedules, value lists"] --> recet
     recet --> files["Result files per run<br/>measure-level table, summaries, key metrics,<br/>field definitions, input check, run settings"]
@@ -329,7 +329,7 @@ differences listed in C17.
 | Tier | What | Where | Size | Changes |
 |---|---|---|---|---|
 | Package data | run parameters (CET E3Settings), emissions, combustion type and rate-schedule tables, gas ACCs, gas monthly profiles, statewide factors and field rules, the Programs list, System-zone catalog, value lists, CEDARS filing rule files | `recet/data/`, in git and in the package | megabytes | with a ReCET release |
-| Reference data | electric ACC hourly parquets (2021, 2022, 2024, 2026) and the CEDARS impact-profile library (catalog and 8,760s) | the *reference data folder*: `RECET_DATA`, `~/.recet/config.json`, or `--data-dir` | about 11 GB | rarely; `manifest.json` holds each file's size and SHA-256 |
+| Reference data | electric ACC hourly parquets (2020, 2021, 2022, 2024, 2026) and the CEDARS impact-profile library (catalog and 8,760s) | the *reference data folder*: `RECET_DATA`, `~/.recet/config.json`, or `--data-dir` | about 11 GB | rarely; `manifest.json` holds each file's size and SHA-256 |
 | Cache | the electric ACC as memory-mapped arrays, profile indexes | `~/.recet/cache` (`RECET_CACHE`; `RECET_NO_CACHE` turns it off) | a few GB | rebuilt on demand; never the only copy (`recet data clear-cache`) |
 
 Reference data never goes in git. `recet data status | verify | pack | unpack | build` (`datapack.py`) move it between machines; the web server mounts it
@@ -342,9 +342,9 @@ so a caller such as the CEDARS platform's reference-data service can turn a pack
 
 ### 7.2 ACC versions
 
-A run names an ACC version by its year (`2021`, `2022`, `2024`, `2026`). The version selects the electric parquet, the gas table, the run parameters and the
+A run names an ACC version by its year (`2020`, `2021`, `2022`, `2024`, `2026`). The version selects the electric parquet, the gas table, the run parameters and the
 CET tables (`versions.py`). Supplied ACC files replace the built-in ones for that version or define a new one. A measure's optional `ACCVersion` column
-prices it on another version within the same run (C3.5). Each ACC's hours follow one calendar's weekdays (2018 for 2024 and 2026, 2020 for 2021 and
+prices it on another version within the same run (C3.5). Each ACC's hours follow one calendar's weekdays (2018 for 2024 and 2026, 2025 for 2020, 2020 for 2021 and
 2022), and every ACC year has 8,760 hours.
 
 ### 7.3 The run folder
@@ -360,7 +360,7 @@ prices it on another version within the same run (C3.5). Each ACC's hours follow
      portfolio_8760_acc<v>.<fmt> / portfolio_8760_peaks_acc<v>.<fmt>   with the combined 8,760: hourly net kWh by PA and climate zone, and their peaks
      preflight.txt / .json / preflight_findings.xlsx      the input check
      run_settings.json                  every setting, file, version and count needed to repeat the run
-     log.txt                            the run's log
+     log.txt                            the run's log (worker runs only; the web app keeps it beside the run folder)
      _results/                          the full measure-level parquet and the Results page's per-program sums
      _prepared_inputs/                  workbook sheets and supplied files as the run read them
 ```
@@ -468,7 +468,7 @@ running runs' own time left, and a calibration against this server's recent runs
 | `RECET_WEB_SECURE_COOKIES` | 1 | session cookie over HTTPS only |
 | `RECET_WEB_TRUST_PROXY` | 1 | client address from `X-Real-IP` (the edge nginx) |
 | `RECET_WEB_WORKERS` | 1 | runs at once |
-| `RECET_WEB_ACC_VERSIONS` | `2024,2026` (`2021,2022,2024,2026` on the server) | ACC versions offered |
+| `RECET_WEB_ACC_VERSIONS` | `2024,2026` (`2020,2021,2022,2024,2026` on the server) | ACC versions offered |
 | `RECET_WEB_RETENTION_DAYS` | 7 | days a run is kept |
 | `RECET_WEB_DRAFT_DAYS` | 30 | days an untouched draft is kept |
 | `RECET_WEB_MAX_UPLOAD_MB` | 150 | largest upload per file |
@@ -563,7 +563,7 @@ would use the second vCPU but needs twice the pricing memory, so it waits for a 
   service, with its files in object storage and its accounts in the platform's own database. On this server the state (the SQLite database, run and
   draft folders) is copied to S3 every night and can be restored by `deploy/backup` (its README is the setup and restore runbook).
 * **No web API.** The web app's users upload files and download results. Another system calls ReCET through the worker and its job spec
-  (`recet worker run`, `jobspec.py`) or through Python (`recet.jobs`).
+  (`recet worker run`, `jobspec.py`, [Batch worker](WORKER.md)) or through Python (`recet.jobs`).
 * **No lifecycle-savings input**: inputs stay the CET's per-unit annual values.
 * **Multi-file batch upload** is not built: one job zip holds one `Measure.csv`.
 * **No integration with CEDARS or eTRM.** Profiles, programs and rules are files refreshed by hand.
