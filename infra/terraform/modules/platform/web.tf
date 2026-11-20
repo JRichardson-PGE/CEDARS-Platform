@@ -95,6 +95,11 @@ locals {
     { name = "CEDARS_BATCH_QUEUE_LARGE", value = aws_batch_job_queue.runs["large"].name },
     { name = "CEDARS_BATCH_QUEUE_SMALL", value = aws_batch_job_queue.runs["small"].name },
     { name = "CEDARS_BATCH_JOB_DEFINITION", value = aws_batch_job_definition.recet.name },
+    { name = "CEDARS_SUPPORT_EMAIL", value = var.support_email },
+    { name = "CEDARS_FEEDBACK_URL", value = var.feedback_url },
+    { name = "CEDARS_ISSUE_REPOSITORY", value = var.issue_repository },
+    { name = "CEDARS_ISSUE_APP_ID", value = var.issue_app_id },
+    { name = "CEDARS_ISSUE_APP_INSTALLATION_ID", value = var.issue_app_installation_id },
   ]
   web_container = {
     name                   = "web"

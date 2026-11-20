@@ -182,6 +182,42 @@ variable "log_retention_days" {
   default     = 365
 }
 
+variable "support_email" {
+  description = "The address the sign-in pages and Help give for support (CEDARS_SUPPORT_EMAIL); blank = none shown"
+  type        = string
+  default     = ""
+}
+
+variable "feedback_url" {
+  description = "A feedback form or survey Help links to (CEDARS_FEEDBACK_URL); blank = an email to the support address"
+  type        = string
+  default     = ""
+}
+
+variable "issue_repository" {
+  description = "The developers' tracker repository (owner/name) a work item's issue is started in (CEDARS_ISSUE_REPOSITORY); blank = off"
+  type        = string
+  default     = ""
+}
+
+variable "issue_app_id" {
+  description = "The tracker app's id, for the site to post issues itself (CEDARS_ISSUE_APP_ID); blank = people start issues by hand"
+  type        = string
+  default     = ""
+}
+
+variable "issue_app_installation_id" {
+  description = "The tracker app's installation id (CEDARS_ISSUE_APP_INSTALLATION_ID)"
+  type        = string
+  default     = ""
+}
+
+variable "issue_tracker" {
+  description = "The app secret holds CEDARS_ISSUE_WEBHOOK_SECRET and CEDARS_ISSUE_APP_PRIVATE_KEY: pass them to the web and jobs tasks"
+  type        = bool
+  default     = false
+}
+
 variable "deletion_protection" {
   type    = bool
   default = true
