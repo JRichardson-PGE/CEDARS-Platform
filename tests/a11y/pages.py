@@ -59,6 +59,7 @@ PAGES = [
             "calculations",
             "cost-tests",
             "desktop-and-command-line",
+            "batch-worker",
             "engine-architecture",
         )
     ],

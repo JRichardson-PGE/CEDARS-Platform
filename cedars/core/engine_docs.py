@@ -84,6 +84,13 @@ DOCS = [
         "troubleshooting.",
     ),
     Doc(
+        "batch-worker",
+        "WORKER.md",
+        "Batch worker",
+        "How a batch system runs the engine: the job spec the platform sends for every run, what the worker writes (outputs, progress, "
+        "log and the receipt), its exit codes, the check spec for a filing's rules, and the published worker image.",
+    ),
+    Doc(
         "engine-architecture",
         "ARCHITECTURE.md",
         "Engine architecture",

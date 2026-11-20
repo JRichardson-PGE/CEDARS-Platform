@@ -213,7 +213,7 @@ The JSON key is the name in `RunConfig`; command-line flags override a settings 
 | `out_dir` | Output folder | `--out` | `recet_results` (GUI: `~/recet_results`) | Folder in which the run's folder is created. |
 | `run_name` | Run name | `--name` | a timestamp | Prefix of the run folder name. |
 | `engine` | (web: Calculation engine) | `--engine` | `recet` | The calculation engine: blank or `recet` = ReCET's own hourly pricing; `cet-<release>` (`cet-25.1`, `cet-25.0`, `cet-24.3`, `cet-24.2`, `cet-24.1`, `cet-22.1`, `cet-21.0`) = an exact replica of that CET release on its own quarterly tables, CET's errors included (CALCULATIONS C20). A replica prices the ACCs its release has (`recet cet-version list`), writes the release's SavedCE / SavedSavings / SavedEmissions / SavedCost tables plus a measure-level table in ReCET's layout, and refuses the options that are ReCET's own: supplied ACC, profile, run-parameter or statewide-factor files, statewide allocation, ACC components, the combined 8,760, `compare_with`, `cet_outputs`, Check inputs only and the CEDARS filing checks (a filing accepts only ReCET's own engine). Its SCT and emissions columns are those its release wrote, whatever `include_societal` / `emissions` say. Its tables are read from the reference data folder's `cet_versions` export. |
-| `acc_version` | Run against | `--acc` | `2024` | `2021`, `2022`, `2024` or `2026` (the ACC of that year; 2021 and 2022 are TRC only), or a new label defined by supplied ACC files. |
+| `acc_version` | Run against | `--acc` | `2024` | `2020`, `2021`, `2022`, `2024` or `2026` (the ACC of that year; 2020, 2021 and 2022 are TRC only), or a new label defined by supplied ACC files. |
 | `acc_electric_file`, `acc_gas_file` | Electric ACC file, Gas ACC file | `--acc-electric-file`, `--acc-gas-file` | none | Supplied ACC file(s); replace the built-in file of `acc_version`, or define a new version. |
 | `acc_draft` | (none) | `--acc-draft` | false | The supplied ACC file(s) are a draft ACC: the run is refused when it asks for CEDARS filing checks (`filing_validation`) or is priced for a filing (`acc_purpose`); any other run labels the ACC "(draft)" in `Used_ACCVersion` and `run_settings.json` and notes it. An ACC in the reference folder is marked draft in its pack's manifest instead (`recet data build --draft 2028`, `recet data draft FOLDER 2028`). |
 | `settings_from` | Run parameters of ACC version (for a NEW ACC label) | `--settings-from` | `2026` | The ACC version whose built-in run parameters and other E3 tables (discount rates, emissions, rate schedules) a *new* ACC label uses. A built-in version uses its own unless this is set. Saved configurations from before 0.1.17 with `e3_version` (CET's numbering) are converted. |
@@ -233,7 +233,7 @@ The JSON key is the name in `RunConfig`; command-line flags override a settings 
 | `emissions` | Include emissions | `--no-emissions` (turns it off) | true | Compute the CO2 / NOx / PM10 columns (C14). |
 | `allocate_statewide` | Allocate statewide (SW_) programs | `--allocate-statewide` | false | Split statewide programs across the IOUs before pricing (C15). |
 | `apply_exclude_from_ce` | Leave Exclude_From_CE programs out of the portfolio summary | `--apply-exclude-from-ce` | false | Measures of programs whose `Exclude_From_CE` is true in the program metadata are left out of every summary row and shown in one `excluded` row (OUTPUT_FIELDS 2.2). They are still priced and in the measure-level table. |
-| `base_year` | First Year | `--base-year` | earliest claim year | CET's First Year: the reference point of all discounting (C2.5). |
+| `base_year` | First Year | `--base-year` | earliest claim year | CET's First Year: the reference point of all discounting (C2.5). Not the run parameters' `BaseYear` (section 4.5), a different value despite the name. |
 | `output_template` | Output template | `--output-template` | every column | The measure-level file's columns, in order: a built-in template (*Key results*, *Participant costs*), one you saved, or a file (one column per line, or JSON `{"name": ..., "columns": [...]}`). Only the measure-level file is shaped: the Results tables, the summary and the key metrics still use every column. A column the run does not produce (an SCT column with the societal tests off) is left out, with a note. Names are those of OUTPUT_FIELDS.md section 1 and the input columns. |
 | `output_template_name` | (the template's name) | (from `--output-template`) | blank | The template's name, for the record in `run_settings.json`. |
 | `acc_purpose` | Priced for | `--priced-for` | any filing | What the run is priced for, for the ACC check (OUTPUT_FIELDS 2.9b): blank = any filing (a record is flagged when no filing covering its program year uses its ACC), `claims` (the ACC of the program year's final budget filing), or one budget filing by key, e.g. `2028-2035-application`, `true-up-advice-letter-september-2027` (`recet run --help` lists them). Flagged records are still priced. |
@@ -293,7 +293,7 @@ One row per `(iou, climate_zone, cost_test, year, hour_of_year)`; dollar columns
 | `total_avoided_cost` | $/MWh | yes | The sum of the component columns below (checked to 1e-6). |
 | `transmission`, `distribution` | $/MWh | for water energy | The T&D part; `Gen` = total minus these (water energy is priced on `Gen`). |
 | `emission_rate_tonnes_per_kwh` | metric tons CO2 per kWh | for electric CO2 | The grid emission rate of that hour. |
-| `energy`, `generation_capacity`, `avoided_as_procurement`, `losses`, `methane_leakage`, `ghg_cap_and_trade`, `ghg_portfolio_rebalancing` (2024 ACC) or `ghg_cap_and_invest` (2026 ACC), `ghg_adder`, `air_quality_adder` | $/MWh | for components mode | The avoided-cost components. |
+| `energy`, `generation_capacity`, `avoided_as_procurement`, `losses`, `methane_leakage`, `ghg_cap_and_trade`, `ghg_portfolio_rebalancing` (2020, 2021, 2022 and 2024 ACCs) or `ghg_cap_and_invest` (2026 ACC), `ghg_adder`, `air_quality_adder` (2024 and 2026 ACCs) | $/MWh | for components mode | The avoided-cost components. The 2020, 2021 and 2022 ACCs have the 2024 ACC's set without `air_quality_adder`. |
 | `price_zone`, `datetime`, `month`, `day`, `hour` | - | no | Ignored. |
 
 ### 4.4 Gas ACC (CSV or Parquet)
@@ -326,7 +326,7 @@ The built-in run parameters are the RunParameters table (section 6). A supplied 
 | `DiscountRateQtr` | fraction | optional (default `DiscountRateAnnual / 4`) | Quarterly rate for measure-level streams (C2.4). CET stores the annual rate / 4. |
 | `DiscountRateAnnual_SCT` | fraction | yes | Annual societal discount rate (SCB / SCH). |
 | `DiscountRateQtr_SCT` | fraction | optional (default `DiscountRateAnnual_SCT / 4`) | Quarterly societal rate. |
-| `BaseYear` | year | optional (default: the built-in value for the run's version) | CalcCE's `Yr1` base for the bill-impact window (C9). |
+| `BaseYear` | year | optional (default: the built-in value for the run's version) | CalcCE's `Yr1` base for the bill-impact window (C9). Not the `base_year` setting or `--base-year` flag (section 3), which is CET's First Year. |
 | `CO2Gas` | metric tons CO2 per therm | yes | Gas CO2 factor for the emission columns (C14). |
 
 ### 4.6 SW allocation factors (CSV, Parquet or xlsx)
@@ -384,6 +384,7 @@ Kept in the *reference data folder* (GUI box, `--data-dir`, `RECET_DATA`, or `re
 
 | File in the folder | Size | Contents |
 |---|---|---|
+| `acc/2020/electric_hourly.parquet` | smaller | The 2020 ACC's hourly electric avoided costs (TRC only); optional: needed only to run on the 2020 ACC. |
 | `acc/2021/electric_hourly.parquet` | smaller | The 2021 ACC's hourly electric avoided costs (TRC only); optional: needed only to run on the 2021 ACC. |
 | `acc/2022/electric_hourly.parquet` | smaller | The 2022 ACC's (TRC only), same layout; optional: needed only to run on the 2022 ACC. |
 | `acc/2024/electric_hourly.parquet` | ~1 GB | The 2024 ACC's hourly electric avoided costs; the layout of section 4.3. |
@@ -399,14 +400,14 @@ ReCET's names drop the `E3` prefix of the CET tables they copy; the CET name is 
 
 | File (`recet/data/...`) | Columns used | Role |
 |---|---|---|
-| `run_parameters.csv` (RunParameters; CET `E3Settings`) | `PA`, `Version`, `DiscountRateAnnual`, `DiscountRateQtr` (annual / 4), `DiscountRateAnnual_SCT`, `DiscountRateQtr_SCT`, `BaseYear` (2021, 2022, or 2024 for the 2024 and 2026 ACCs), `CO2Gas` (metric tons CO2 per therm: 0.00585 for the 2021 ACC, 0.00531 for the others) | The built-in **run parameters**: discount rates and the gas CO2 constant, by utility and CET `Version`, read by ACC version through the mapping in C3.3 (C2.4, C9, C14). `AvoidedCostVersion` is the publication date; `NOxGas` and the `Societal...` rate columns are not used. |
+| `run_parameters.csv` (RunParameters; CET `E3Settings`) | `PA`, `Version`, `DiscountRateAnnual`, `DiscountRateQtr` (annual / 4), `DiscountRateAnnual_SCT`, `DiscountRateQtr_SCT`, `BaseYear` (2020, 2021, 2022, or 2024 for the 2024 and 2026 ACCs), `CO2Gas` (metric tons CO2 per therm: 0.00585 for the 2020 and 2021 ACCs, 0.00531 for the others) | The built-in **run parameters**: discount rates and the gas CO2 constant, by utility and CET `Version`, read by ACC version through the mapping in C3.3 (C2.4, C9, C14). `AvoidedCostVersion` is the publication date; `NOxGas` and the `Societal...` rate columns are not used. |
 | `cet_tables/emissions.parquet` (Emissions; CET `E3Emissions`) | `PA`, `Version`, `TS` (target sector), `EU` (end use), `CZ`, `NOx`, `PM10` | Electric NOx and PM10 factors per annual kWh; no matching row means 0 (C14.3). Its `CO2` column is not used (electric CO2 comes from the ACC's hourly emission rate). |
 | `cet_tables/combustion_type.parquet` (CombustionType; CET `E3CombustionType`) | `LookupCode` (= `CombustionType`), `NOx` (per therm) | Gas NOx factor (C14.3). |
 | `cet_tables/rate_schedule_elec.parquet` (RateScheduleElec; CET `E3RateScheduleElec`) | `PA`, `Version`, `Year`, `Schedule`, `RateE` ($/kWh) | Retail electric rates by year (C9). |
 | `cet_tables/rate_schedule_elec_mapping.parquet` (RateScheduleElecMapping; CET `E3RateScheduleElecMapping`) | `PA`, `Version`, `TargetSector`, `Schedule` | Maps a target sector to its schedule. |
 | `cet_tables/rate_schedule_gas.parquet`, `rate_schedule_gas_mapping.parquet` (RateScheduleGas, RateScheduleGasMapping; CET `E3RateScheduleGas`, `E3RateScheduleGasMapping`) | `PA`, `Version`, `Year`, `Schedule`, `RateG` ($/therm); `GasSector`, `GasRateSchedule` | The same for gas. |
 | `gas_savings_profiles.csv` | `Profile`, `Month`, `Impact` | The library of gas monthly profiles (C4.3). |
-| `acc/2021/gas_components.parquet`, `acc/2022/gas_components.parquet`, `acc/2024/gas_components.parquet`, `acc/2026/gas_components.parquet` | the gas ACC layout of section 4.4 | The four gas ACCs, extracted from E3's workbooks (2021 and 2022: TRC only). |
+| `acc/2020/gas_components.parquet`, `acc/2021/gas_components.parquet`, `acc/2022/gas_components.parquet`, `acc/2024/gas_components.parquet`, `acc/2026/gas_components.parquet` | the gas ACC layout of section 4.4 | The five gas ACCs, extracted from E3's workbooks (2020, 2021 and 2022: TRC only). |
 | `statewide_allocation/statewide_factors_20260918.csv` | `Year`, `ProgramID`, `PercentElectric`, `<IOU>GasFactor`, `<IOU>ElectricFactor`, `<IOU>WeightedFactor` for PGE, SDGE, SCE, SCG | The IOU shares of each statewide program (C15). |
 | `programs/cedars_programs_20261003.csv` | the columns of section 4.8 | The built-in program metadata: CEDARS' Programs list of 2026-10-03 (1,416 programs), without its `ProgramManager` column. |
 | `statewide_allocation/field_rules.csv` | `table`, `field`, `rule` | Which factor (or pass-through) applies to each field of `Measure.csv`, `ProgramCost.csv` and the CET output (C15). |

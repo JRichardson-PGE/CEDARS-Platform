@@ -56,8 +56,8 @@ measures are priced with no program costs, and those program costs are left out 
    replaces the library's.
 5. **A brand-new ACC has no run parameters or CET tables of its own.** Discount rates, emission factors and rate schedules are picked by ACC version (C3.3); a new ACC label borrows the tables of an
    ACC version you choose (default: the newest built-in).
-6. **Years covered:** 2021 ACC 2020-2050, 2022 ACC 2022-2052, 2024 ACC 2024-2054, 2026 ACC 2026-2055 (gas: 2020-2050, 2022-2052, 2024-2054, 2026-2055). The 2021 and
-   2022 ACCs are TRC only (C3.4) and use the 2020 hourly calendar (C4.2). Years outside an ACC's range are priced with its nearest year; the preflight counts the measures affected.
+6. **Years covered:** 2020 ACC 2020-2050, 2021 ACC 2020-2050, 2022 ACC 2022-2052, 2024 ACC 2024-2054, 2026 ACC 2026-2055 (gas: the same years). The 2020, 2021 and
+   2022 ACCs are TRC only (C3.4); the 2021 and 2022 ACCs use the 2020 hourly calendar and the 2020 ACC the 2025 calendar (C4.2, C3.6). Years outside an ACC's range are priced with its nearest year; the preflight counts the measures affected.
 7. **SCG electric** has no ACC of its own. In each zone SCG is priced entirely by one utility: SCE where the ACC has SCE data for the zone, otherwise PG&E (on the
    built-in ACCs, PG&E in CZ 1, 2, 3A, 3B, 4, 5, 11, 12). Generation, T&D and emission rate always come from the same utility. CET's quarterly SCG table is not used.
 8. **Bill impacts / RIM** use CET's rate schedules chosen by (PA, `AC_Elec_Target_Sector`); the 2026 ACC uses the same rate tables as the 2024 ACC.
@@ -128,10 +128,10 @@ Parquet (recommended: the built-in files have ~17 million rows) or CSV, **one ro
 | `total_avoided_cost` | yes | the sum of the component columns |
 | `transmission`, `distribution` | for water energy | the T&D part of the total (water is priced on the rest) |
 | `emission_rate_tonnes_per_kwh` | for CO2 | grid emission rate |
-| component columns | for "components" mode | `energy generation_capacity avoided_as_procurement losses methane_leakage ghg_adder air_quality_adder` plus `ghg_cap_and_trade ghg_portfolio_rebalancing` (2024 ACC) or `ghg_cap_and_invest` (2026 ACC); their sum should equal `total_avoided_cost` |
+| component columns | for "components" mode | `energy generation_capacity avoided_as_procurement losses methane_leakage ghg_adder` plus `air_quality_adder` (2024 and 2026 ACCs) and `ghg_cap_and_trade ghg_portfolio_rebalancing` (2020, 2021, 2022 and 2024 ACCs) or `ghg_cap_and_invest` (2026 ACC); their sum should equal `total_avoided_cost` |
 | `price_zone`, `datetime`, `month`, `day`, `hour` | no | ignored |
 
-**Which version it replaces:** you choose the ACC version label in the GUI (or `--acc`). If the label is one the package ships (`2021`, `2022`, `2024`, `2026`) the supplied file replaces that
+**Which version it replaces:** you choose the ACC version label in the GUI (or `--acc`). If the label is one the package ships (`2020`, `2021`, `2022`, `2024`, `2026`) the supplied file replaces that
 version's electric ACC; a new label defines a new version made of the supplied files (an unsupplied fuel falls back to the newest built-in, with a note).
 
 The file is checked before the run: required columns, 8,760 rows per block, consecutive years, all three IOUs, `TRC` present, and the sum-of-components test.

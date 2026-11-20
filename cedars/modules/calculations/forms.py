@@ -400,7 +400,7 @@ def parse_calculations(text: str) -> dict[str, list[str]]:
     return out
 
 
-STANDARD_ACCS = ("2021", "2022", "2024", "2026")  # the ACCs ReCET carries; any other year a release has is offered too
+STANDARD_ACCS = ("2020", "2021", "2022", "2024", "2026")  # the ACCs ReCET carries; any other year a release has is offered too
 EXTRA_ROWS = 1  # an empty calculation row below a release's own, for adding one without scripts
 
 
