@@ -10,7 +10,6 @@ changes. This page is the repository's statement of the design; the module is `r
 * [4. Which set a run uses, and how it is recorded](#4-which-set-a-run-uses-and-how-it-is-recorded)
 * [5. Custom sets](#5-custom-sets)
 * [6. What stays in code](#6-what-stays-in-code)
-* [7. History](#7-history)
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -50,7 +49,7 @@ OUTPUT_FIELDS.md 1.8 to 1.10.
 
 ## 3. How a set is read
 
-* A `source: engine` stream is one the engine prices: `cost_test_sets.engine_streams()` (0.1.92; `recet cost-tests streams` lists them) holds each
+* A `source: engine` stream is one the engine prices: `cost_test_sets.engine_streams()` (`recet cost-tests streams` lists them) holds each
   one's name, kind, fuel, naming, gross form, whether it is internal, and the ACC rows the engine prices it on (the avoided-cost and participant
   streams on all three, the bill impacts and `TaxCreditsGrossPV` on `trc` only). A set may leave any of them out, choose the pricings it reads each in,
   and word its `unit` and `definition`; the rest is the engine's. Checking a set refuses a name the engine does not price, a changed fixed fact, and an
@@ -116,9 +115,5 @@ program-cost NPV, the share mechanics (positive parts, per-program totals, the 1
 `Weighted*` / `Wtd*` / `TotalExpenditures` columns (CET's program-cost components, on the headline test's share), the levelized formula and the CET
 replicas stay code.
 
-## 7. History
-
-Built in four releases: 0.1.83 (sets and pinning), 0.1.84 (the evaluator, held to the earlier arithmetic within 1e-9 on every column by
-`tests/test_test_evaluator.py` against the frozen `tests/reference_cost_tests.py`), 0.1.85 (the summaries, key metrics, field attributes, Results and
-run page take their tests from the run's set) and 0.1.86 (input streams). `CHANGELOG.md` has each step and how it was checked. The CEDARS platform
-keeps the sets as reference data, with its own pages.
+The CEDARS platform keeps the sets as reference data, with its own pages. How the sets were built, release by release, is in `CHANGELOG.md`
+(0.1.83 to 0.1.86).

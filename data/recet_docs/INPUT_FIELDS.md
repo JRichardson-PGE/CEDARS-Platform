@@ -265,7 +265,7 @@ Templates for each: GUI **Template...** buttons or `recet template ...`. Matchin
 | `end_use_name` | text | yes | Must equal the measure's `AC_Elec_Impact_Profile` (case-insensitive). |
 | `pa` | `PGE` `SCE` `SDGE` `SCG`; blank / `*` / `ALL` = any | yes | The measure's `IOU_AC_Territory`. |
 | `target_sector` | text; blank / `*` / `ALL` = any | yes | The measure's `AC_Elec_Target_Sector`. |
-| `climate_zone` | `1`..`16`, `3A`, `3B`; `System` or `ALL` = every zone without its own rows | yes | The measure's `AC_Climate_Zone`. |
+| `climate_zone` | `1`..`16`, `3A`, `3B` (`CZ13` and `01` are accepted too); `System` or `ALL` = every zone without its own rows | yes | The measure's `AC_Climate_Zone`. |
 | `hour_of_year` | integer 1-8760 | yes | The hour, exactly once per (profile, zone). Hour 1 is 00:00 on 1 January of `represents_year`. |
 | `impact` | fraction of the measure's annual net kWh | yes | The share of the year's savings that falls in the hour; each zone's 8,760 values should sum to 1 (a shape summing to about 0, i.e. pure load shifting, cannot be rescaled and is rejected). |
 | `represents_year` | calendar year | optional | The year whose weekdays the shape follows (same on every row of a profile); default 2009. The shape is rotated once onto the ACC's weekdays (2018 or 2020, C4.2). |

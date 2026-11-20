@@ -127,43 +127,27 @@ Only fuel-substitution measures book a negative fuel value as a *supply cost* (C
 
 CET prices in **calendar quarters**, not years. Every stream in C5 is a sum over the quarters of the measure's life.
 
-**C2.1 The quarters a measure delivers savings.** Let `EQ = 4 * EUL`, `full = floor(EQ)`, `rem = EQ - full` and `n = full + 1` if `rem > 1e-9`, else `n = full`.
-For `k = 0 ... n-1` (k = 0 is the *claim quarter itself*):
+The formulas, with worked numbers, are in [OUTPUT_FIELDS.md](OUTPUT_FIELDS.md) section 0: the quarters in 0.2, discounting in 0.3 and
+baseline phasing in 0.4. This section gives the reasons behind them.
 
-```text
-a(k)       = (q0 - 1) + k
-year(k)    = Y0 + floor(a(k) / 4)
-quarter(k) = a(k) mod 4                      (0 = Q1 ... 3 = Q4)
-w(k)       = rem   if k = n-1 and rem > 1e-9     (the last, partial quarter of a fractional life)
-             1     otherwise
-```
-
-A claim in Q3 therefore delivers two quarters in its first calendar year, and a life of 2.4 years (9.6 quarters) is ten quarters, the last weighted 0.6.
+**C2.1 The quarters a measure delivers savings.** A measure delivers savings in `n` quarters, `k = 0` being the claim quarter itself, so a claim
+in Q3 delivers two quarters in its first calendar year. A fractional life ends in a part-quarter weighted by its fraction (2.4 years is ten
+quarters, the last weighted 0.6), because CET counts any part-quarter as one (OUTPUT_FIELDS 0.2).
 
 **C2.2 Hours in a quarter.** Electric prices are hourly, 8,760 hours a year, on the ACC's own calendar (C4.2). The quarters are hours
 `1-2160` (Q1), `2161-4344` (Q2), `4345-6552` (Q3), `6553-8760` (Q4): 2160, 2184, 2208 and 2208 hours.
 
-**C2.3 Baseline phasing.** With `RQ = 4 * RUL` (RUL is counted from the claim quarter), a quantity that differs between baselines, `a` (1st) and `b` (2nd), is
-
-```text
-phased(k; a, b) = a                                     if RQ <= 0  or  k + 1 <= RQ        (single baseline, or entirely before the RUL)
-                  b                                     if k >= RQ                          (entirely after the RUL)
-                  (RQ - k) * a + (1 - (RQ - k)) * b     otherwise                           (the one quarter that contains the RUL)
-```
-
-`RUL = 0` (the normal case, and an `RUL_Yrs` equal to `EUL_Yrs`: C0) means a single baseline: the 1st-baseline value applies for the whole life and the 2nd-baseline fields are ignored.
+**C2.3 Baseline phasing.** A quantity that differs between baselines takes the 1st-baseline value until the remaining useful life ends, the
+2nd-baseline value after it, and a blend in the one quarter that contains its end (OUTPUT_FIELDS 0.4). The RUL is counted from the claim
+quarter. `RUL = 0` (the normal case, and an `RUL_Yrs` equal to `EUL_Yrs`, which CalcCE also sets to 0: C0) means a single baseline: the
+1st-baseline value applies for the whole life and the 2nd-baseline fields are ignored.
 
 **C2.4 Discounting.** The discount rates come from the run parameters for the measure's `PA` and the ACC version (C3.3), or from a supplied
-run-parameters file for that PA. `DiscountRateQtr` is the nominal
-annual rate divided by four (for PG&E, every built-in ACC: 0.0766 / 4 = 0.01915).
-
-```text
-Rqf  = 1 + DiscountRateQtr(PA)          Rqf_sct = 1 + DiscountRateQtr_SCT(PA)          Raf = 1 + DiscountRateAnnual(PA)          Raf_sct = 1 + DiscountRateAnnual_SCT(PA)
-Qac(k) = (year(k) - F) * 4 + quarter(k)                       DF(k) = 1 / Rqf ^ Qac(k)        (DF_sct(k) with Rqf_sct)
-```
-
-`Qac` counts calendar quarters from Q1 of the First Year, not quarters since the claim: a Q3 claim in the First Year starts at `Qac = 2`. A claim year before `F` gives a negative
-`Qac` and a factor above 1. Streams that CET holds annually (program costs, bill impacts) use `Raf` and whole years (C9, C11); one-time cash flows use `Qm` (C8).
+run-parameters file for that PA. `DiscountRateQtr` is the nominal annual rate divided by four (for PG&E, every built-in ACC: 0.0766 / 4 =
+0.01915); `Raf = 1 + DiscountRateAnnual(PA)` and `Raf_sct` are the annual factors. The quarterly factor `DF(k) = 1 / Rqf ^ Qac(k)` is in
+OUTPUT_FIELDS 0.3. `Qac` counts calendar quarters from Q1 of the First Year, not quarters since the claim, as CET does: a Q3 claim in the First
+Year starts at `Qac = 2`, and a claim year before `F` gives a negative `Qac` and a factor above 1. Streams that CET holds annually (program
+costs, bill impacts) use `Raf` and whole years (C9, C11); one-time cash flows use `Qm` (C8).
 
 **C2.5 First Year.** `F` is CET's run-level *First Year*. It is not in the input files; set it in the GUI/`--base-year`, otherwise it is the earliest claim year in the job.
 

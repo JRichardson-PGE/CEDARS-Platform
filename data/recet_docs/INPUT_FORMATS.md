@@ -52,7 +52,7 @@ measures are priced with no program costs, and those program costs are left out 
 3. **Profile names must match exactly.** `AC_Elec_Impact_Profile` must equal a library profile's end-use name (or a supplied profile's `end_use_name`), else the measure
    is left **unpriced** (`ElecPricingStatus = UNPRICED`). `AC_Gas_Impact_Profile` likewise; 36 measures in the 2028 job have therms but a blank profile, and CET prices those at $0 too.
 4. **TOU (H-factor) end uses are priced from 8,760s.** CEDARS has no hourly data for them; the library holds Gen-based 8,760s built from their H-factors on the ACC's
-   2018-calendar TOU map (2026 ACC v1b, re-issued 2026-10-20), for every PG&E, SCE, SCG and SDG&E TOU profile and zone, and they are priced like any other profile. A supplied 8,760 with the same name
+   2018-calendar TOU map (2026 ACC v1b), for every PG&E, SCE, SCG and SDG&E TOU profile and zone, and they are priced like any other profile. A supplied 8,760 with the same name
    replaces the library's.
 5. **A brand-new ACC has no run parameters or CET tables of its own.** Discount rates, emission factors and rate schedules are picked by ACC version (C3.3); a new ACC label borrows the tables of an
    ACC version you choose (default: the newest built-in).
@@ -68,18 +68,8 @@ measures are priced with no program costs, and those program costs are left out 
 
 ## 2. Separate 8,760-hour electric profiles
 
-CSV or Parquet, **long format**, one row per (profile, climate zone, hour):
-
-| column | meaning |
-|---|---|
-| `end_use_name` | must equal the measure's `AC_Elec_Impact_Profile` (case-insensitive) |
-| `pa` | `PGE` `SCE` `SDGE` `SCG`; blank / `*` / `ALL` = any IOU |
-| `target_sector` | the measure's `AC_Elec_Target_Sector`; blank / `*` / `ALL` = any sector |
-| `climate_zone` | `1`..`16`, `3A`, `3B`, `CZ13` and `01` are accepted; `System` or `ALL` = every zone without its own rows |
-| `hour_of_year` | 1..8760, exactly once per (profile, zone) |
-| `impact` | the share of the measure's **annual** net savings in that hour; each zone's 8,760 values should sum to 1 (see below) |
-| `represents_year` | *(optional, same on every row of a profile)* the calendar year whose weekdays the shape follows; default 2009, the CEDARS default |
-| `profile_basis` | *(optional, same on every row of a profile)* `share` (the default: `impact` is a share of annual savings) or `kwh_per_unit` (`impact` is already scaled: the kWh saved per unit in each hour, negative for added load) |
+CSV or Parquet, **long format**, one row per (profile, climate zone, hour). The columns (`end_use_name`, `pa`, `target_sector`, `climate_zone`,
+`hour_of_year`, `impact`, and the optional `represents_year` and `profile_basis`) are defined in [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.1.
 
 * **Matching:** a measure is matched on (end use, `pa`, `target_sector`); the most specific entry wins (both given > one > neither). A match is used **instead of** the
   library profile.
@@ -102,13 +92,8 @@ Every measure's output row says where its shape came from in `ProfileSource` (`u
 
 ## 3. Separate gas monthly profiles
 
-The same three columns as the built-in library, CSV or Parquet, 12 rows per profile:
-
-| column | meaning |
-|---|---|
-| `Profile` | must equal the measure's `AC_Gas_Impact_Profile` (e.g. `Annual`, `Winter Only`) |
-| `Month` | 1..12 (or Jan..Dec) |
-| `Impact` | share of annual therms in that month; sums to 1 (rescaled if not, with a note) |
+The same three columns as the built-in library (`Profile`, `Month`, `Impact`; [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.2), CSV or Parquet, 12 rows per profile. The
+shares are rescaled to sum to 1, with a note, if they do not.
 
 A `Profile` name in the built-in library is replaced; a new name is added. Gas is monthly, so no calendar alignment is applied.
 
@@ -116,20 +101,8 @@ A `Profile` name in the built-in library is replaced; a new name is added. Gas i
 
 ## 4. Separate electric ACC
 
-Parquet (recommended: the built-in files have ~17 million rows) or CSV, **one row per (iou, climate_zone, cost_test, year, hour_of_year)**, $/MWh:
-
-| column | required | meaning |
-|---|---|---|
-| `iou` | yes | `PG&E` `SCE` `SDG&E` |
-| `climate_zone` | yes | `CZ1`..`CZ16` (the zones the IOU serves) |
-| `cost_test` | yes | `TRC`, `SCT Base`, `SCT High` (the SCT rows are needed only for SCB/SCH) |
-| `year` | yes | consecutive years |
-| `hour_of_year` | yes | 1..8760 for every block |
-| `total_avoided_cost` | yes | the sum of the component columns |
-| `transmission`, `distribution` | for water energy | the T&D part of the total (water is priced on the rest) |
-| `emission_rate_tonnes_per_kwh` | for CO2 | grid emission rate |
-| component columns | for "components" mode | `energy generation_capacity avoided_as_procurement losses methane_leakage ghg_adder` plus `air_quality_adder` (2024 and 2026 ACCs) and `ghg_cap_and_trade ghg_portfolio_rebalancing` (2020, 2021, 2022 and 2024 ACCs) or `ghg_cap_and_invest` (2026 ACC); their sum should equal `total_avoided_cost` |
-| `price_zone`, `datetime`, `month`, `day`, `hour` | no | ignored |
+Parquet (recommended: the built-in files have ~17 million rows) or CSV, **one row per (iou, climate_zone, cost_test, year, hour_of_year)**, $/MWh.
+The columns, including which component columns each ACC has, are in [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.3.
 
 **Which version it replaces:** you choose the ACC version label in the GUI (or `--acc`). If the label is one the package ships (`2020`, `2021`, `2022`, `2024`, `2026`) the supplied file replaces that
 version's electric ACC; a new label defines a new version made of the supplied files (an unsupplied fuel falls back to the newest built-in, with a note).
@@ -140,18 +113,7 @@ The file is checked before the run: required columns, 8,760 rows per block, cons
 
 ## 5. Separate gas ACC
 
-CSV or Parquet, one row per (utility, class, cost_test, scc, year); $/therm:
-
-| column | meaning |
-|---|---|
-| `utility` | `PG&E`, `Socal Gas` (or `SoCalGas`), `SDG&E` |
-| `class` | `Residential`, `Commercial`, `Total Core` |
-| `cost_test` | `TRC` or `SCT` |
-| `scc` | blank for `TRC`; `Base` or `High` for `SCT` |
-| `year` | consecutive years |
-| `market_jan` .. `market_dec` | commodity, by month |
-| `td_jan` .. `td_dec` | transportation/distribution, by month |
-| `nox`, `co2`, `upstream_methane`, `behind_meter_methane`, `air_quality_adder` | annual $/therm |
+CSV or Parquet, one row per (utility, class, cost_test, scc, year); $/therm. The columns are in [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.4.
 
 The gas price is the sum of these seven components (behind-the-meter methane only for residential fuel-substitution profiles). Years outside the file's range use its nearest year.
 
@@ -161,23 +123,13 @@ The gas price is the sum of these seven components (behind-the-meter methane onl
 
 The discount rates, base year and gas CO2 factor used for each PA. The built-in values are the RunParameters table (a copy of CET's settings) for the run's version; a supplied file **replaces the
 row of every PA it lists**, and the others keep their built-in values. Start from `recet template run-parameters` (the GUI's **Template...** button), which holds the
-built-in values, and change only what you need. Columns are defined in INPUT_FIELDS.md section 4.5.
-
-| Column | Example (PG&E, built-in) |
-|---|---|
-| `PA` | `PGE` |
-| `DiscountRateAnnual` | `0.0766` (a fraction, not 7.66) |
-| `DiscountRateQtr` | `0.01915` (optional: blank = annual / 4) |
-| `DiscountRateAnnual_SCT` | `0.0503` |
-| `DiscountRateQtr_SCT` | `0.012575` (optional) |
-| `BaseYear` | `2024` (optional: blank = built-in) |
-| `CO2Gas` | `0.00531` (metric tons CO2 per therm) |
+built-in values, and change only what you need. Rates are fractions (`0.0766`, not 7.66). Columns: [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.5.
 
 ## 7. Statewide (SW) allocation factors
 
 Used only when **Allocate statewide programs** is on. The template is the whole built-in table (304 rows, 35 programs, 2021-2031). A supplied row whose (`Year`,
 `ProgramID`) is in the built-in table replaces it; any other row is added. Each IOU's `ElectricFactor`s and `GasFactor`s should sum to 1 (or all be 0 when the program has
-no gas or no electricity); the log notes rows that do not. The weighted factors can be given, or computed from `PercentElectric`. Columns: INPUT_FIELDS.md section 4.6.
+no gas or no electricity); the log notes rows that do not. The weighted factors can be given, or computed from `PercentElectric`. Columns: [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.6.
 
 ## 7a. Program metadata
 
@@ -185,22 +137,13 @@ Optional. The built-in table is CEDARS' Programs list (download of 2026-10-03, 1
 supplied row whose `PrgID` is in it replaces the row; any other row is added. Only `PA` and `PrgID` are required. Each measure gets its program's row as `Prg_` columns
 (matched on the `PrgID` as priced, so with **Allocate statewide programs** each IOU's share gets its own `<IOU>_SW_...` row), the summary gains one row per
 `ProgramSegment`, the preflight reports unknown programs, claims outside the program's years, closed programs and PA differences, and **Leave Exclude_From_CE programs out of the
-portfolio summary** uses the `Exclude_From_CE` flag. No priced value changes. Columns: INPUT_FIELDS.md section 4.8.
+portfolio summary** uses the `Exclude_From_CE` flag. No priced value changes. Columns: [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.8.
 
 ## 8. The job as one Excel workbook
 
-Instead of the separate files, a job can be one `.xlsx` (GUI: **Job workbook**; command line: `--workbook`). Start from `recet template workbook`:
-
-| Sheet | Contents |
-|---|---|
-| `Instructions` | how to fill it in (ignored by the run) |
-| `Measure` | **required**: the `Measure.csv` columns, with one yellow example row to replace |
-| `ProgramCost` | the `ProgramCost.csv` columns, with one yellow example row to replace or delete |
-| `RunParameters` | filled in with the built-in values for the chosen ACC; edit to change them |
-| `SWAllocation` | filled in with the built-in factor table |
-| `Programs` | filled in with the built-in program metadata |
-| `GasProfiles` | header only (`Profile`, `Month`, `Impact`) |
-| `Profiles8760` | header only (the 8,760 long format; Excel fits about 119 profile x zone blocks, so use a separate file for more) |
+Instead of the separate files, a job can be one `.xlsx` (GUI: **Job workbook**; command line: `--workbook`). Start from `recet template workbook`: it
+has an Instructions sheet, `Measure` and `ProgramCost` with one yellow example row to replace, `RunParameters`, `SWAllocation` and `Programs` filled in
+with the built-in values, and `GasProfiles` and `Profiles8760` as headers only. The sheets are listed in [INPUT_FIELDS.md](INPUT_FIELDS.md) section 4.7.
 
 The run writes each sheet that has data as its own file in the run folder (`_prepared_inputs/workbook/`) and runs on those, so a workbook job and the same job as files
 give the same results. A file chosen separately (for example a run-parameters CSV) wins over the sheet, and the log says so. Whole numbers are read without decimals
@@ -208,22 +151,6 @@ give the same results. A file chosen separately (for example a run-parameters CS
 
 ## 9. What a run writes
 
-One folder `<out>/<run name>_acc<version>/`:
-
-* `measure_level_acc<version>.csv` - one row per measure: the input columns, the derived pricing inputs (`Used_Year`, `AC_Net_kWh_1st_Baseline` ...), `ElecPricingStatus` / `ProfileSource` / `GasPricingStatus` /
-  `GasProfileSource`, then every output (benefits, supply costs, participant and bill-impact PVs, Gross / NoAdmin variants, TRC / PAC / RIM / SCB / SCH costs and ratios,
-  program-cost weighting, CO2 / NOx / PM10), `ElecValue_*` / `GasValue_*` in components mode, `CreditedPA` (the `PA` of the measure's program in `ProgramCost.csv`; with statewide
-  allocation, the IOU each statewide share went to), and the program metadata (`Prg_MatchedOn`, `Prg_<column>`).
-* `portfolio_summary_*.csv`, `field_definitions_*.csv` (each column of the measure-level file with its definition), `key_metrics_*.csv` (the headline results and their
-  main drivers), `preflight.txt`, `preflight_findings.xlsx` (the input check's findings and every flagged cell), `run_settings.json` (everything needed to reproduce the run).
-* With CEDARS filing checks: `filing_validation_*.csv` (each record CEDARS would reject or warn on).
-* With statewide allocation: `statewide_reconciliation_*.csv` (each allocated field of each statewide program, before allocation and by IOU, and whether it reconciles).
-* Optional: `components_summary_*.csv`, `portfolio_8760_*.csv` (by PA and climate zone; + `_peaks`, each one's peak hours, and `_unshaped`), `cet_comparison_*.csv`, and for a two-version run `comparison_acc<A>_vs_acc<B>.csv`.
-
-**Water energy** is priced like the electric benefit but on the `Gen` term alone (no T&D, no kW term) with the measure's own electric profile: `WaterEnergyBen` when
-`UnitkWhIOUWater1stBaseline > 0`, `WaterEnergyCost` when it is `< 0` (plus `_SB`/`_SH` and `Gross` variants). Both go into TSB; the cost goes into TRC/PAC/RIM/SCB/SCH costs, the
-benefit into every ratio and into the program-cost weighting. `WaterPricingStatus` says `no water energy`, `priced`, or `UNPRICED` (the measure has no electric profile).
-
-`ElecPricingStatus` is `no electric savings`, `priced: hourly profile`, `PARTLY PRICED: ...` (a separate 2nd-baseline shape of which only one of the two shapes was found)
-or `UNPRICED: ...`: a benefit of 0 alone cannot tell "no
-savings" from "could not price".
+Every file a run writes, and every column of each, is in [OUTPUT_FIELDS.md](OUTPUT_FIELDS.md) section 2; the run folder's layout is in
+[ARCHITECTURE.md](ARCHITECTURE.md) section 7.3. Water energy is priced as CALCULATIONS C5.5 describes. Each measure's `ElecPricingStatus`,
+`ProfileSource`, `GasPricingStatus` and `WaterPricingStatus` say how it was priced, so a benefit of 0 can be told apart from "could not price".
