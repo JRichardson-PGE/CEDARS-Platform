@@ -28,7 +28,7 @@ upload page links the version under "Before you upload", and its findings name t
   example files and the impact test wait for the worker; if it has not answered within the time on the
   <a href="{% url 'limits:index' %}">Limits</a> page, the findings say the rules were not checked yet, never that they passed.</li>
 </ul>
-<h2>For filers</h2>
+<h2 id="for-filers">For filers</h2>
 <ol>
   <li>Read the rules your filing will be checked against on <a href="{% url 'rules:index' %}">Validation rules</a> (signed in). Each
   rule has its ID, severity (reject or warning), the field it checks, the message you see and how to fix it.</li>
@@ -51,7 +51,18 @@ upload page links the version under "Before you upload", and its findings name t
   were filed and checked in legacy CEDARS, so a layout is read only: no filing is set up with it or checked against it, and it has no
   upload template.</li>
 </ol>
-<h2>For the CPUC staff who keep them</h2>
+<h2 id="for-cpuc-staff">For the CPUC staff who keep them</h2>
+<p>On this part:</p>
+<ul>
+  <li><a href="#editing-specifications">Editing a specification</a>, <a href="#writing-rules">writing rules</a>,
+  <a href="#checks-as-rules">built-in checks written as rules</a> and <a href="#workbook-editing">editing in a workbook</a></li>
+  <li><a href="#examples">Example files</a>, <a href="#impact-test">the impact test</a>,
+  <a href="#proposing-specifications">proposing a draft for comment</a> and <a href="#publishing">publishing</a></li>
+  <li><a href="#choosing-moving-versions">Choosing and moving a filing set's version</a> and
+  <a href="#moving-versions">moving a version from the sandbox</a></li>
+  <li><a href="#rules-and-renames">Rules, renamed fields and built-in checks</a>, <a href="#value-lists">value lists</a> and
+  <a href="#retiring-fields">retiring a field</a></li>
+</ul>
 <ul class="links">
   <li id="editing-specifications">Specifications change without a code change. On a published version's page, start a new version
   from it: a draft copy with a copy of its rules. The draft has a page for each part: its settings (name, summary, the engine release
@@ -74,11 +85,11 @@ upload page links the version under "Before you upload", and its findings name t
   change its Settings, Tables, Fields and Rules sheets in Excel and load it back. In Fields, Rename to renames a field, a new row adds one
   and a deleted row removes one; in Rules, a row with no Rule ID is a new rule. Every difference is shown first, with any the editor would
   refuse, and nothing changes until you confirm with a reason. Then each change is made and kept as if made on its own page, or none is.</li>
-  <li>Every version has example files filers download, checked by the same checks a filing gets. CEDARS writes the first example from
+  <li id="examples">Every version has example files filers download, checked by the same checks a filing gets. CEDARS writes the first example from
   the draft's fields, one record per table, and the draft's Examples page reports what it fails, the conditional rules no record meets
   (so the example does not show them) and the built-in checks that need real reference data, which do not count. Download an example,
   change its records and load it back; a file with anything that looks like personal information is refused.</li>
-  <li>The draft's impact test shows how real filings would fare under it before it is published: the latest confirmed version of each
+  <li id="impact-test">The draft's impact test shows how real filings would fare under it before it is published: the latest confirmed version of each
   program administrator's most recent filing of the kind, checked once under the version it was checked against and once under the
   draft. It says, by program administrator and by rule, how many records would newly be rejected or warned and which required fields
   the filings lack. Nothing is changed, and the test runs again as the version is published if the draft has changed since.</li>
@@ -87,7 +98,7 @@ upload page links the version under "Before you upload", and its findings name t
   against it and comment. Comments waiting for an answer are in <a href="{% url 'core:queue' %}">My queue</a>, and the proposer is sent each
   one; answer on the version's page or the draft's Comments page. On the version's page, move the last day, end comments early, return
   it to draft to act on the comments (it can be proposed again, a new round), or publish it as proposed once comments have closed.</li>
-  <li>Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
+  <li id="publishing">Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
   least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
   and filings already set up keep theirs.</li>
   <li id="choosing-moving-versions">A filing set (a claim year, a budget filing, a year of monthly reports) is set up on a version you
@@ -102,7 +113,7 @@ upload page links the version under "Before you upload", and its findings name t
   this environment lacks first, and always makes a draft, so it is checked here like any draft, the impact test on real filings
   included, before it is published. A value list the package names that is missing here is made with the draft; an existing list or a
   data dictionary definition is never changed. The version's page says whether it is still exactly the version that was exported.</li>
-  <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
+  <li id="rules-and-renames">Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
   Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
   two rule sets</a> to see what changes.</li>
   <li>Renaming a field keeps it the same field: its old name is still accepted on upload, the draft's rules that name it are rewritten
@@ -112,13 +123,13 @@ upload page links the version under "Before you upload", and its findings name t
   <li>Built-in checks also follow the version. Most are CEDARS' own processing and always run; a few (CEDARS' data rules on the Claim
   and Site tables, the warnings about program costs and year-to-date spend) can be left out of a version or made a warning or a reject,
   on the draft's Built-in checks page. A filing runs them as its version has them.</li>
-  <li>A value list's draft starts as a copy of its newest version. Add codes, retire a code by giving its last claim year, or reinstate
+  <li id="value-lists">A value list's draft starts as a copy of its newest version. Add codes, retire a code by giving its last claim year, or reinstate
   it by clearing that year; many codes at once from a CSV.</li>
   <li>A new field with new codes gets a new value list, made from the field's page in a specification draft: its name and its codes,
   typed one to a line, with more added or loaded from a CSV on the list's page. The list is published with the version, taking effect
   the same day, and dropped if the draft is discarded. The engine has no such list, so CEDARS checks the field against it: a value not
   in it, or not accepted for the record's year, rejects the record. A locked field keeps the codes CEDARS' processing reads.</li>
-  <li>A field in the <a href="{% url 'dictionary:index' %}">data dictionary</a> is retired, never deleted, after usage, audience and
+  <li id="retiring-fields">A field in the <a href="{% url 'dictionary:index' %}">data dictionary</a> is retired, never deleted, after usage, audience and
   regulatory reviews. Every dictionary version's changes are on the <a href="{% url 'dictionary:changes' %}">specification change
   log</a>.</li>
 </ul>

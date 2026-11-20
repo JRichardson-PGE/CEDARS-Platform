@@ -9,7 +9,7 @@ how a criterion is met.
 - axe-core 4.10.2 on every page in `tests/a11y/pages.py`, in the light and dark color schemes, with the WCAG 2.0/2.1/2.2 A and AA rules.
   Every disclosure on the page is opened first; the header's dropdown menus are opened one at a time and the header checked in that state.
 - No sideways scroll at 320 px wide (1.4.10 reflow), with every disclosure in the content opened.
-- Markup axe does not check (UI review 2, 2026-10-31), on the same page load: no id used twice (several Django forms on one page each get
+- Markup axe does not check, on the same page load: no id used twice (several Django forms on one page each get
   their own `auto_id`, e.g. `RenameForm(auto_id="rename_%s")`, or a label's `for` and a hint's `aria-describedby` reach only the first
   form's field); every checkbox and radio at least 24 x 24 px (they are `flex: none`, so a long label in a flex row cannot squeeze them);
   every `summary` at least 24 px tall (2.5.8); every table with a caption (visible or `.sr-only`); no label or legend ending in a
