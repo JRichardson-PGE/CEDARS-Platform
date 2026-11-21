@@ -5,7 +5,7 @@ what the check found, shown once to the person who sent it. Context: queued ({ch
 <div id="queued-check">
 {% if queued.state.ended %}
 {% if queued.level == "error" %}<p class="alert">{% else %}<ul class="messages"><li class="msg-{{ queued.level }}">{% endif %}<strong>{% if queued.check.status == "succeeded" %}Your large upload was checked{% else %}Your large upload was not checked{% endif %}</strong>
-  ({{ queued.check.finished_at|date:"Y-m-d H:i" }}). {{ queued.state.text }}{% if queued.level == "error" %}</p>{% else %}</li></ul>{% endif %}
+  ({{ queued.check.finished_at|datetime_words }}). {{ queued.state.text }}{% if queued.level == "error" %}</p>{% else %}</li></ul>{% endif %}
 {% else %}
 <ul class="messages"><li class="msg-info">
   <p data-watch-url="{% url 'submissions:queued_status' queued.check.pk %}"><span data-watch-text>{{ queued.state.text }}</span>
