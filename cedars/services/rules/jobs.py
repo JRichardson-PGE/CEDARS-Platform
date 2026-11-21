@@ -173,6 +173,17 @@ def engine_run(release: str = "", *, wait: bool = True, purpose: str = "", calle
         yield run
     finally:
         _current.reset(token)
+        _release_unused()
+
+
+def _release_unused() -> None:
+    """Give back to the system the memory the block's rule tables held: pandas keeps its text columns in Arrow's memory pool, which
+    otherwise holds on to what was freed, so a large filing's later steps would start from the check's peak."""
+    try:
+        import pyarrow
+    except ImportError:  # pragma: no cover - the engine (and pandas with it) is not installed here
+        return
+    pyarrow.default_memory_pool().release_unused()
 
 
 # --- one table's check

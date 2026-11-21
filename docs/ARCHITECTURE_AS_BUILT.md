@@ -1810,6 +1810,13 @@ flowchart TD
 - **Uploads** (`cedars/core/uploads.py`): limits from settings, several files combined into the one zip a module reads. A .zip or
   workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
   `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
+- **Compact rows** (`cedars/core/rows.py`): the claims, budget, monthly and PII readers read each table's CSV line by line (a .zip member
+  is streamed, never decompressed or decoded whole) into `Row`s, mappings that read like dicts but hold a list of values against the
+  table's one shared column index, with each repeated value (a code, a blank, an ID across tables) held once. The claims check reads
+  its stored upload back instead of keeping a second copy, builds its rule frames from the rows (`rules.frame`, no CSV in between),
+  streams the compiled tables and the job into their .zip files, and writes its derived records and the PII records a batch at a time.
+  Measured on one-million-record example filings: a million claims check at a 5.5 GB peak (they ran out of memory before), a budget
+  filing's million measures at 3.3 GB (9 GB before) and a monthly report's at 1.7 GB (6.9 GB before).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
   they take effect, the Limits page read from the settings that enforce them (or the value the CPUC set, for an editable limit), Change
   limits for CPUC system administrators, the register of CPUC-mandated changes, and site notices (`SiteNotice`): a short dated

@@ -25,11 +25,13 @@ publication writes a public change letter of what it changed against the version
 import csv
 import hashlib
 import io
+import itertools
 import json
 import re
 import zipfile
 from calendar import monthrange
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
@@ -38,6 +40,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from cedars.core import letters, storage
+from cedars.core import rows as compact
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
@@ -85,6 +88,7 @@ INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirect
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # Tables the CEDARS claims rule set (CET's Measure and ProgramCost specification and rules) checks; the module checks the rest.
 RULE_TABLES = ("Measure", "ProgramCost")
+WRITE_BATCH = 5000  # derived records written per database round trip
 CLAIM_TABLES = ("Claim", "Measure", "ContactClaim", "InfrastructureCost", "ClaimSite")  # the tables that hold a claim's own records
 
 
@@ -605,6 +609,7 @@ def upload_claims(
     if sources:
         extra["sources"] = sources
     v = _store_upload(actor, v, tables, extra, lay)
+    del tables  # the check reads the stored records back: a large upload is not held twice
     return check(actor, v)
 
 
@@ -1124,25 +1129,22 @@ def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = 
     if not rows:
         return b""
     columns = ["CEInputID" if c == "ClaimID" else c for c in m.columns]
-    rows = [_as_ceinput(r) for r in rows]
-    if parents and parents.columns:
+    with_parents = bool(parents and parents.columns)
+    if with_parents:
         columns += [c for c in PARENT_COLUMNS if c not in columns]
-        for r in rows:
-            first, second = parents.columns.get(r["CEInputID"].strip().lower(), ("", ""))
-            r[PARENT_COLUMNS[0]], r[PARENT_COLUMNS[1]] = first, second
-    measure = upload.Table("Measure", columns, rows)
+
+    def line(r) -> list[str]:  # the record as the engine's Measure row: its ClaimID is the CEInputID
+        cid = r.get("ClaimID", "")
+        first, second = parents.columns.get(cid.strip().lower(), ("", "")) if with_parents else ("", "")
+        by = {"CEInputID": cid, PARENT_COLUMNS[0]: first, PARENT_COLUMNS[1]: second} if with_parents else {"CEInputID": cid}
+        return [by[c] if c in by else r.get(c, "") for c in columns]
+
     cost = tables.get("ProgramCost") or upload.Table("ProgramCost", (lay or spec.current()).columns("ProgramCost"), [])
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("Measure.csv", upload.to_csv(measure.columns, measure.rows))
-        z.writestr("ProgramCost.csv", upload.to_csv(cost.columns, cost.rows))
+        compact.write_csv(z, "Measure.csv", columns, (line(r) for r in rows))
+        compact.write_csv(z, "ProgramCost.csv", cost.columns, upload.lines(cost.columns, cost.rows))
     return out.getvalue()
-
-
-def _as_ceinput(row: dict) -> dict:
-    out = dict(row)
-    out["CEInputID"] = out.pop("ClaimID", "")
-    return out
 
 
 # --- a true-up priced against its parent's profile
@@ -1689,9 +1691,10 @@ def _wide(rs) -> bool:
 def _rule_frame(table: str, t: upload.Table):
     """A table as the engine reads it: raw text under the canonical names; a Measure record's ClaimID is its CEInputID too, as CET's
     rules name it."""
-    rows = [{**r, "CEInputID": r.get("ClaimID", "")} for r in t.rows] if table == "Measure" else t.rows
-    cols = list(t.columns) + (["CEInputID"] if table == "Measure" and "CEInputID" not in t.columns else [])
-    return rules.read_table(upload.to_csv(cols, rows))
+    df = rules.frame(list(t.columns), t.rows)
+    if table == "Measure":
+        df["CEInputID"] = df["ClaimID"] if "ClaimID" in df.columns else ""
+    return df
 
 
 def _rule_findings(
@@ -1724,7 +1727,7 @@ def _rule_findings(
     source = linked or own
     ctx.tables = {}
     for name in source:
-        if name in frames and source is own:
+        if name in frames and (source is own or _same_rows(source[name], own[name])):  # a table the upload holds whole
             ctx.tables[name] = frames[name]
         elif rules.reads(rs, name) or name in frames:
             ctx.tables[name] = _rule_frame(name, source[name])
@@ -1767,6 +1770,11 @@ def _rule_findings(
         out += found
         notes.update(n)
     return out, sorted(notes), f"{rs.label} ({rs.effective_from})"
+
+
+def _same_rows(a: upload.Table, b: upload.Table) -> bool:
+    """Whether two tables are the same rows (the compiled table of a claim year's first upload is its own records)."""
+    return a.columns == b.columns and len(a.rows) == len(b.rows) and all(x is y for x, y in zip(a.rows, b.rows, strict=True))
 
 
 def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[list, list[str], int]:
@@ -1868,41 +1876,38 @@ def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
     return [{**ln, "filed": dict(ln["filed"])} for ln in out.values()]
 
 
-def records(tables: dict[str, upload.Table]) -> list[dict]:
-    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord)."""
+def records(tables: dict[str, upload.Table]) -> Iterator[dict]:
+    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord), one at a time."""
     measures = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
     sites = defaultdict(list)
     for r in tables.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows:
         sites[_claim(r)].append(r.get("SiteID", ""))
     gone = withdrawn(tables)
-    out = []
     for r in tables.get("Claim", upload.Table("Claim", [], [])).rows:
         k = _claim(r)
         if not k:
             continue
         m = measures.get(k, {})
-        out.append(
-            {
-                "claim_id": r.get("ClaimID", "").strip(),
-                "prg_id": m.get("PrgID", ""),
-                "impact_type": m.get("MeasImpactType", "")[:60],
-                "parent_claim_id": r.get("ParentClaimID", "").strip(),
-                "true_up": bool(_flag(r.get("NMEC_TU_Flag", ""))),
-                "participant_id": r.get("ParticipantID", "").strip(),
-                "sem_phase": r.get("SEM_Phase", "").strip(),
-                "project_id": r.get("ProjectID", "").strip(),
-                "site_id": r.get("SiteID", "").strip(),
-                "sites": sorted(set(sites.get(k, []))),
-                "withdrawn": k in gone,
-                "filed": {f: float(_num(r.get(f, "")) or 0) for f in FILED_TOTALS},
-            }
-        )
-    return out
+        yield {
+            "claim_id": r.get("ClaimID", "").strip(),
+            "prg_id": m.get("PrgID", ""),
+            "impact_type": m.get("MeasImpactType", "")[:60],
+            "parent_claim_id": r.get("ParentClaimID", "").strip(),
+            "true_up": bool(_flag(r.get("NMEC_TU_Flag", ""))),
+            "participant_id": r.get("ParticipantID", "").strip(),
+            "sem_phase": r.get("SEM_Phase", "").strip(),
+            "project_id": r.get("ProjectID", "").strip(),
+            "site_id": r.get("SiteID", "").strip(),
+            "sites": sorted(set(sites.get(k, []))),
+            "withdrawn": k in gone,
+            "filed": {f: float(_num(r.get(f, "")) or 0) for f in FILED_TOTALS},
+        }
 
 
-def _replace_records(v: SubmissionVersion, rows: list[dict]) -> None:
+def _replace_records(v: SubmissionVersion, rows: Iterable[dict]) -> None:
     ClaimRecord.objects.filter(version=v).delete()
-    ClaimRecord.objects.bulk_create(ClaimRecord(version=v, **row) for row in rows)
+    for batch in itertools.batched(rows, WRITE_BATCH):  # a batch at a time: a million records are never all model objects at once
+        ClaimRecord.objects.bulk_create(ClaimRecord(version=v, **row) for row in batch)
 
 
 def _replace_lines(v: SubmissionVersion, rows: list[dict]) -> None:

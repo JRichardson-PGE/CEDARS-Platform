@@ -9,9 +9,11 @@ come this way: a file named after one of the version's vault tables (PII_Contact
 import csv
 import io
 import zipfile
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from cedars.core import rows as compact
 from cedars.core import uploads
 
 from . import spec
@@ -25,7 +27,8 @@ class UploadError(ValueError):
 
 @dataclass
 class Table:
-    """One table of an upload, as text: rows keyed by canonical column names, in file order (row i is line i + 2 of the file)."""
+    """One table of an upload, as text: rows keyed by canonical column names, in file order (row i is line i + 2 of the file). Rows
+    read from a file are compact rows (cedars.core.rows.Row), which read like dicts."""
 
     name: str
     columns: list[str]
@@ -53,7 +56,8 @@ def read(data: bytes, filename: str, lay: spec.Layout) -> dict[str, Table]:
     raw = _from_workbook(data, lay) if filename.lower().endswith(".xlsx") else _from_zip(data, lay)
     if not raw:
         raise UploadError(f"The file holds none of the claims tables ({', '.join(lay.TABLES)}).")
-    return {name: _table(name, content, lay) for name, content in raw.items()}
+    shared = compact.Shared()  # a value repeated across the tables (a ClaimID, a code) is held once
+    return {name: _table(name, content, lay, shared) for name, content in raw.items()}
 
 
 def _open_zip(data: bytes) -> zipfile.ZipFile:
@@ -66,7 +70,8 @@ def _open_zip(data: bytes) -> zipfile.ZipFile:
         ) from None
 
 
-def _from_zip(data: bytes, lay: spec.Layout) -> dict[str, list[list[str]]]:
+def _from_zip(data: bytes, lay: spec.Layout) -> dict[str, Callable]:
+    """{table: a function opening its CSV}: each member is read (streamed) only once the archive is known to hold only the tables."""
     z = _open_zip(data)
     out, extra = {}, []
     for info in z.infolist():
@@ -84,7 +89,7 @@ def _from_zip(data: bytes, lay: spec.Layout) -> dict[str, list[list[str]]]:
         elif table in out:
             raise UploadError(f"The .zip holds two {table} files; keep one.")
         else:
-            out[table] = _csv_rows(z.read(info))
+            out[table] = lambda info=info: z.open(info)
     if extra:
         raise UploadError(f"The .zip may hold only the claims tables ({', '.join(lay.TABLES)}); it also has {', '.join(sorted(extra))}.")
     return out
@@ -129,25 +134,9 @@ def _cell(value) -> str:
     return str(value)
 
 
-def text(content: bytes) -> str:
-    try:
-        return content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return content.decode("cp1252")
-
-
-def _csv_rows(content: bytes) -> list[list[str]]:
-    body = text(content)
-    first = body.split("\n", 1)[0]
-    sep = "|" if "|" in first else ("\t" if "\t" in first else ",")
-    return [r for r in csv.reader(io.StringIO(body), delimiter=sep) if r and any(c.strip() for c in r)]
-
-
-def _table(name: str, raw: list[list[str]], lay: spec.Layout | None) -> Table:
-    """A table's rows under its fields' canonical names (lay: the version's; None for a file this module wrote, read as it is)."""
-    if not raw:
-        return Table(name, [], [])
-    header = [h.strip() for h in raw[0]]
+def _names(name: str, header: list[str], lay: spec.Layout | None) -> list[str | None]:
+    """The header's canonical names (lay: the version's; None for a file this module wrote, read as it is); None for a column the
+    template does not have. A field given twice refuses the upload."""
     names = [lay.canonical(name, h) for h in header] if lay is not None else [h or None for h in header]
     seen: set[str] = set()
     for h, n in zip(header, names, strict=True):
@@ -155,16 +144,36 @@ def _table(name: str, raw: list[list[str]], lay: spec.Layout | None) -> Table:
             raise UploadError(f"{name} has the column {n} twice (as {h} and another name); keep one.")
         if n is not None:
             seen.add(n)
-    rows = []
-    for r in raw[1:]:
-        rows.append({n: (r[i].strip() if i < len(r) else "") for i, n in enumerate(names) if n is not None})
+    return names
+
+
+def _table(name: str, raw: "list[list[str]] | Callable", lay: spec.Layout | None, shared: compact.Shared | None = None) -> Table:
+    """A table's rows under its fields' canonical names (lay: the version's; None for a file this module wrote, read as it is). `raw`
+    is a workbook sheet's rows (the header first) or a function opening a CSV."""
+    names: list[str | None] = []
+
+    def named(header: list[str]) -> list[str | None]:
+        names[:] = _names(name, header, lay)
+        return names
+
+    if callable(raw) or isinstance(raw, bytes):
+        header, rows = compact.read_csv(raw, shared, names=named)
+    else:
+        lines = [r for r in raw if r and any(str(c).strip() for c in r)]
+        if not lines:
+            return Table(name, [], [])
+        header = [h.strip() for h in lines[0]]
+        names = _names(name, header, lay)
+        rows = compact.rows(names, lines[1:], shared)
+    if not header:
+        return Table(name, [], [])
     columns = [n for n in names if n is not None]
     return Table(name, columns, rows, ignored=[h for h, n in zip(header, names, strict=True) if n is None])
 
 
 def table_from_csv(name: str, content: bytes, lay: spec.Layout) -> Table:
     """One table's CSV read as an upload reads it (the pre-upload checker)."""
-    return _table(name, _csv_rows(content), lay)
+    return _table(name, content, lay)
 
 
 def without_system_fields(t: Table, lay: spec.Layout) -> Table:
@@ -172,8 +181,10 @@ def without_system_fields(t: Table, lay: spec.Layout) -> Table:
     drop = [c for c in lay.SYSTEM_FIELDS.get(t.name, ()) if c in t.columns]
     if not drop:
         return t
-    rows = [{k: val for k, val in r.items() if k not in drop} for r in t.rows]
-    return Table(t.name, [c for c in t.columns if c not in drop], rows, ignored=t.ignored + drop)
+    keep = [c for c in t.columns if c not in drop]
+    index = {c: i for i, c in enumerate(keep)}
+    rows = [compact.Row(index, [r.get(c, "") for c in keep]) for r in t.rows]
+    return Table(t.name, keep, rows, ignored=t.ignored + drop)
 
 
 # --- writing tables
@@ -188,16 +199,21 @@ def to_csv(columns: list[str], rows: list[dict[str, str]]) -> bytes:
     return out.getvalue().encode("utf-8")
 
 
+def lines(columns: list[str], rows: Iterable) -> Iterable[list[str]]:
+    """Each row's cells in the columns' order (blank where it has none), as to_csv writes them."""
+    return ([r.get(c, "") for c in columns] for r in rows)
+
+
 def to_zip(tables: dict[str, Table], order=()) -> bytes:
     """Tables as a .zip of comma-delimited CSVs, in `order` (the version's table order) and then as given (an empty table is left
-    out)."""
+    out). Each CSV is streamed into the archive as it is written."""
     out = io.BytesIO()
     names = [n for n in order if n in tables] + [n for n in tables if n not in order]
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for name in names:
             t = tables[name]
             if t.rows:
-                z.writestr(f"{name}.csv", to_csv(t.columns, t.rows))
+                compact.write_csv(z, f"{name}.csv", t.columns, lines(t.columns, t.rows))
     return out.getvalue()
 
 
@@ -207,9 +223,9 @@ def from_zip(data: bytes) -> dict[str, Table]:
     if not data:
         return {}
     z = _open_zip(data)
-    out = {}
+    out, shared = {}, compact.Shared()
     for info in z.infolist():
         p = PurePosixPath(info.filename)
         if not info.is_dir() and p.suffix.lower() == ".csv":
-            out[p.stem] = _table(p.stem, _csv_rows(z.read(info)), None)
+            out[p.stem] = _table(p.stem, lambda info=info: z.open(info), None, shared)
     return out

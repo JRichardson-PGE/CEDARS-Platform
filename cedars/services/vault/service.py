@@ -9,14 +9,17 @@ ContactID and SiteID."""
 import csv
 import hashlib
 import io
+import itertools
 import re
 import zipfile
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
 
 from django.conf import settings
 from django.db import transaction
 
+from cedars.core import rows as compact
 from cedars.core import uploads as core_uploads
 from cedars.services import audit
 from cedars.services.accounts import permissions as perms
@@ -29,6 +32,7 @@ from .router import VAULT
 
 DIGITS = re.compile(r"^\d+$")
 SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
+WRITE_BATCH = 5000  # records written per database round trip
 
 
 class PIIError(ValueError):
@@ -89,22 +93,25 @@ def read(data: bytes, filename: str, lay: specifications.VersionLayout | None = 
     raw = _from_workbook(data, lay) if filename.lower().endswith(".xlsx") else _from_zip(data, lay)
     if not raw:
         raise PIIError(f"The file holds none of {_names(lay)}.")
-    out = {}
-    for name, rows in raw.items():
-        if not rows:
-            continue
-        header = [h.strip() for h in rows[0]]
+    out, shared = {}, compact.Shared()
+    for name, source in raw.items():
         table = _vault_tables(lay)[name]
-        names = [table.canonical(h) for h in header]
-        out[name] = [
-            {n: (r[i].strip() if i < len(r) else "") for i, n in enumerate(names) if n is not None}
-            for r in rows[1:]
-            if any(c.strip() for c in r)
-        ]
+
+        def names(header: list[str], table=table) -> list[str | None]:
+            return [table.canonical(h) for h in header]
+
+        if callable(source):  # a CSV, streamed line by line into compact rows
+            header, rows = compact.read_csv(source, shared, names=names)
+        else:
+            lines = [r for r in source if r]
+            header = [h.strip() for h in lines[0]] if lines else []
+            rows = compact.rows(names(header), lines[1:], shared)
+        if header:
+            out[name] = rows
     return out
 
 
-def _from_zip(data: bytes, lay: specifications.VersionLayout) -> dict[str, list[list[str]]]:
+def _from_zip(data: bytes, lay: specifications.VersionLayout) -> dict[str, Callable]:
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
@@ -120,7 +127,7 @@ def _from_zip(data: bytes, lay: specifications.VersionLayout) -> dict[str, list[
             raise PIIError(f"The .zip may hold only {_names(lay)} (as CSV files); the claim records go in the claims upload.")
         if table in out:
             raise PIIError(f"The .zip holds two {table} files; keep one.")
-        out[table] = _csv_rows(z.read(info))
+        out[table] = lambda info=info: z.open(info)
     return out
 
 
@@ -145,16 +152,6 @@ def _cell(value) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
-
-
-def _csv_rows(content: bytes) -> list[list[str]]:
-    try:
-        body = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        body = content.decode("cp1252")
-    first = body.split("\n", 1)[0]
-    sep = "|" if "|" in first else ("\t" if "\t" in first else ",")
-    return [r for r in csv.reader(io.StringIO(body), delimiter=sep) if r]
 
 
 # --- the checks
@@ -249,14 +246,15 @@ def store(
             PIIContact.objects.filter(upload__in=old).delete()
             PIISite.objects.filter(upload__in=old).delete()
             old.update(status=PIIUpload.Status.SUPERSEDED)
-            PIIContact.objects.bulk_create(
-                PIIContact(upload=up, contact_id=r["ContactID"], values={c: v for c, v in r.items() if c != "ContactID" and v})
-                for r in tables.get("PII_Contact", [])
-            )
-            PIISite.objects.bulk_create(
-                PIISite(upload=up, site_id=r["SiteID"], values={c: v for c, v in r.items() if c != "SiteID" and v})
-                for r in tables.get("PII_Site", [])
-            )
+            for batch in itertools.batched(tables.get("PII_Contact", []), WRITE_BATCH):  # never a million model objects at once
+                PIIContact.objects.bulk_create(
+                    PIIContact(upload=up, contact_id=r["ContactID"], values={c: v for c, v in r.items() if c != "ContactID" and v})
+                    for r in batch
+                )
+            for batch in itertools.batched(tables.get("PII_Site", []), WRITE_BATCH):
+                PIISite.objects.bulk_create(
+                    PIISite(upload=up, site_id=r["SiteID"], values={c: v for c, v in r.items() if c != "SiteID" and v}) for r in batch
+                )
     audit.record(
         "vault.pii_accepted" if not findings else "vault.pii_rejected",
         object_type="vault.piiupload",
