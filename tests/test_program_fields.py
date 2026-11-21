@@ -98,7 +98,7 @@ def test_every_value_in_cedars_programs_list_is_a_listed_value():
 def test_definitions_come_from_the_data_dictionary_where_it_has_the_field(catalog):
     status = field_guide.definitions(field_guide.entry("status"))
     assert [d.dictionary_field for d in status] == ["Prg_ProgramStatus"] and status[0].catalog == catalog.label
-    assert status[0].text.startswith("active, new, closed")
+    assert status[0].text.startswith("Where the program is in its life")
     website = field_guide.definitions(field_guide.entry("website"))  # not in the dictionary: the guide's own
     assert website[0].dictionary_field == "" and "public web page" in website[0].text
     assert len(field_guide.definitions(field_guide.entry("flags"))) == 10

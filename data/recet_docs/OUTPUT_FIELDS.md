@@ -1590,8 +1590,8 @@ Prg_X = column X of the program-metadata row chosen for the measure (Prg_Matched
 |---|---|---|---|
 | `Prg_PA` | The program administrator the program list gives (`SW` for a statewide program's `SW_...` row, the IOU for its `<IOU>_SW_...` rows). | PGE | PGE |
 | `Prg_ProgramName` | The program's name. | Example Residential Program | Example Commercial Program |
-| `Prg_ProgramStatus` | `active`, `new`, `closed`, `closed_to_new_commitments` or `closure_pending`. | active | new |
-| `Prg_ProgramSegment` | The portfolio segment: `resource_acquisition`, `market_support`, `equity`, `codes_and_standards` or `evaluation_measurement_verification` (blank on many older programs). Drives the summary's `program segment` rows. | resource_acquisition | market_support |
+| `Prg_ProgramStatus` | Where the program is in its life, as the program list gives it (for example `active` or `closed`). | active | new |
+| `Prg_ProgramSegment` | The portfolio segment, as the program list gives it (for example `resource_acquisition` or `market_support`; blank on many older programs). Drives the summary's `program segment` rows. | resource_acquisition | market_support |
 | `Prg_StatewideProgram` | For a statewide program, its statewide program code and name (for example `SW_HVAC_Up - SW HVAC Upstream Program`); blank otherwise. |  |  |
 | `Prg_PrimarySector` | The program's primary sector (`Residential`, `Commercial`, `Industrial`, `Agricultural`, `Public`, `Cross-Cutting`, `Portfolio Support`). | Residential | Commercial |
 | `Prg_Sector` | The program's sector in CEDARS' coded form (for example `Commercial (Com)`). | Residential (Res) | Commercial (Com) |
