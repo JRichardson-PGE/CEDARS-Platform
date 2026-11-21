@@ -485,3 +485,15 @@ def test_a_priced_filing_links_the_walkthrough_of_its_measures(
     assert "Walking through W1" in html and reverse("budgets:version", args=[v.pk]) in html
     assert f'href="{reverse("calculations:run", args=[run.pk])}"' not in html  # the run itself stays the filing organization's
     assert outsider.get(reverse("calculations:run", args=[run.pk])).status_code == 404
+
+
+def test_a_prgid_or_pa_too_long_for_the_budget_lines_is_rejected_not_a_failed_check(filer, filing, pge, programs):
+    long_prg, long_pa = "P" * 70, "Q" * 30
+    data = job(
+        costs=[f"{long_prg}|2028|2028Q1|PGE|1|0|0|0|0|0|0|0|0|0|0", f"PGE_Com_Ltg|2028|2028Q1|{long_pa}|1|0|0|0|0|0|0|0|0|0|0"],
+        measures=[f"M1|{long_prg}|2028Q1|1|0|0|0|0"],
+    )
+    v = service.upload(filer, filing, pge, data, "tual.zip")
+    assert v.status == SubmissionVersion.Status.DRAFT and "BUD-PRG" in {f["rule_id"] for f in service.findings(v)}
+    assert not BudgetLine.objects.filter(version=v, prg_id=long_prg).exists()
+    assert BudgetLine.objects.get(version=v, prg_id="PGE_Com_Ltg", year=2028).pa == ""

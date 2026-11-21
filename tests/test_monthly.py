@@ -522,3 +522,15 @@ def test_a_priced_report_links_the_walkthrough_of_its_measures(client, filer, ye
     assert f'href="{reverse("calculations:walkthrough", args=[run])}"' in page
     unpriced = service.upload(filer, month(2), pge, report("202802"), "r.zip")
     assert "Follow any of its measures" not in client.get(reverse("monthly:version", args=[unpriced.pk])).content.decode()
+
+
+def test_a_prgid_or_pa_too_long_for_the_report_lines_is_rejected_not_a_failed_check(filer, year, pge, programs):
+    long_prg, long_pa = "P" * 70, "Q" * 30
+    data = report(
+        commitments=[f"{long_pa}|{long_prg}|202801|0|0|5000|100|1|0|80|1|0|x"],
+        costs=[cost(prg=long_prg), cost("PGE_Com_Ltg").replace("|PGE|", f"|{long_pa}|")],
+        measures=[f"M1|{long_prg}|2028Q1|10|40|0|0|0"],
+    )
+    v = service.upload(filer, month(1), pge, data, "january.zip")
+    assert v.status == SubmissionVersion.Status.DRAFT and {"MON-PRG", "MON-PA"} <= {f["rule_id"] for f in service.findings(v)}
+    assert not ReportLine.objects.filter(version=v, prg_id=long_prg).exists()

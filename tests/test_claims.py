@@ -796,3 +796,29 @@ def test_a_priced_claim_links_the_walkthrough_of_its_measures(client, filer, yea
     sign_in(client, filer)
     page = client.get(reverse("claims:version", args=[v.pk])).content.decode()
     assert f'href="{reverse("calculations:walkthrough", args=[v.calculation["run"]])}"' in page
+
+
+def test_duplicate_keys_and_overlong_values_are_rejected_not_a_failed_check(filer, year, pge, programs):
+    """A ClaimID filed twice, a ClaimID longer than its column, a PrgID or PA too long for the program lines: each is a finding,
+    and the check still records the version (the derived records leave the value out rather than fail to save)."""
+    dup = tables(claim("PGE-2028-001"), claim("PGE-2028-001"), Site=[row("Site", SiteID="PGE-S1")])
+    v = service.upload_claims(filer, deadline(), pge, claims_zip(dup), "q1.zip")
+    assert v.status == SubmissionVersion.Status.DRAFT and ("Claim", "CLM-KEY") in {(f["table"], f["rule_id"]) for f in service.findings(v)}
+    long_id = "PGE-2028-" + "1" * 247  # 256 characters, one over the specification's 255
+    long_prg, long_pa = "P" * 70, "Q" * 30
+    bad = tables(
+        claim(long_id),
+        claim("PGE-2028-002", prg=long_prg),
+        ProgramCost=[
+            row("ProgramCost", PrgID="PGE_Res"),
+            row("ProgramCost", PrgID=long_prg),
+            row("ProgramCost", PrgID="PGE_Com", PA=long_pa),
+        ],
+        Site=[row("Site", SiteID="PGE-S1")],
+    )
+    v = service.upload_claims(filer, deadline(), pge, claims_zip(bad), "q1.zip")
+    found = {(f["record_id"].split(" / ")[0], f["rule_id"]) for f in service.findings(v)}
+    assert v.status == SubmissionVersion.Status.DRAFT
+    assert (long_id, "CLM-TYPE") in found and (long_prg, "CLM-PRG") in found
+    assert not ClaimProgramLine.objects.filter(version=v, prg_id=long_prg).exists()
+    assert ClaimProgramLine.objects.get(version=v, prg_id="PGE_Com").pa == ""
