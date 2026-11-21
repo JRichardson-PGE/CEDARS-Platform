@@ -1842,9 +1842,16 @@ def findings_csv(v: SubmissionVersion) -> str:
 # --- each program's year to date
 
 
+def _fits(model, field: str, value: str) -> bool:
+    """Whether a filed value fits the column a derived record keeps it in. A value too long for it is rejected by the checks (the
+    specification's lengths, an unknown PrgID or PA), so the derived records leave it out rather than fail to save."""
+    return len(value) <= model._meta.get_field(field).max_length
+
+
 def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
     """Each program's year to date from the compiled tables: its ProgramCost row for the year, its measures' rebates and incentives,
-    its number of claims and the totals filed on them, leaving out withdrawn claims."""
+    its number of claims and the totals filed on them, leaving out withdrawn claims. A PrgID too long to be a program (rejected by the
+    checks) has no line; a PA too long for its column is left blank."""
     out: dict[str, dict] = {}
 
     def line(prg: str) -> dict:
@@ -1855,16 +1862,16 @@ def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
         )  # fmt: skip
 
     for r in tables.get("ProgramCost", upload.Table("ProgramCost", [], [])).rows:
-        if r.get("PrgYear", "").split(".")[0] != str(year) or not r.get("PrgID"):
+        if r.get("PrgYear", "").split(".")[0] != str(year) or not r.get("PrgID") or not _fits(ClaimProgramLine, "prg_id", r["PrgID"]):
             continue
         ln = line(r["PrgID"])
-        ln["pa"] = r.get("PA", "")
+        ln["pa"] = r.get("PA", "") if _fits(ClaimProgramLine, "pa", r.get("PA", "")) else ""
         ln["program_costs"] = {f: str(_num(r.get(f, "")) or 0) for f, _ in PROGRAM_COST_FIELDS}
         ln["on_bill_financing"] = _num(r.get("OnBillFinancing", "")) or Decimal(0)
     claim_rows = {_claim(r): r for r in tables.get("Claim", upload.Table("Claim", [], [])).rows}
     gone = withdrawn(tables)
     for r in tables.get("Measure", upload.Table("Measure", [], [])).rows:
-        if not r.get("PrgID") or _claim(r) in gone:
+        if not r.get("PrgID") or _claim(r) in gone or not _fits(ClaimProgramLine, "prg_id", r["PrgID"]):
             continue
         ln = line(r["PrgID"])
         units = _num(r.get("NumUnits", "")) or Decimal(0)
@@ -1877,27 +1884,36 @@ def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
 
 
 def records(tables: dict[str, upload.Table]) -> Iterator[dict]:
-    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord), one at a time."""
+    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord), one at a time. A ClaimID filed
+    twice (rejected as CLM-KEY) is kept once, from its first record; a ClaimID too long for its column (rejected by the checks) has no
+    record, and a linking field too long for its column is left blank."""
     measures = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
     sites = defaultdict(list)
     for r in tables.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows:
         sites[_claim(r)].append(r.get("SiteID", ""))
     gone = withdrawn(tables)
+
+    def kept(field: str, value: str) -> str:
+        return value if _fits(ClaimRecord, field, value) else ""
+
+    seen = set()
     for r in tables.get("Claim", upload.Table("Claim", [], [])).rows:
         k = _claim(r)
-        if not k:
+        claim_id = r.get("ClaimID", "").strip()
+        if not k or k in seen or not _fits(ClaimRecord, "claim_id", claim_id):
             continue
+        seen.add(k)
         m = measures.get(k, {})
         yield {
-            "claim_id": r.get("ClaimID", "").strip(),
-            "prg_id": m.get("PrgID", ""),
+            "claim_id": claim_id,
+            "prg_id": kept("prg_id", m.get("PrgID", "")),
             "impact_type": m.get("MeasImpactType", "")[:60],
-            "parent_claim_id": r.get("ParentClaimID", "").strip(),
+            "parent_claim_id": kept("parent_claim_id", r.get("ParentClaimID", "").strip()),
             "true_up": bool(_flag(r.get("NMEC_TU_Flag", ""))),
-            "participant_id": r.get("ParticipantID", "").strip(),
-            "sem_phase": r.get("SEM_Phase", "").strip(),
-            "project_id": r.get("ProjectID", "").strip(),
-            "site_id": r.get("SiteID", "").strip(),
+            "participant_id": kept("participant_id", r.get("ParticipantID", "").strip()),
+            "sem_phase": kept("sem_phase", r.get("SEM_Phase", "").strip()),
+            "project_id": kept("project_id", r.get("ProjectID", "").strip()),
+            "site_id": kept("site_id", r.get("SiteID", "").strip()),
             "sites": sorted(set(sites.get(k, []))),
             "withdrawn": k in gone,
             "filed": {f: float(_num(r.get(f, "")) or 0) for f in FILED_TOTALS},

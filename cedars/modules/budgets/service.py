@@ -788,7 +788,15 @@ def ensure_checked(v: SubmissionVersion) -> None:
     _store_and_check(None, v, tables, job, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")})
 
 
+def _fitting(lines: list[dict]) -> list[dict]:
+    """The lines whose PrgID fits its column, with a PA too long for its column left blank. Such values are rejected by the checks (an
+    unknown program or PA, the specification's lengths); the lines leave them out rather than fail to save."""
+    prg_max, pa_max = (BudgetLine._meta.get_field(f).max_length for f in ("prg_id", "pa"))
+    return [{**ln, "pa": ln.get("pa", "") if len(ln.get("pa", "") or "") <= pa_max else ""} for ln in lines if len(ln["prg_id"]) <= prg_max]
+
+
 def _replace_lines(v: SubmissionVersion, lines: list[dict]) -> None:
+    lines = _fitting(lines)
     BudgetLine.objects.filter(version=v).delete()
     BudgetLine.objects.bulk_create(BudgetLine(version=v, **line) for line in lines)
     BudgetResult.objects.filter(version=v).delete()
