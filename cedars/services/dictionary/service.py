@@ -43,8 +43,9 @@ def current() -> CatalogVersion | None:
 @transaction.atomic
 def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str = "", platform: bool = False) -> CatalogVersion:
     """A new catalog version from an exported catalog (scripts/export_recet_dictionary.py writes one from ReCET). With `platform`,
-    the platform's own records are added to it (dictionary/platform.py: every column of the tables it keeps), and the label says so
-    unless one is given: "ReCET 0.1.89 + platform 0.2.0"."""
+    the fields the filing specifications define that the export does not have (dictionary/filed.py) and the platform's own records
+    (dictionary/platform.py: every column of the tables it keeps) are added to it, and the label says so unless one is given:
+    "ReCET 0.1.89 + platform 0.2.0"."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator publishes a dictionary version.")
     asked = label
@@ -52,11 +53,16 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
     if platform:
         import cedars
 
+        from . import filed
         from . import platform as records
 
         taken = {f["name"].lower() for f in payload["fields"]}
+        for f in payload["fields"]:
+            taken |= {a["name"].lower() for a in f.get("aliases", [])}
+        specified = filed.catalog(taken)
+        taken |= {f["name"].lower() for f in specified}
         added = [f for f in records.catalog() if f["name"].lower() not in taken]
-        payload = {**payload, "fields": [*payload["fields"], *added]}
+        payload = {**payload, "fields": [*payload["fields"], *specified, *added]}
         label = asked or f"{label} + platform {cedars.__version__}"
     payload = {**payload, "fields": renamed(payload["fields"])}
     previous = current()
@@ -89,6 +95,7 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
             audience=f.get("audience", Field.Audience.PUBLIC),
             required_by=f.get("required_by", ""),
             values=f.get("values") or [],
+            same_as=f.get("same_as") or [],
             # a retirement is not undone by a later export that does not know of it
             **({a: getattr(retired[f["name"].lower()], a) for a in RETIREMENT} if f["name"].lower() in retired else {}),
         )
@@ -303,7 +310,7 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
     w = csv.writer(out, lineterminator="\n")
     w.writerow(
         ["name", "kind", "group", "definition", "data_type", "max_length", *ATTRIBUTES, "also_known_as", "documentation", "state"]
-        + ["retired_from", "values"]
+        + ["retired_from", "values", "same_as"]
     )
     for f in Field.objects.filter(version=version).prefetch_related("aliases").order_by("kind", "group", "name"):
         w.writerow(
@@ -320,6 +327,7 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
                 f.state,
                 f.retired_from or "",
                 "; ".join(f"{code} = {text}" if text != code else code for code, text in f.values or []),
+                "; ".join(f.same_as or []),
             ]
         )
     return out.getvalue()

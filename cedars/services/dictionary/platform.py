@@ -337,12 +337,13 @@ COMMON = {
     "text": "The {noun}'s text, as written.",
     "acc_version": "The avoided cost calculator (ACC) it is priced on, named by its year (e.g. 2024).",
     "run": "The calculation run the results were read from (its ID).",
-    "program_name": "The program's name, as the run's outputs gave it.",
+    "program_name": "The program's name, as the run's outputs gave it (Prg_ProgramName).",
     "measures": "How many measure records were added up into the row.",
     "claims": "How many claim records were added up into the row.",
     "on_bill_financing": "The program's on-bill financing, in dollars (the ProgramCost row's OnBillFinancing field).",
     "rebates_and_incentives": (
-        "The rebates and incentives of the program's measures, in dollars: NumUnits x the four unit incentive fields, added up."
+        "The rebates and incentives of the program's measures, in dollars: NumUnits x the four unit incentive fields, added up as filed "
+        "(not the engine's calculated RebatesandIncents output)."
     ),
     "first_year": "The first program year it covers.",
     "last_year": "The last program year it covers (blank: open-ended or the same as the first).",
@@ -364,11 +365,12 @@ COMMON = {
     "engine_release": "The ReCET release that priced it.",
     "pda_id": "Its ID in the Energy Division's Public Document Area (PDA), kept so legacy links resolve.",
     "target_sector": "The target sector of the impact profile (AC_Elec_Target_Sector).",
-    "sector": "The eTRM sector (Res, Com, Ind, Ag, ...).",
+    "sector": "The eTRM (DEER) sector code (Res, Com, Ind, Ag, ...), as in a claim's DEER_Sector; not a measure's Sector, which is the "
+    "program business-plan sector.",
     "bldg_type": "The eTRM building type (BldgType).",
     "bldg_vint": "The eTRM building vintage (BldgVint).",
     "bldg_hvac": "The eTRM building HVAC type (BldgHVAC).",
-    "bldg_loc": "The eTRM building location, a climate zone (BldgLoc).",
+    "bldg_loc": "The eTRM building location, a climate zone (BldgLoc), as eTRM gives it (e.g. CZ12).",
     "tech_group": "The eTRM technology group (TechGroup).",
     "tech_type": "The eTRM technology type (TechType).",
     "tech_id": "The eTRM technology ID (TechID).",
@@ -379,6 +381,72 @@ COMMON = {
     "measure_version_id": "The eTRM measure version ID, e.g. SWHC052-02.",
     "author_name": "The author's name, as it was when they wrote it.",
 }
+
+
+# "Same as": the engine or filed field a column stores, shown on both fields' pages (a link, not another name: the crosswalk keeps
+# legacy names only). By column name in every described table, then by `<app>.<Model>.<column>`, which wins; the program registry's
+# columns also take the dictionary fields the program fields guide names for them. Every name here must be in the catalog it is
+# loaded with (tests/test_dictionary_platform.py).
+SAME_AS_BY_COLUMN: dict[str, list[str]] = {
+    "prg_id": ["PrgID"],
+    "acc_version": ["ACCVersion", "Used_ACCVersion"],
+    "cost_test_set": ["Used_CostTestSet"],
+    "bldg_type": ["BldgType"],
+    "bldg_vint": ["BldgVint"],
+    "bldg_hvac": ["BldgHVAC"],
+    "bldg_loc": ["BldgLoc"],
+    "tech_group": ["TechGroup"],
+    "tech_type": ["TechType"],
+    "norm_unit": ["NormUnit"],
+    "sector": ["DEER_Sector"],
+    "ntg_id": ["NTG_ID"],
+    "gsia_id": ["GSIA_ID"],
+    "target_sector": ["AC_Elec_Target_Sector"],
+    "iou_ac_territory": ["IOU_AC_Territory"],
+}
+RESULTS = ("budgets.BudgetResult", "claims.ClaimResult", "monthly.MonthlyResult", "claims.RestatementLine")
+SAME_AS: dict[str, list[str]] = {
+    "registry.AllocationEntry.program_id": ["PrgID"],
+    "registry.AllocationEntry.program_name": ["Prg_ProgramName"],
+    "registry.Goal.utility": ["IOU_AC_Territory"],
+    "registry.GoalCountingRule.territory": ["IOU_AC_Territory"],
+    "refdata.PackVersion.acc_year": ["ACCVersion", "Used_ACCVersion"],
+    **{f"{t}.pa": ["PA"] for t in ("budgets.BudgetLine", "claims.ClaimProgramLine", "monthly.ReportLine")},
+    "budgets.BudgetLine.year": ["PrgYear"],
+    **{f"{t}.on_bill_financing": ["OnBillFinancing"] for t in ("budgets.BudgetLine", "claims.ClaimProgramLine")},
+    **{f"{t}.pa": ["CreditedPA"] for t in RESULTS},
+    **{f"{t}.program_name": ["Prg_ProgramName"] for t in RESULTS},
+    "budgets.BudgetResult.year": ["Used_Year"],
+    "claims.ClaimRecord.claim_id": ["ClaimID"],
+    "claims.ClaimRecord.impact_type": ["MeasImpactType"],
+    "claims.ClaimRecord.parent_claim_id": ["ParentClaimID"],
+    "claims.ClaimRecord.participant_id": ["ParticipantID"],
+    "claims.ClaimRecord.sem_phase": ["SEM_Phase"],
+    "claims.ClaimRecord.project_id": ["ProjectID"],
+    "claims.ClaimRecord.site_id": ["SiteID"],
+    "vault.PIISite.site_id": ["SiteID"],
+    "vault.PIIContact.contact_id": ["ContactID"],
+    "impact_profiles.ImpactProfile.profile_key": ["AC_Elec_Impact_Profile"],
+    "impact_profiles.ProfileZone.climate_zone": ["AC_Climate_Zone"],
+    "impact_profiles.Permutation.elec_target_sector": ["AC_Elec_Target_Sector"],
+    "impact_profiles.Permutation.measure_application_type": ["MeasAppType"],
+    "impact_profiles.Permutation.measure_tech_id": ["MeasTechID"],
+    "refdata.EtrmPermutation.meas_app_type": ["MeasAppType"],
+    "refdata.EtrmPermutation.delivery_type": ["DeliveryType"],
+    "refdata.EtrmPermutation.measure_detail_id": ["MeasDetailID"],
+    "accounts.Organisation.code": ["PA"],
+}
+
+
+def same_as(model, f) -> list[str]:
+    """The engine or filed fields the column stores (SAME_AS)."""
+    name = f"{label(model)}.{f.name}"
+    if name in SAME_AS:
+        return list(SAME_AS[name])
+    guide = _program_guide_entry(model, f)
+    if guide is not None and guide.dictionary:
+        return list(guide.dictionary)
+    return list(SAME_AS_BY_COLUMN.get(f.name, []))
 
 
 def _generic(model, f) -> str:
@@ -449,14 +517,19 @@ def _help(f) -> str:
     return text
 
 
-def _program_guide(model, f):
-    """The program fields guide's entry for a program record's column (registry/program_fields.yaml): its definition and valid
-    values, so the dictionary and the guide say the same."""
+def _program_guide_entry(model, f):
+    """The program fields guide's entry for a program record's column (registry/program_fields.yaml), or None."""
     if label(model) not in ("registry.Program", "registry.ProgramVersion"):
         return None
     from cedars.services.registry import field_guide
 
-    e = field_guide.entry(f.name)
+    return field_guide.entry(f.name)
+
+
+def _program_guide(model, f):
+    """The program fields guide's entry for a program record's column, when it has a definition: its definition and valid values, so
+    the dictionary and the guide say the same."""
+    e = _program_guide_entry(model, f)
     return e if e is not None and e.definition else None
 
 
@@ -494,6 +567,7 @@ def describe(model, f, audience: str) -> dict:
         "audience": who,
         "aliases": [],
         "usage": [],
+        "same_as": same_as(model, f),
         "values": [[str(v), str(t)] for v, t in f.flatchoices] if f.choices else [[v.code, v.label] for v in guide.values] if guide else [],
     }
     if isinstance(f, models.DecimalField):
