@@ -26,3 +26,4 @@ CEDARS_ISSUE_WEBHOOK_SECRET = "a-secret-for-tests"  # noqa: S105
 # the item page offers to post the issue; no test calls the tracker (tests replace the call)
 CEDARS_ISSUE_APP_ID, CEDARS_ISSUE_APP_INSTALLATION_ID, CEDARS_ISSUE_APP_PRIVATE_KEY = "1", "2", "not-a-key-for-tests"
 CEDARS_ISSUE_REPOSITORY = "example-org/cedars"  # a ready work item's page links to a new issue there
+QUEUED_CHECKS_BACKEND = "inline"  # a test that queues a check runs it once its transaction commits (tests that need the queue set it)

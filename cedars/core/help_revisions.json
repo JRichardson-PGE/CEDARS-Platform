@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "1eb451d045957d6029097bbeee7cac35dce061c7a09e7858701a8c69f6bbeb56"
+    "sha256": "efd9412901e8e65cf2c17e4a7374c8356777949a9f738964c52d3340587c7db5"
   },
   "guide:accessibility": {
     "release": "0.2.0",

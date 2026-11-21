@@ -112,6 +112,47 @@ class MultipleFileField(forms.FileField):
         return files
 
 
+@dataclass(frozen=True)
+class Size:
+    """How much an upload holds, counted without reading its tables: `records` (lines after the first in each CSV file, on its own or
+    in a .zip; a workbook's sheets are not counted) and `bytes` (what its files unpack to)."""
+
+    records: int
+    bytes: int
+
+
+def _lines(f, enough: int | None) -> int:
+    n = 0
+    while chunk := f.read(1 << 20):
+        n += chunk.count(b"\n")
+        if enough is not None and n > enough:
+            break
+    return n
+
+
+def measure(files: list[tuple[str, bytes]], enough: int | None = None) -> Size:
+    """The upload's Size, to decide whether it is checked while the person waits. Counting stops once `enough` records are seen (the
+    answer is then only "more than that"). A file that is not a .zip counts as text."""
+    records = total = 0
+    for name, content in files:
+        try:
+            z = zipfile.ZipFile(io.BytesIO(content))
+            infos = [i for i in z.infolist() if not i.is_dir() and not i.filename.startswith(SKIPPED)]
+        except (zipfile.BadZipFile, OSError, ValueError):
+            total += len(content)
+            if name.lower().endswith(TEXT_SUFFIXES):
+                records += max(content.count(b"\n") - 1, 0)
+            continue
+        total += sum(i.file_size for i in infos)
+        for i in infos:
+            if enough is not None and records > enough:
+                break
+            if i.filename.lower().endswith(TEXT_SUFFIXES):
+                with z.open(i) as f:
+                    records += max(_lines(f, None if enough is None else enough - records) - 1, 0)
+    return Size(records, total)
+
+
 class CombineError(ValueError):
     """The files cannot be combined; the message says why, for the person who uploaded them."""
 

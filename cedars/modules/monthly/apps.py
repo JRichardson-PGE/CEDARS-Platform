@@ -17,6 +17,9 @@ class MonthlyConfig(AppConfig):
         from . import coded_checks
 
         register_coded_checks("monthly", "Monthly reports", coded_checks.ABOUT, coded_checks.CHECKS, order=3)
+        from . import queued
+
+        queued.register()  # an upload too large to check while the page waits: a worker checks it
         from cedars.services.specifications.editor import register_locked_fields
 
         from . import locked_fields

@@ -20,7 +20,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import comments, corrections, filing_parts, service
-from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
+from .models import Attachment, Deadline, ReopenRequest, Submission, SubmissionVersion, WorkflowPolicy
 
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
 
@@ -861,6 +861,27 @@ def checking_status(request, pk):
     if not service.can_read_filing(request.user, v.submission):
         raise Http404
     response = JsonResponse(filing_parts.checking_state(v))
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def queued_status(request, pk):
+    """Where a queued check stands (an upload too large to check while the page waits), as JSON for its filing page to update itself:
+    {"ended", "text"}. For the person who sent it and anyone who may submit or read the filing."""
+    from . import queued
+    from .models import QueuedCheck
+
+    q = get_object_or_404(QueuedCheck.objects.select_related("deadline", "organisation"), pk=pk)
+    user = request.user
+    allowed = user.is_authenticated and (
+        q.created_by_id == user.pk
+        or (q.deadline and q.organisation and access.has_permission(user, q.organisation, f"{q.deadline.module}.submit"))
+        or any(service.can_read_filing(user, s) for s in Submission.objects.filter(deadline=q.deadline, organisation=q.organisation))
+    )
+    if not allowed:
+        raise Http404
+    s = queued.state(q)
+    response = JsonResponse({"ended": s["ended"], "text": s["text"]})
     response["Cache-Control"] = "no-store"
     return response
 

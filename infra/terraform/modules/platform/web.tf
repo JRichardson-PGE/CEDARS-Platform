@@ -68,9 +68,12 @@ resource "aws_iam_role_policy" "web" {
       },
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.data.arn },
       {
-        Effect   = "Allow"
-        Action   = ["batch:SubmitJob", "batch:DescribeJobs", "batch:TerminateJob", "batch:CancelJob"]
-        Resource = concat([for q in aws_batch_job_queue.runs : q.arn], ["${aws_batch_job_definition.recet.arn_prefix}*"])
+        Effect = "Allow"
+        Action = ["batch:SubmitJob", "batch:DescribeJobs", "batch:TerminateJob", "batch:CancelJob"]
+        Resource = concat(
+          [for q in aws_batch_job_queue.runs : q.arn],
+          ["${aws_batch_job_definition.recet.arn_prefix}*", aws_batch_job_queue.queued_checks.arn, "${aws_batch_job_definition.queued_checks.arn_prefix}*"],
+        )
       },
       { Effect = "Allow", Action = ["ses:SendRawEmail"], Resource = "*" },
     ]
@@ -95,6 +98,11 @@ locals {
     { name = "CEDARS_BATCH_QUEUE_LARGE", value = aws_batch_job_queue.runs["large"].name },
     { name = "CEDARS_BATCH_QUEUE_SMALL", value = aws_batch_job_queue.runs["small"].name },
     { name = "CEDARS_BATCH_JOB_DEFINITION", value = aws_batch_job_definition.recet.name },
+    # Uploads too large to check while the page waits: a Batch job each (queued_checks.tf). Named, not referenced: the job definition
+    # carries this same environment.
+    { name = "QUEUED_CHECKS_BACKEND", value = "batch" },
+    { name = "QUEUED_CHECKS_BATCH_QUEUE", value = local.queued_checks_name },
+    { name = "QUEUED_CHECKS_BATCH_JOB_DEFINITION", value = local.queued_checks_name },
     { name = "CEDARS_SUPPORT_EMAIL", value = var.support_email },
     { name = "CEDARS_FEEDBACK_URL", value = var.feedback_url },
     { name = "CEDARS_ISSUE_REPOSITORY", value = var.issue_repository },

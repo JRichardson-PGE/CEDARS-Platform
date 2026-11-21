@@ -293,6 +293,19 @@ RULES_JOBS_DATABASE = "jobs"
 # How long a page waits for a check job (the pre-upload checker, a correction, examples, the impact test); a Change limits setting.
 RULES_CHECK_WAIT_SECONDS = int(env("RULES_CHECK_WAIT_SECONDS", "120"))
 
+# Queued checks (cedars/services/submissions/queued.py): a filing upload or Check again that reads more records, or unpacks to more MB,
+# than these is not checked while the page waits; a worker checks it and the page shows its place in the queue. Both are Change limits
+# settings; these are their first-run defaults. QUEUED_CHECKS_AT_ONCE: how many queued checks run at the same time (a Change limits
+# setting too). The backend: local (`manage.py run_queued_checks --loop` takes them in turn), batch (an AWS Batch job each, on
+# QUEUED_CHECKS_BATCH_QUEUE with QUEUED_CHECKS_BATCH_JOB_DEFINITION) or inline (run once the request commits; development and tests).
+QUEUED_CHECKS_BACKEND = env("QUEUED_CHECKS_BACKEND", "local")
+QUEUED_CHECK_RECORDS = int(env("QUEUED_CHECK_RECORDS", "25000"))
+QUEUED_CHECK_MB = int(env("QUEUED_CHECK_MB", "25"))
+QUEUED_CHECKS_AT_ONCE = int(env("QUEUED_CHECKS_AT_ONCE", "1"))
+QUEUED_CHECKS_BATCH_QUEUE = env("QUEUED_CHECKS_BATCH_QUEUE", "")
+QUEUED_CHECKS_BATCH_JOB_DEFINITION = env("QUEUED_CHECKS_BATCH_JOB_DEFINITION", "")
+QUEUED_CHECKS_MAX_HOURS = int(env("QUEUED_CHECKS_MAX_HOURS", "6"))  # a check running longer is taken to have died with its worker
+
 # Data, dashboards and downloads (cedars/modules/data): queries over the publication snapshots.
 DATA_CACHE = env("DATA_CACHE", str(BASE_DIR / "var" / "cache" / "snapshots"))  # local copies of snapshots kept in S3
 DATA_QUERY_THREADS = int(env("DATA_QUERY_THREADS", "2"))  # DuckDB threads per query
@@ -346,6 +359,7 @@ HEALTH = {
     "etrm": int(env("HEALTH_ETRM_MINUTES", str(36 * 60))),  # since the last successful eTRM sync (it runs nightly)
     "failures": int(env("HEALTH_FAILURES_MINUTES", str(24 * 60))),  # failed runs, jobs and emails listed this far back
     "worker_seen": int(env("HEALTH_WORKER_SEEN_MINUTES", "10")),  # a local calculations worker counts as running if it polled this recently
+    "queued_check": int(env("HEALTH_QUEUED_CHECK_MINUTES", "30")),  # a queued filing check still waiting for a worker
 }
 
 # Documents & EM&V module: the largest file a document version may carry (the PDA's largest main files are tens of MB)

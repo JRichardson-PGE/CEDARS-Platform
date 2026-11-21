@@ -1,0 +1,17 @@
+{% load static %}
+{% comment %}An upload too large to check while the page waits (submissions/queued.py): its place in the queue or its check, which
+core/watch.js keeps up to date and announces, reloading the page when the check ends (only when nothing has the focus); once ended,
+what the check found, shown once to the person who sent it. Context: queued ({check, state, level}).{% endcomment %}
+<div id="queued-check">
+{% if queued.state.ended %}
+{% if queued.level == "error" %}<p class="alert">{% else %}<ul class="messages"><li class="msg-{{ queued.level }}">{% endif %}<strong>{% if queued.check.status == "succeeded" %}Your large upload was checked{% else %}Your large upload was not checked{% endif %}</strong>
+  ({{ queued.check.finished_at|datetime_words }}). {{ queued.state.text }}{% if queued.level == "error" %}</p>{% else %}</li></ul>{% endif %}
+{% else %}
+<ul class="messages"><li class="msg-info">
+  <p data-watch-url="{% url 'submissions:queued_status' queued.check.pk %}"><span data-watch-text>{{ queued.state.text }}</span>
+    <a href="" data-watch-reload>Reload this page</a></p>
+  <p class="small">Large uploads are checked by a worker, oldest first, instead of while you wait (see <a href="{% url 'limits:index' %}">Limits</a>). This page updates itself when the check finishes; you can leave it and come back.</p>
+</li></ul>
+<script src="{% static 'core/watch.js' %}" defer></script>
+{% endif %}
+</div>

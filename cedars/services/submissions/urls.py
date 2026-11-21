@@ -16,6 +16,7 @@ urlpatterns = [
     path("versions/<int:pk>/comments", views.comment, name="comment"),
     path("versions/<int:pk>/pricing.json", views.pricing_status, name="pricing_status"),
     path("versions/<int:pk>/checking.json", views.checking_status, name="checking_status"),
+    path("queued/<uuid:pk>/status.json", views.queued_status, name="queued_status"),
     path("attachments/<int:pk>", views.attachment, name="attachment"),
     path("versions/<int:pk>/records/", views.records, name="records"),
     path("versions/<int:pk>/records/correction", views.correction_upload, name="correction_upload"),

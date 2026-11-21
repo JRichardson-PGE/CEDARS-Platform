@@ -497,3 +497,17 @@ def test_a_prgid_or_pa_too_long_for_the_budget_lines_is_rejected_not_a_failed_ch
     assert v.status == SubmissionVersion.Status.DRAFT and "BUD-PRG" in {f["rule_id"] for f in service.findings(v)}
     assert not BudgetLine.objects.filter(version=v, prg_id=long_prg).exists()
     assert BudgetLine.objects.get(version=v, prg_id="PGE_Com_Ltg", year=2028).pa == ""
+
+
+def test_a_large_budget_filing_is_checked_by_a_worker(client, filing, pge, programs, filer, settings):
+    from cedars.services.submissions import queued
+    from cedars.services.submissions.models import QueuedCheck
+
+    settings.QUEUED_CHECK_RECORDS, settings.QUEUED_CHECKS_BACKEND = 2, "local"
+    sign_in(client, filer)
+    r = client.post(reverse("budgets:upload", args=[filing.pk]), {"file": SimpleUploadedFile("tual.zip", job())}, follow=True)
+    assert b"checked by a worker" in r.content and b"waiting in the queue" in r.content
+    q = queued.execute(QueuedCheck.objects.get(kind="budgets.upload").pk)
+    assert q.status == "succeeded" and "Checked 6 records: none rejected" in q.result["text"]
+    assert SubmissionVersion.objects.get().status == "validated"
+    assert b"Your large upload was checked" in client.get(reverse("budgets:filing", args=[filing.pk])).content

@@ -17,4 +17,5 @@ IMPACT_PROFILES_INLINE_JOBS = env("IMPACT_PROFILES_INLINE_JOBS", "1") == "1"  # 
 # A laptop demo may sign in with a password alone: CEDARS_REQUIRE_MFA=0 (on by default; base.py keeps it on everywhere else).
 CEDARS_REQUIRE_MFA = env_bool("CEDARS_REQUIRE_MFA", True)
 DATA_DOWNLOAD_INLINE_JOBS = env("DATA_DOWNLOAD_INLINE_JOBS", "1") == "1"  # background downloads made in the request on a laptop
+QUEUED_CHECKS_BACKEND = env("QUEUED_CHECKS_BACKEND", "inline")  # a large upload is checked once its request commits on a laptop
 CEDARS_TESTING = True  # testers step through the test scripts here (services/testing)

@@ -13,6 +13,13 @@ class SubmissionsConfig(AppConfig):
 
         register_purger("unsubmitted_draft", service.expired_drafts)
 
+        from cedars.core import health
+
+        from . import queued
+
+        register_purger("queued_check", queued.expired)  # queued checks that ended, and any files left with them
+        health.register("submissions.queued_checks", queued.stalled)  # uploads waiting too long for a worker
+
         from cedars.core import queue as my_queue
 
         from . import queue

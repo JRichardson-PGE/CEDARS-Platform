@@ -134,6 +134,22 @@ topics:
               - [Claim.csv, Every claim, Claim.csv]
           result: >-
             CEDARS joins the parts in the order the files were chosen into one upload and checks it as one file.
+      - id: upload-in-queue
+        q: Why does my upload say it is waiting in the queue?
+        a:
+          - >-
+            A large upload is checked by a worker instead of while you wait: one to Budgets, Claims or Monthly reports, a PII upload or
+            Check again that reads more than {limit:queued_check_records} (for claims, counting the year to date it is compiled over)
+            or unpacks to more than {limit:queued_check_mb}. CEDARS keeps the file, and the filing's page shows how many checks are
+            ahead of it, then that it is being checked. Checks run oldest first, {limit:queued_checks_at_once} at a time.
+          - >-
+            You can leave the page: it updates itself when the check finishes, and the next time you open the filing it says what
+            the check found, as a smaller upload's check does. Until then the filing takes no other upload or check. Through the
+            API, such an upload is answered 202 with the queued check's address to follow.
+        tags: [queue, queued, waiting, large, big file, slow, worker, background, check]
+        guide: claims
+        links:
+          - {text: Current limits, href: /limits/}
       - id: several-files
         q: Can I send one filing in several files?
         a:
