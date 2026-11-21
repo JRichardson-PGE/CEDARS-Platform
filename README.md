@@ -48,7 +48,9 @@ runs with:
 
 `CALCULATIONS_WORKER_COMMAND` (default `recet worker`) names the worker; files go under `CEDARS_STORAGE_ROOT` (default `var/storage`).
 In AWS, `CALCULATIONS_BACKEND=batch` submits runs to the Batch queues and `manage.py calculations_sync --loop` (an always-on service,
-once a minute) records their progress and receipts.
+every 10 seconds) records their progress and receipts and fills the workers' shared reference folder from the data packs. With
+`CALCULATIONS_FAST_LANE`, check jobs and runs up to the `fast_lane_records` limit go to an always-on worker beside it
+(`manage.py calculations_worker --fast`) that starts them within seconds; Batch takes the rest.
 
 Systems start runs through the job API (OpenAPI at `/api/v1/schema`) with a token made on the Account page:
 

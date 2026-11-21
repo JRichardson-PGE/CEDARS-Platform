@@ -413,6 +413,12 @@ def submitted(job: CheckJob, backend: str, backend_job_id: str = "") -> None:
     jobs().filter(pk=job.pk).update(backend=backend, backend_job_id=backend_job_id)
 
 
+def hand_over(job: CheckJob, backend: str) -> bool:
+    """A queued job moved from its backend to another (the dispatcher's fallback when the worker it went to stops); False when a worker
+    took it meanwhile. The caller then submits it there."""
+    return bool(jobs().filter(pk=job.pk, status=CheckJob.Status.QUEUED, backend=job.backend).update(backend=backend))
+
+
 def claim_next(worker: str, release: str = "") -> CheckJob | None:
     """Take the next queued local check job, oldest first (a worker that knows its release takes only that release's jobs)."""
     with transaction.atomic(using=db()):

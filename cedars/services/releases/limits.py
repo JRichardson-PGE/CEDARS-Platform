@@ -332,6 +332,19 @@ LIMITS = [
         "CALCULATIONS_SMALL_RUN_RECORDS",
     ),
     Limit(
+        "fast_lane_records",
+        "Records priced or checked at once, with no start-up wait",
+        RUNS,
+        _editable("fast_lane_records", "CALCULATIONS_FAST_LANE_RECORDS"),
+        "records",
+        "A run of up to this many measures, or a filing check of up to this many rows, goes to the always-on worker, which starts it "
+        "within seconds.",
+        "Nothing is refused: a larger run or check goes to a worker started for it, which takes a minute or two to start.",
+        "CALCULATIONS_FAST_LANE_RECORDS",
+        editable=True,
+        bounds=(1, 100_000),
+    ),
+    Limit(
         "edit_rows",
         "Measures in Edit inputs",
         RUNS,

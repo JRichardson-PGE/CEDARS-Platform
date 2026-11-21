@@ -15,9 +15,15 @@ class Command(BaseCommand):
         parser.add_argument(
             "--checks", choices=["also", "only", "never"], default="also", help="check jobs: also (first, the default), only, or never"
         )
+        parser.add_argument(
+            "--fast",
+            action="store_true",
+            help="the fast lane's always-on worker (with AWS Batch): warm up on each ACC of the reference folder, then take the check "
+            "jobs and small runs sent to it",
+        )
 
-    def handle(self, *args, once=False, lane="any", checks="also", **options):
+    def handle(self, *args, once=False, lane="any", checks="also", fast=False, **options):
         lanes = ("small", "large") if lane == "any" else (lane,)
-        n = dispatch.work(once=once, lanes=lanes, take_checks=checks != "never", price=checks != "only")
+        n = dispatch.work(once=once, lanes=lanes, take_checks=checks != "never", price=checks != "only", fast=fast)
         if once:
             self.stdout.write(f"{n} run(s) priced")

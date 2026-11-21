@@ -1,7 +1,7 @@
 # Background work, all in the web image with a management command:
-# - three always-on ECS services: the Impact profiles job worker (upload checks, profile generation, eTRM syncs started from the
-#   page, library writes), the calculations sync (AWS Batch runs' progress, receipts and ends, once a minute) and the record
-#   download worker (downloads too large to make in a request);
+# - always-on ECS services: the Impact profiles job worker (upload checks, profile generation, eTRM syncs started from the page,
+#   library writes) and the record download worker (downloads too large to make in a request), here, and the calculations sync with
+#   the fast lane's worker (fast_lane.tf);
 # - jobs on EventBridge Scheduler, Pacific time: the three daily ones, the nightly eTRM sync (once eTRM's database is reachable)
 #   and the catch-up that reads the text of document files stored without it.
 # The services and the jobs that need no personal information run in the "jobs" security group, which reaches the core database
@@ -36,12 +36,6 @@ locals {
       cpu     = var.profile_jobs_cpu
       memory  = var.profile_jobs_memory
       disk    = var.profile_jobs_disk_gb
-    }
-    calculations-sync = {
-      command = ["python", "manage.py", "calculations_sync", "--loop", "--sleep", "60"]
-      cpu     = 256
-      memory  = 1024
-      disk    = 21
     }
     # Record downloads too large to make in a request: written to scratch disk, then stored in the results bucket.
     data-downloads = {

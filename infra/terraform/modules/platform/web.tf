@@ -98,6 +98,8 @@ locals {
     { name = "CEDARS_BATCH_QUEUE_LARGE", value = aws_batch_job_queue.runs["large"].name },
     { name = "CEDARS_BATCH_QUEUE_SMALL", value = aws_batch_job_queue.runs["small"].name },
     { name = "CEDARS_BATCH_JOB_DEFINITION", value = aws_batch_job_definition.recet.name },
+    # Check jobs and small runs to the always-on worker while it is ready (fast_lane.tf); the limit is editable on Change limits.
+    { name = "CALCULATIONS_FAST_LANE", value = var.fast_lane ? "true" : "false" },
     # Uploads too large to check while the page waits: a Batch job each (queued_checks.tf). Named, not referenced: the job definition
     # carries this same environment.
     { name = "QUEUED_CHECKS_BACKEND", value = "batch" },

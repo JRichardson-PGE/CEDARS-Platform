@@ -1,7 +1,8 @@
 # ReCET calculation jobs on AWS Batch (Fargate): `recet worker run job.json` with a pinned engine image. Two queues share the
 # compute: "large" for full runs and "small" with its own reserved capacity, so a small run finishes within a minute while a
-# 2,000,000-record job is running. Workers read inputs and data packs from S3 and write the run folder and receipt.json back;
-# they never reach a database.
+# 2,000,000-record job is running. Workers read inputs from S3 and the reference data (ACC files, impact-profile library) from the
+# shared reference folder (efs.tf, mounted read-only at /mnt/reference), and write the run folder and receipt.json back to S3; they
+# never reach a database. Check jobs and runs up to the fast_lane_records limit usually go to the fast lane instead (fast_lane.tf).
 
 resource "aws_iam_role" "batch_service" {
   name = "${local.name}-batch-service"
@@ -94,6 +95,9 @@ resource "aws_batch_job_definition" "recet" {
       { type = "MEMORY", value = tostring(var.worker_memory) },
     ]
     ephemeralStorage             = { sizeInGiB = 60 } # a 2,000,000-record run's parts folder and outputs
+    environment                  = [{ name = "RECET_DATA", value = local.reference_path }]
+    volumes                      = [local.reference_volume]
+    mountPoints                  = [{ sourceVolume = "reference", containerPath = local.reference_path, readOnly = true }]
     networkConfiguration         = { assignPublicIp = "DISABLED" }
     fargatePlatformConfiguration = { platformVersion = "LATEST" }
     logConfiguration = {

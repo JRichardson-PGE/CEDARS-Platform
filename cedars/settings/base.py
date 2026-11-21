@@ -274,6 +274,15 @@ CALCULATIONS_WORKER_COMMAND = env("CALCULATIONS_WORKER_COMMAND", "recet worker")
 CALCULATIONS_BATCH_QUEUES = {"small": env("CEDARS_BATCH_QUEUE_SMALL", ""), "large": env("CEDARS_BATCH_QUEUE_LARGE", "")}
 CALCULATIONS_BATCH_JOB_DEFINITION = env("CEDARS_BATCH_JOB_DEFINITION", "")  # used when a release names none (infra/terraform)
 CALCULATIONS_SMALL_RUN_RECORDS = int(env("CALCULATIONS_SMALL_RUN_RECORDS", "10000"))  # up to this many measures: the small-runs queue
+# The fast lane (production): an always-on worker beside calculations_sync that takes check jobs and runs of up to
+# CALCULATIONS_FAST_LANE_RECORDS records (an editable limit, fast_lane_records) while AWS Batch takes the rest, so small work starts in
+# seconds. It is used only when on and a fast worker of the run's release has said it is ready (dispatch.fast_ready).
+CALCULATIONS_FAST_LANE = env_bool("CALCULATIONS_FAST_LANE")
+CALCULATIONS_FAST_LANE_RECORDS = int(env("CALCULATIONS_FAST_LANE_RECORDS", "5000"))
+CALCULATIONS_FAST_READY_FILE = env("CALCULATIONS_FAST_READY_FILE", "/tmp/cedars-fast-lane-ready")  # noqa: S108 - the container's own
+# The workers' shared reference folder that calculations_sync fills from the data packs (reference_folder.py); "" = not kept here.
+CALCULATIONS_REFERENCE_FOLDER = env("CALCULATIONS_REFERENCE_FOLDER", "")
+CALCULATIONS_REFERENCE_SYNC_SECONDS = int(env("CALCULATIONS_REFERENCE_SYNC_SECONDS", "300"))
 CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # the configurable record cap (the engine checks it too)
 # Runs one account may have waiting or running at once (a filing's pricing runs are never counted or refused). A CPUC system
 # administrator can change it on Change limits (/limits/manage/); this is its first-run default.
