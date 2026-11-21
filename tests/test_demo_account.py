@@ -76,3 +76,40 @@ def test_demo_account_cpuc_is_an_administrator_that_signs_in(client, settings):
     assert user.check_password("a second password 2") and user.memberships.count() == 1
     with pytest.raises(CommandError, match="leave out --org"):
         call_command("demo_account", "admin@cpuc.example.org", "--cpuc", "--org", "PGE", "--password", "p")
+
+
+def test_demo_account_all_pas_admin_and_filer():
+    call_command("seed_sandbox", "--year", "2028")
+    service.create_organisation(None, code="SCR", name="SoCalREN", kind="pa", pa_type="REN")
+    gone = service.create_organisation(None, code="OLD", name="Retired PA", kind="pa", pa_type="CCA")
+    gone.active = False
+    gone.save()
+    every = sorted(Organisation.objects.filter(kind="pa", active=True).values_list("code", flat=True))
+    assert "SCR" in every and "OLD" not in every and "CPUC" not in every
+
+    call_command("demo_account", "admin-all@example.org", "--all-pas", "--org-admin", "--password", "a demo password 1")
+    admin = User.objects.get(email="admin-all@example.org")
+    assert sorted(admin.memberships.values_list("organisation__code", flat=True)) == every
+    for code in every:
+        organisation = Organisation.objects.get(code=code)
+        assert service.is_org_admin(admin, organisation)
+        assert {"claims.submit", "budgets.confirm"} <= service.effective_permissions(admin, organisation)
+    assert not service.is_system_admin(admin)
+
+    call_command("demo_account", "filer-all@example.org", "--all-pas", "--password", "a demo password 1")
+    filer = User.objects.get(email="filer-all@example.org")
+    assert sorted(filer.memberships.values_list("organisation__code", flat=True)) == every
+    for code in every:
+        held = service.effective_permissions(filer, Organisation.objects.get(code=code))
+        assert "claims.submit" in held and "org.admin" not in held
+        assert not any(p.endswith((".approve", ".admin")) for p in held)
+
+    # A PA added later joins on the next run.
+    service.create_organisation(None, code="TCR", name="3C-REN", kind="pa", pa_type="REN")
+    call_command("demo_account", "filer-all@example.org", "--all-pas", "--password", "a demo password 1")
+    assert "TCR" in filer.memberships.values_list("organisation__code", flat=True)
+
+    with pytest.raises(CommandError, match="leave out --org and --pa-type"):
+        call_command("demo_account", EMAIL, "--all-pas", "--org", "PGE", "--password", "p")
+    with pytest.raises(CommandError, match="leave out --org, --pa-type, --all-pas"):
+        call_command("demo_account", EMAIL, "--all-pas", "--cpuc", "--password", "p")

@@ -20,7 +20,8 @@ CPUC_ADMIN = perms.module_permissions() + [perms.ORG_ADMIN, perms.SYSTEM_ADMIN, 
 class Command(BaseCommand):
     help = (
         "Sandbox or developer database only: create (or refresh) a test account that signs in with a password, a member of one or more "
-        "program administrators (--org, repeatable, or every active PA of a --pa-type) with read, submit and confirm in every module. "
+        "program administrators (--org, repeatable, every active PA of a --pa-type, or every active PA with --all-pas) "
+        "with read, submit and confirm in every module. "
         "With --cpuc it is instead a CPUC administrator (system administrator, data steward, the CPUC's organization administrator and "
         "every module permission). Re-runnable: resets the password and adds missing grants. Audited as the system."
     )
@@ -29,6 +30,11 @@ class Command(BaseCommand):
         parser.add_argument("email")
         parser.add_argument("--org", action="append", default=[], help="a program administrator's code; repeat for several (default PGE)")
         parser.add_argument("--pa-type", default="", help="also every active program administrator of this type (IOU, REN or CCA)")
+        parser.add_argument(
+            "--all-pas",
+            action="store_true",
+            help="every active program administrator (with --org-admin: an administrator of every PA, for testing)",
+        )
         parser.add_argument("--name", default="", help="the account's full name")
         parser.add_argument("--password", default="", help="the sign-in password (asked for when left out)")
         parser.add_argument("--org-admin", action="store_true", help="also make the account each organization's administrator")
@@ -39,17 +45,19 @@ class Command(BaseCommand):
         )
 
     @transaction.atomic
-    def handle(self, email, org, pa_type, name, password, org_admin, cpuc, **opts):
+    def handle(self, email, org, pa_type, all_pas, name, password, org_admin, cpuc, **opts):
         if settings.ENVIRONMENT not in ("sandbox", "dev", "test"):
             raise CommandError(f"demo_account runs only in the sandbox or a developer database, not in {settings.ENVIRONMENT}.")
-        if cpuc and (org or pa_type or org_admin):
-            raise CommandError("--cpuc makes a CPUC administrator; leave out --org, --pa-type and --org-admin.")
+        if cpuc and (org or pa_type or all_pas or org_admin):
+            raise CommandError("--cpuc makes a CPUC administrator; leave out --org, --pa-type, --all-pas and --org-admin.")
+        if all_pas and (org or pa_type):
+            raise CommandError("--all-pas already takes every active program administrator; leave out --org and --pa-type.")
         organisations = []
         if cpuc:
             organisations = [
                 service.cpuc() or service.create_organisation(None, code="CPUC", name="California Public Utilities Commission", kind="cpuc")
             ]
-        for code in org or ([] if pa_type or cpuc else ["PGE"]):
+        for code in org or ([] if pa_type or all_pas or cpuc else ["PGE"]):
             organisation = service.by_code(code)
             if organisation is None:
                 raise CommandError(f"There is no organization {code}. Run `manage.py seed_sandbox` first.")
@@ -61,6 +69,10 @@ class Command(BaseCommand):
             if not typed:
                 raise CommandError(f"There is no active program administrator of type {pa_type}.")
             organisations += [o for o in typed if o not in organisations]
+        if all_pas:
+            organisations = list(Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code"))
+            if not organisations:
+                raise CommandError("There is no active program administrator. Run `manage.py seed_sandbox` first.")
         if not password:
             password = getpass.getpass(f"Password for {email}: ")
         if not password:
