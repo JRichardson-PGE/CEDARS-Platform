@@ -447,6 +447,29 @@ def base_for(organisation, deadline: Deadline) -> SubmissionVersion | None:
     return None
 
 
+def year_records(organisation, deadline: Deadline) -> int:
+    """The records an upload for this confirmation is compiled over (the year to date it goes over), as its base version recorded them:
+    counted with the upload's own to decide whether it is checked while the person waits."""
+    base = base_for(organisation, deadline)
+    return sum(((base.findings or {}).get("compiled") or {}).values()) if base is not None else 0
+
+
+def version_records(v: SubmissionVersion) -> int:
+    """The records Check again reads: the version's year to date as last compiled (its own records when never compiled)."""
+    f = v.findings or {}
+    return sum((f.get("compiled") or {}).values()) or int(f.get("records") or 0)
+
+
+def can_upload(actor, deadline: Deadline, organisation) -> None:
+    """Refuse at once what upload_claims would refuse before reading the file (not a claims deadline, who files, the order of the
+    year's confirmations, a confirmed filing): a large upload is not queued only to be refused."""
+    if deadline.module != MODULE or deadline.kind not in ALL_KINDS or deadline.period_id is None:
+        raise AccessDenied("That is not a claims deadline.")
+    claim_year(deadline)
+    _require_in_order(organisation, deadline)
+    submissions.start(actor, deadline, organisation)
+
+
 def later_locked(organisation, deadline: Deadline) -> Deadline | None:
     """A later confirmation of the same year that the organization has confirmed, if any."""
     later = [d for d in same_run(deadline) if number(d) > number(deadline)]
@@ -1930,6 +1953,21 @@ def _replace_lines(v: SubmissionVersion, rows: list[dict]) -> None:
     ClaimProgramLine.objects.filter(version=v).delete()
     ClaimProgramLine.objects.bulk_create(ClaimProgramLine(version=v, **row) for row in rows)
     ClaimResult.objects.filter(version=v).delete()
+
+
+def needs_first_check(v: SubmissionVersion) -> bool:
+    """A reopened version that starts with its predecessor's upload and has not been checked yet (ensure_checked checks it)."""
+    return not v.locked and not v.findings and bool(own_file(v))
+
+
+def first_check_records(v: SubmissionVersion) -> int:
+    """What a reopened version's first check reads: its predecessor's year to date as last compiled."""
+    before = (
+        SubmissionVersion.objects.filter(submission=v.submission_id, number__lt=v.number).order_by("-number").first()
+        if v.number > 1
+        else None
+    )
+    return version_records(before) if before is not None else 0
 
 
 def ensure_checked(v: SubmissionVersion) -> None:

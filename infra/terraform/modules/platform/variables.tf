@@ -164,6 +164,24 @@ variable "small_run_max_vcpus" {
   default     = 8
 }
 
+variable "queued_check_vcpu" {
+  description = "vCPU per queued check: a filing upload too large to check while the page waits, checked by a Batch job of the web image"
+  type        = number
+  default     = 2
+}
+
+variable "queued_check_memory" {
+  description = "MiB per queued check; checking a 1,000,000-record claims upload peaks near 5.5 GiB"
+  type        = number
+  default     = 16384
+}
+
+variable "queued_check_max_vcpus" {
+  description = "Most vCPUs the queued-checks queue may use at once (the queued_checks_at_once limit also caps how many are submitted)"
+  type        = number
+  default     = 8
+}
+
 variable "alarm_emails" {
   description = "Who the CloudWatch alarms email (the CPUC's hosting team; each address confirms its subscription). Empty: the SNS topic only"
   type        = list(string)

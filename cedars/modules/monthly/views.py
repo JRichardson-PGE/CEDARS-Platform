@@ -17,13 +17,14 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
 from cedars.services.releases import limits
 from cedars.services.specifications import service as specifications
-from cedars.services.submissions import corrections, filing_parts
+from cedars.services.submissions import corrections, filing_parts, queued
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions import status as filing_status
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, service
+from . import queued as queued_checks
 from . import upload as up
 from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, ChangeLetter, YearSetup
 
@@ -215,7 +216,9 @@ def report(request, pk):
     v = submissions.latest(sub) if sub else None
     can = {a: org is not None and access.has_permission(request.user, org, f"{service.MODULE}.{a}") for a in ("submit", "confirm")}
     acting = org is not None and org == request.organisation
+    queued_check = queued.for_page(request.user, deadline, org)  # a large upload a worker is checking, or what it found
     ctx = {
+        "queued": queued_check,
         "pa_choices": []
         if org
         else submissions.filer_statuses(
@@ -312,7 +315,9 @@ def _action(request, pk, fn, done: str):
     except (AccessDenied, up.UploadError, Submission.DoesNotExist) as e:
         messages.error(request, str(e) or "Nothing to do.")
     else:
-        messages.success(request, done if not callable(done) else done(out))
+        said = done if not callable(done) else done(out)
+        if said:
+            messages.success(request, said)
     return redirect("monthly:report", pk)
 
 
@@ -326,13 +331,18 @@ def upload(request, pk):
     files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def done(v):
-        s = v.findings or {}
-        if v.status == SubmissionVersion.Status.VALIDATED:
-            msg = f"Checked {s.get('records', 0):,} records: none rejected"
-            return msg + (f", {s['warnings']:,} with warnings." if s.get("warnings") else ".") + " Price it next."
-        return f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT
+        if v is None:
+            return ""
+        return filing_parts.checked_message(v, queued_checks.NEXT)[1]
 
     def do(d, o):
+        q = queued.queue_if_large(
+            request.user, "monthly.upload", deadline=d, organisation=o, files=files,
+            precheck=lambda: queued_checks.can_upload(request.user, d, o),
+        )  # fmt: skip
+        if q is not None:  # too large to check while the page waits: a worker checks it, the page shows where it stands
+            messages.info(request, queued.queued_words(q))
+            return None
         c = up.combine(files)
         return service.upload(request.user, d, o, c.data, c.filename, sources=c.sources)
 

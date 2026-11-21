@@ -15,6 +15,7 @@ claims scope, and never the PII vault (PII files are uploaded on the period page
 import mimetypes
 
 from django.http import FileResponse, Http404, HttpResponseRedirect
+from django.urls import reverse
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, parser_classes
@@ -26,6 +27,7 @@ from cedars.core import api, storage, uploads
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.submissions import queued as submissions_queued
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
@@ -490,6 +492,21 @@ def _done(request, v: SubmissionVersion, code=status.HTTP_200_OK) -> Response:
 Refusal = inline_serializer("ClaimsRefusal", {"detail": serializers.CharField()})
 Version = inline_serializer("ClaimsVersionAfterStep", {})
 
+Queued = inline_serializer(
+    "ClaimsQueuedCheck",
+    {
+        "id": serializers.CharField(),
+        "kind": serializers.CharField(),
+        "status": serializers.ChoiceField(choices=["queued", "running", "succeeded", "failed"]),
+        "records": serializers.IntegerField(),
+        "ahead": serializers.IntegerField(help_text="Queued checks ahead of it"),
+        "text": serializers.CharField(help_text="Where it stands, or what the check found, in words"),
+        "ended": serializers.BooleanField(),
+        "url": serializers.URLField(),
+        "version": serializers.URLField(required=False, help_text="Once ended: the version it checked"),
+    },
+)
+
 
 class UploadClaims(serializers.Serializer):
     file = serializers.ListField(
@@ -508,9 +525,11 @@ class UploadClaims(serializers.Serializer):
     summary="Upload a confirmation's claims",
     description="Starts the organization's submission for the confirmation (or uses its open version), keeps the file as that version's "
     "records and checks it at once against the year to date. 201 with the version: status validated when nothing is rejected, else "
-    "draft with its findings. The earlier confirmations must be confirmed first.",
+    "draft with its findings. The earlier confirmations must be confirmed first. An upload too large to check while the call waits (over "
+    "the queued_check_records or queued_check_mb limit on /limits/, counting the year to date it is compiled over) is answered 202 with "
+    "a queued check instead: follow its url until it has ended.",
     request={"multipart/form-data": UploadClaims},
-    responses={201: Version, 400: Refusal, 403: Refusal, 409: Refusal},
+    responses={201: Version, 202: Queued, 400: Refusal, 403: Refusal, 409: Refusal},
 )
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
@@ -522,6 +541,17 @@ def upload(request, pk):
     form.is_valid(raise_exception=True)
     files = [(f.name, f.read()) for f in form.validated_data["file"]]
     try:
+        q = submissions_queued.queue_if_large(
+            request.user,
+            "claims.upload",
+            deadline=d,
+            organisation=org,
+            files=files,
+            extra_records=service.year_records(org, d),
+            precheck=lambda: service.can_upload(request.user, d, org),
+        )
+        if q is not None:
+            return _queued(request, q)
         c = combine_upload(files, spec.for_filing(d))
         v = service.upload_claims(request.user, d, org, c.data, c.filename, sources=c.sources)
     except (AccessDenied, UploadError) as e:
@@ -532,17 +562,70 @@ def upload(request, pk):
 @extend_schema(
     summary="Check the latest version again",
     description="Compiles the version's records over the year to date as it stands now and runs the checks again: what to do when an "
-    "earlier confirmation has changed since (the version's `stale`).",
+    "earlier confirmation has changed since (the version's `stale`). A year to date too large to check while the call waits is answered "
+    "202 with a queued check, as an upload is.",
     request=None,
-    responses={200: Version, 403: Refusal, 409: Refusal},
+    responses={200: Version, 202: Queued, 403: Refusal, 409: Refusal},
 )
 @api_view(["POST"])
 def check(request, pk):
     try:
-        v = service.check(request.user, _latest_version(request, pk, "submit"))
+        v = _latest_version(request, pk, "submit")
+        sub = v.submission
+        q = submissions_queued.queue_if_large(
+            request.user,
+            "claims.check",
+            deadline=sub.deadline,
+            organisation=sub.organisation,
+            version=v,
+            extra_records=service.version_records(v),
+        )
+        if q is not None:
+            return _queued(request, q)
+        v = service.check(request.user, v)
     except (AccessDenied, UploadError, _Conflict) as e:
         return _refused(e)
     return _done(request, v)
+
+
+def queued_json(request, q) -> dict:
+    s = submissions_queued.state(q)
+    out = {
+        "id": str(q.pk),
+        "kind": q.kind,
+        "status": q.status,
+        "records": q.records,
+        "ahead": submissions_queued.position(q),
+        "text": s["text"],
+        "ended": s["ended"],
+        "url": request.build_absolute_uri(reverse("claims-api:queued", args=[q.pk])),
+    }
+    version = (q.result or {}).get("version") or q.version_id
+    if s["ended"] and version:
+        out["version"] = request.build_absolute_uri(reverse("claims-api:version", args=[version]))
+    return out
+
+
+def _queued(request, q) -> Response:
+    body = queued_json(request, q)
+    return Response(body, status=status.HTTP_202_ACCEPTED, headers={"Location": body["url"]})
+
+
+@extend_schema(
+    summary="Where a queued check stands",
+    description="An upload or check too large to run while the call waits (over the queued_check_records or queued_check_mb limit) is "
+    "answered 202 with this record and checked by a worker; ask here until `ended`, then read the version.",
+    responses={200: Queued, 404: Refusal},
+)
+@api_view(["GET"])
+def queued_check(request, pk):
+    from cedars.services.submissions.models import QueuedCheck
+
+    q = QueuedCheck.objects.filter(pk=pk, kind__startswith="claims.").select_related("organisation", "deadline").first()
+    if q is None or q.organisation is None:
+        raise NotFound()
+    _acting(request, q.organisation, "submit")
+    return Response(queued_json(request, q))
 
 
 class PriceClaims(serializers.Serializer):

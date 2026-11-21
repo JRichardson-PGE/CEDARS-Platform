@@ -36,6 +36,20 @@ def checking_words(v: SubmissionVersion) -> str:
     )
 
 
+def checked_message(v: SubmissionVersion, next_step: str) -> tuple[str, str]:
+    """What a page says after an upload or a check, as (level, text): "info" with the records checked and `next_step` when nothing is
+    rejected (or while its rules are still being checked), "warning" with the rejected records otherwise. The same words whether the
+    check ran while the person waited or as a queued check."""
+    if checking_words(v):
+        return "info", checking_words(v)
+    s = v.findings or {}
+    if v.status == SubmissionVersion.Status.VALIDATED:
+        msg = f"Checked {s.get('records', 0):,} records: none rejected"
+        msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
+        return "info", f"{msg} {next_step}".strip()
+    return "warning", f"{s.get('rejected', 0):,} records are rejected. " + REJECTED_NEXT
+
+
 STEPS = ("Upload", "Check", "Price", "Confirm", "Published")
 
 

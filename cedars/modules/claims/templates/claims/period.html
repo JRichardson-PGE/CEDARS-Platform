@@ -18,6 +18,7 @@
 {% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this {% if statewide %}statewide {% endif %}claim yet. Its filers upload it here.</p>{% endif %}
 
 {% if org and v or can_submit %}{% include "submissions/_filing_steps.html" %}{% endif %}
+{% if queued %}{% include "submissions/_queued_check.html" %}{% endif %}
 {% if v %}{% include "submissions/_filing_outcome.html" %}{% endif %}
 {% if v and not legacy %}{% url 'claims:findings_csv' v.pk as findings_csv %}{% include "submissions/_filing_findings.html" with findings_csv=findings_csv %}{% endif %}
 

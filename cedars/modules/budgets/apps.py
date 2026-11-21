@@ -22,6 +22,9 @@ class BudgetsConfig(AppConfig):
         from cedars.services.rules.jobs import register_finisher
 
         register_finisher("budgets", checks.finish_check)  # a filing's rules, run by its release's worker, come back to its version
+        from . import queued
+
+        queued.register()  # an upload too large to check while the page waits: a worker checks it
         from cedars.services.rules.coded import register_coded_checks
 
         from . import coded_checks

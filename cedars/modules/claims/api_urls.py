@@ -12,6 +12,7 @@ urlpatterns = [
     path("periods/<int:pk>/upload", api.upload, name="upload"),
     path("versions/<int:pk>", api.version, name="version"),
     path("versions/<int:pk>/check", api.check, name="check"),
+    path("queued/<uuid:pk>", api.queued_check, name="queued"),
     path("versions/<int:pk>/price", api.price, name="price"),
     path("versions/<int:pk>/confirm", api.confirm, name="confirm"),
     path("versions/<int:pk>/findings", api.findings, name="findings"),

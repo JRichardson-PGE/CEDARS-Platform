@@ -92,10 +92,12 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 
 | Process | Command | What it does | Where it runs |
 | --- | --- | --- | --- |
-| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks, Edit inputs, Results; queues runs and jobs; rereads the front page's stale claims rows on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
+| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks of uploads within the queued-check limits (larger ones are queued), Edit inputs, Results; queues runs and jobs; rereads the front page's stale claims rows on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
 | Calculations worker, local backend | `manage.py calculations_worker [--lane small\|large] [--checks also\|only\|never] [--once]` | Takes a queued check job of its release first (`recet worker check`: a filing's rules, see [the filing workflow](#6-the-filing-workflow)), else claims a queued run from PostgreSQL (`SELECT ... FOR UPDATE SKIP LOCKED`, small lane first), runs `recet worker run`, copies progress, records the receipt; heartbeats as a `Worker` row | Development, sandbox and a single server |
 | Calculations on AWS Batch | `recet worker run <spec URI>` in the release's job definition | The same worker, as a Batch job on the small-runs or large-runs queue; a check job is a job on the small-runs queue with its command overridden to `recet worker check <spec URI>` | AWS Batch on Fargate |
-| Calculations sync | `manage.py calculations_sync --loop --sleep 60` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs and check jobs; fails jobs Batch ended without a receipt | Always-on ECS service (`jobs.tf`) |
+| Calculations sync | `manage.py calculations_sync --loop --sleep 60` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs and check jobs; fails jobs Batch ended without a receipt; with queued checks on Batch, fails a queued check whose job ended unfinished and submits the next | Always-on ECS service (`jobs.tf`) |
+| Queued checks, local backend | `manage.py run_queued_checks --loop` | Takes uploads too large to check while the page waits, oldest first, while fewer than the `queued_checks_at_once` limit run (an advisory lock keeps the count across workers), and checks each in a child process of its own (`run_queued_checks --check <id>`): the module's whole check (compile, module checks, record writes; its rules still go to the engine release's worker as check jobs) | A single server and the sandbox |
+| Queued checks on AWS Batch | `manage.py run_queued_checks --check <id>` in the web image's `queued-checks` job definition | One queued check per job, with the web tasks' access and `queued_check_memory` (16 GiB by default) | AWS Batch on Fargate (`queued_checks.tf`) |
 | Impact profiles jobs | `manage.py run_impact_profile_jobs --loop --sleep 5` | Upload checks, profile generation, eTRM syncs started from a page, library writes; one queue per PA plus `system`, one job at a time per queue | Always-on ECS service; inline in the request when `IMPACT_PROFILES_INLINE_JOBS` |
 | Record downloads | `manage.py run_data_downloads --loop --sleep 10` | Background record downloads larger than `DATA_DOWNLOAD_MAX_ROWS` | Always-on ECS service; inline when `DATA_DOWNLOAD_INLINE_JOBS` |
 | Scheduled jobs | `purge_expired`, `send_deadline_reminders`, `close_recertifications`, `documents_read_text`, `sync_etrm`, `check_health`, sandbox bundle or refresh | See [Background work](#12-background-work) | EventBridge Scheduler (AWS) |
@@ -131,13 +133,22 @@ flowchart LR
   web --> db[("db<br/>postgres:16")]
   w1["worker<br/>calculations_worker<br/>(any lane)"] --> db
   w2["worker-small<br/>calculations_worker --lane small"] --> db
+  qc["checks<br/>run_queued_checks --loop"] --> db
+  pj["profile-jobs<br/>run_impact_profile_jobs --loop"] --> db
+  dl["downloads<br/>run_data_downloads --loop"] --> db
   web --> vol
   w1 --> vol
   w2 --> vol
+  qc --> vol
+  pj --> vol
+  dl --> vol
 ```
 
-There, impact-profile jobs run inline in the request, the two workers run ReCET from the wheel in the image (so small runs never wait
-behind a large one), and object storage is the local folder backend.
+There, every background queue has its own worker container, as on AWS: the two calculation workers run ReCET from the wheel in the
+image (check jobs first, then runs; small runs never wait behind a large one), `checks` runs uploads too large to check while the page
+waits (one at a time by default), and the impact-profile and record-download workers take their queues instead of the request. Object
+storage is the local folder backend. (A small server may instead run impact-profile jobs and downloads in the request, with
+`IMPACT_PROFILES_INLINE_JOBS` and `DATA_DOWNLOAD_INLINE_JOBS`.)
 
 ### 2.4 AWS (Terraform)
 
@@ -157,6 +168,9 @@ flowchart TB
     sched["EventBridge Scheduler<br/>daily jobs, check_health every 10 min"] --> jobs
     sched --> webjobs["scheduled tasks with the web task's access<br/>purge_expired, reminders, recertification"]
     web -- "SubmitJob" --> batch["AWS Batch on Fargate<br/>small-runs and large-runs queues"]
+    web -- "SubmitJob" --> qcb["AWS Batch on Fargate: queued-checks queue<br/>web image, run_queued_checks --check<br/>(security group: web)"]
+    qcb --> rds
+    qcb --> rdsv
     rds[("RDS PostgreSQL 16<br/>core")]
     rdsv[("RDS PostgreSQL 16<br/>PII vault, own KMS key")]
     web --> rds
@@ -168,6 +182,8 @@ flowchart TB
   jobs --> s3
   batch -- "reads uploads and refdata,<br/>writes results" --> s3
   cs -- "DescribeJobs" --> batch
+  cs -- "DescribeJobs, SubmitJob" --> qcb
+  qcb --> s3
   web --> ses["SES SMTP"]
   web --> sm["Secrets Manager"]
   cw["CloudWatch alarms"] --> sns["SNS topic (email)"]
@@ -175,7 +191,9 @@ flowchart TB
 
 The background services and jobs that need no personal information run in the `jobs` security group, which reaches the core database
 only and is given no vault URL; `purge_expired` and the account jobs run with the web task's access. Batch workers reach neither
-database. `monitoring.tf` adds metric filters on `check_health`'s JSON line and alarms for failing or silent checks, unhealthy web
+database. Queued checks (`queued_checks.tf`) are the exception: they are the web request's own work moved to a Batch job, so they run in
+the web security group with the web task's role, environment and secrets, PII vault included (a PII upload is checked there).
+`monitoring.tf` adds metric filters on `check_health`'s JSON line and alarms for failing or silent checks, unhealthy web
 tasks, a background service with no running task, 5xx answers, memory and database load.
 
 The web and jobs tasks get their settings from the module's variables and their secrets from one Secrets Manager value
@@ -195,6 +213,9 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `RULES_RUN_IN_WORKER`, `RULES_CHECK_WAIT_SECONDS` | on; 120 | A filing's rules run as check jobs by the worker of its engine release (off: in the website's copy of the engine, as in tests); how long a page that waits for a check job waits (the editable `check_wait_seconds` limit) |
 | `CEDARS_STORAGE_BACKEND`, `CEDARS_STORAGE_ROOT`, `CEDARS_BUCKET_*` | `local`, `var/storage` | Object storage backend and its four areas |
 | `CALCULATIONS_BACKEND` | `local` | `local` (worker processes) or `batch` (AWS Batch) |
+| `QUEUED_CHECKS_BACKEND` | `local` (`inline` in dev and tests) | Where uploads too large to check while the page waits are checked: `local` (`run_queued_checks --loop`), `batch` (a Batch job each) or `inline` (once the request commits) |
+| `QUEUED_CHECK_RECORDS`, `QUEUED_CHECK_MB`, `QUEUED_CHECKS_AT_ONCE` | 25,000; 25; 1 | First-run defaults of the editable `queued_check_records`, `queued_check_mb` and `queued_checks_at_once` limits: over either of the first two an upload is queued; how many queued checks run at once |
+| `QUEUED_CHECKS_BATCH_QUEUE`, `QUEUED_CHECKS_BATCH_JOB_DEFINITION`, `QUEUED_CHECKS_MAX_HOURS` | blank; blank; 6 | The Batch queue and job definition of queued checks; a check running longer is taken to have died with its worker |
 | `CALCULATIONS_WORKER_COMMAND` | `recet worker` | What the local backend runs |
 | `CEDARS_BATCH_QUEUE_SMALL`, `CEDARS_BATCH_QUEUE_LARGE`, `CEDARS_BATCH_JOB_DEFINITION` | blank | The Batch queues and the job definition a release names none of |
 | `CALCULATIONS_SMALL_RUN_RECORDS`, `CALCULATIONS_MAX_RECORDS` | 10,000; 2,000,000 | The small-runs lane's size; the largest job accepted |
@@ -220,7 +241,8 @@ never from files: the database URLs, storage, the calculation backend, limits an
 Every limit people meet (upload size and files, run records, Edit inputs rows, download rows, API rates, comment length ...) is such a
 setting, listed by `cedars/services/releases/limits.py` on the public Limits page. A few are limits the CPUC sets without a release
 (`Limit.editable`): runs one account may have waiting or running, how long a sign-in lasts and may sit unused, and the pre-upload
-checker's file size, how long a page waits for a check job, and how long a run takes before it sends a finished notice. A CPUC system administrator changes them on Change limits (`/limits/manage/`, `releases.service.set_limit`, each
+checker's file size, how long a page waits for a check job, how long a run takes before it sends a finished notice, and the size over
+which an upload is checked by a worker instead of while the page waits and how many such checks run at once. A CPUC system administrator changes them on Change limits (`/limits/manage/`, `releases.service.set_limit`, each
 change a `LimitChange` row with its reason and an audit event); the setting is then only the first-run default, and the code that
 enforces one reads `limits.value(key)`.
 
@@ -332,6 +354,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_purger` | retention | calculations, data, feedback, notifications, submissions | Find and delete expired records of a class |
 | `register_checker` | rules (`precheck.py`) | budgets, claims | The pre-upload checker runs the module's own rule-set step |
 | `register_dispatcher` | rules (`jobs.py`) | calculations | How check jobs reach a worker: the release that checks a version naming none (the default), submitting a queued job (local queue or AWS Batch), whether a worker runs a release now |
+| `register_queued_check` | submissions (`queued.py`) | budgets, claims, monthly | How a module checks an upload too large to check while the page waits, of each kind (`claims.upload`, `claims.check`, `claims.pii`, `budgets.upload`, `monthly.upload`): the same check the request would have run, as the person who sent it, returning what the filing page says |
 | `register_finisher` | rules (`jobs.py`) | budgets, claims | A check job a filing's check submitted has ended: once all of that check's jobs have, the module checks the version again with them and takes their findings |
 | `register_layout_provider` | rules | specifications (a service) | The tables a rule set's rules may test and read, and their key columns: those of the specification version that names it (`specifications.rule_set_layout`), else CEDARS' Measure and ProgramCost |
 | `register_coded_checks` | rules (`coded.py`) | budgets, claims, monthly, impact_profiles, vault | The checks each upload runs in code beside the rule sets, listed read only on Built-in checks (`/rules/built-in/`); a check marked optional runs only when the filing's specification version lists it, with the severity the version gives it; an optional check may carry the rules that give its findings (`as_rules`, `coded.AsRule`), which a draft writes into its rule set in its place (`editor.write_as_rules`) |
@@ -344,7 +367,7 @@ Every point where a service calls back into a module is a registration function.
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, specifications, testing, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `yourwork.py` | accounts, submissions, refdata, calculations, data | The signed-in person's own work at the top of the front page and the Calculations, Reference data and Published data pages |
-| `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
+| `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases, submissions | Job and system health checks |
 | `register` | core `page_access.py` | documents, impact_profiles, refdata, snapshots | Who may open a page outside the header's menus whose own check is finer than a role, so the Help guides link to it only for people it opens for |
 | `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
 
@@ -524,6 +547,8 @@ erDiagram
   SubmissionVersion ||--o{ MonthlyResult : "monthly, priced"
   SubmissionVersion ||--o| Snapshot : "published results"
   SubmissionVersion ||--o| LegacyImport : "imported year"
+  Deadline ||--o{ QueuedCheck : "large uploads"
+  SubmissionVersion |o--o{ QueuedCheck : "Check again, PII"
   Organisation ||--o{ FundShift : shifts
   FilingCycle ||--o{ FundShift : "within a cycle"
   FundShift ||--o{ FundShiftLine : lines
@@ -548,6 +573,14 @@ erDiagram
     json pack_versions
     bool late
   }
+  QueuedCheck {
+    uuid id
+    string kind "claims.upload, claims.check, claims.pii, budgets.upload, monthly.upload"
+    json files "kept until checked"
+    int records
+    string status "queued, running, succeeded, failed"
+    json result "what the filing page says"
+  }
   ClaimYear {
     int year UK
     string acc_version
@@ -564,7 +597,8 @@ Each filing module also has an append-only `ChangeLetter` (budgets, claims and m
 version against the one it replaces). `WorkflowPolicy` holds each module's correction policy, which a system administrator changes
 on the workflow settings page (`/filings/workflow-settings/`, with a reason, audited). `Delegation` names an approver's delegate for
 one module and a date range, with who named it and why; it is never deleted: ending it early sets `ended_at`, `ended_by` and a reason,
-and `Delegation.objects.in_force(day)` is the one rule every reader (the approver check, the reviewer list, the header) uses. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
+and `Delegation.objects.in_force(day)` is the one rule every reader (the approver check, the reviewer list, the header) uses. A `QueuedCheck`
+is an upload (or a Check again) too large to check while the page waits, kept for a worker ([the filing workflow](#6-the-filing-workflow)). `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
 
 **Filing specifications** (`cedars.services.specifications`)
 
@@ -1051,7 +1085,7 @@ erDiagram
 | dictionary | `CatalogVersion`, `Field`, `Alias`, `FieldRename`, `Usage`, `ValueList`, `ValueListVersion`, `Code` |
 | rules | `RuleSet`, `Rule`, `CheckJob` |
 | specifications | `Specification`, `SpecificationVersion`, `SpecTable`, `SpecField`, `CheckSetting`, `ExampleSet`, `ImpactTest`, `SpecComment` |
-| submissions | `Deadline`, `WorkflowPolicy`, `Submission`, `SubmissionVersion`, `ReopenRequest`, `Delegation`, `Comment`, `Attachment` |
+| submissions | `Deadline`, `WorkflowPolicy`, `Submission`, `SubmissionVersion`, `ReopenRequest`, `Delegation`, `Comment`, `Attachment`, `QueuedCheck` |
 | refdata | `PackVersion`, `TieOutRequirement`, `TieOut`, `EtrmPermutation`, `EtrmPackage`, `CostTestBuild` |
 | notifications | `Subscription`, `Preference`, `DeadlineReminder`, `Notification` |
 | retention | `RetentionPolicy`, `LegalHold`, `PurgeRun` |
@@ -1246,6 +1280,28 @@ says so (`CLM-RULES`, `BUD-RULES`), never a pass. A check whose inputs have not 
 same key. The rules run in the website's copy of the engine when `RULES_RUN_IN_WORKER` is off (tests), without Calculations, or for a
 release older than 0.1.95, whose worker cannot run checks (the check's notes then say which release ran them). Check jobs are kept for
 the `check_job` retention period (30 days).
+
+**Large uploads are checked by a worker.** A filing's check reads the whole upload, compiles it over the year to date and writes every
+record; for a large filing that takes minutes and gigabytes, past what a web request may take. So before checking, each upload view
+measures the upload without reading its tables (`core.uploads.measure`: the lines of its CSV files and what its files unpack to; for
+Claims the records of the year to date it is compiled over are added, from the base version's findings) and, over the
+`queued_check_records` or `queued_check_mb` limit, queues it instead (`submissions.queued.queue_if_large`): what the module would refuse
+at once is refused first (who may file, the order of confirmations), the files go to the uploads area under `queued-checks/<id>/`, a
+`QueuedCheck` row records who sent it and how they had signed in, and the page says so. The same applies to Claims' Check again and a
+reopened version's first check (the year to date as last compiled) and to a PII upload (`claims.check`, `claims.pii`); the claims
+API answers such a call 202 with the queued check and `/api/v1/claims/queued/<id>` reports it. While one of a filing's uploads waits
+or runs, another upload or check of that filing is refused. A worker (`run_queued_checks`, or an AWS Batch job of the web image) runs the
+function the module registered for the kind (`register_queued_check`) under the sender's audit identity (`audit.acting_as`), the same
+code the request runs for a small upload, records the result (`{level, text, version}`) and deletes the kept files; everything after the
+module's own check is unchanged (its rules go to the engine release's worker as check jobs, and the version is finished when they end).
+The filing page shows the queued check above its outcome (`submissions/_queued_check.html`): its place in the queue (the checks queued
+before it), or since when it is being checked, polling `submissions:queued_status` (`/filings/queued/<id>/status.json`) through
+`core/watch.js`, which reloads the page when it ends; then what the check found, once, to the person who sent it. No more than the
+`queued_checks_at_once` limit run at a time. A local worker runs each check in a child process, so a large check's memory is given back
+and one that runs out of memory fails alone ("it ran out of memory"); a check left running by a worker that stopped is put back in the
+queue once, then failed, and one running past `QUEUED_CHECKS_MAX_HOURS` is failed. A queued check that waits longer than
+`HEALTH_QUEUED_CHECK_MINUTES` fails the `submissions.queued_checks` health check. Ended checks are kept for the `queued_check`
+retention period (30 days).
 
 **Who files.** Not every PA files every filing. A deadline's `filers` (many-to-many to `Organisation`; none listed means every PA)
 are the PAs expected to file it. A CPUC system administrator ticks them as a budget filing, a claim year or a year of monthly reports
@@ -1686,7 +1742,8 @@ several workers can share a queue.
 | Command | Kind | What it does | Schedule (Terraform) |
 | --- | --- | --- | --- |
 | `calculations_worker` | Always on (local backend) | Runs queued check jobs of its release with `recet worker check`, then prices queued runs with `recet worker run`, small lane first (`--checks only` keeps a worker free for checks) | Not used in AWS (Batch prices runs and runs check jobs) |
-| `calculations_sync` | Always on | Copies Batch jobs' progress and receipts into runs | ECS service, every 60 s |
+| `calculations_sync` | Always on | Copies Batch jobs' progress and receipts into runs; submits waiting queued checks and fails those whose job ended unfinished | ECS service, every 60 s |
+| `run_queued_checks` | Always on (local backend) | Checks uploads too large to check while the page waits, each in a child process (`--loop`; `--check <id>` runs one, as a Batch job does; `--sync` is the Batch pass on its own) | Not used in AWS (a Batch job per check) |
 | `run_impact_profile_jobs` | Always on | Impact profiles' per-PA job queues | ECS service, polls every 5 s |
 | `run_data_downloads` | Always on | Background record downloads | ECS service, polls every 10 s |
 | `purge_expired` | Daily | Deletes what retention says has expired (dry run available), one audit event per class | 02:15 Pacific |
@@ -2602,6 +2659,9 @@ summarize. A pull request that builds part of a service or module updates its su
   its files; the fields are the file's own columns, described from the data dictionary in force).
 - Pages `/filings/versions/<id>/records/...`.
 - Change letters and refile notices say how many records were corrected in place (`summary`).
+- Queued checks (`queued.py`, `QueuedCheck`, migration 0012): an upload, Check again or PII upload over the `queued_check_records` or
+  `queued_check_mb` limit is checked by a worker instead of in the request (`run_queued_checks`, or AWS Batch); the filing page shows its
+  place in the queue, then what it found ([the filing workflow](#6-the-filing-workflow)).
 
 #### 17.2.8 Notifications
 

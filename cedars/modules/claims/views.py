@@ -20,7 +20,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import Program
 from cedars.services.releases import limits
 from cedars.services.specifications import service as specifications
-from cedars.services.submissions import corrections, filing_parts
+from cedars.services.submissions import corrections, filing_parts, queued
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions import status as filing_status
@@ -29,6 +29,7 @@ from cedars.services.vault import service as vault
 from cedars.services.vault.service import PIIError
 
 from . import forms, restatements, service, spec
+from . import queued as queued_checks
 from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
 from .upload import combine as combine_upload
@@ -335,7 +336,10 @@ def period(request, pk):
     can = {a: org is not None and access.has_permission(request.user, org, f"claims.{a}") for a in ("submit", "confirm")}
     acting = org is not None and org == request.organisation
     if v is not None:
-        service.ensure_checked(v)
+        if service.needs_first_check(v) and queued.pending(deadline, org) is None and queued.is_large(service.first_check_records(v), 0):
+            queued.enqueue(None, "claims.check", deadline=deadline, organisation=org, version=v, records=service.first_check_records(v))
+        elif queued.pending(deadline, org) is None:
+            service.ensure_checked(v)
         v.refresh_from_db()
     cy = service.claim_year(deadline)
     earlier_open = service.earlier_unconfirmed(org, deadline) if org else None
@@ -404,6 +408,7 @@ def period(request, pk):
         )
     )
     ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the claims"
+    ctx["queued"] = queued.for_page(request.user, deadline, org)
     if v is not None:
         ctx["out"] = {
             "check_url": reverse("claims:check", args=[pk]),
@@ -484,15 +489,8 @@ def _action(request, pk, fn, done: str):
 
 
 def _checked_message(request, v: SubmissionVersion) -> None:
-    s = v.findings or {}
-    if filing_parts.checking_words(v):
-        messages.info(request, filing_parts.checking_words(v))
-    elif v.status == SubmissionVersion.Status.VALIDATED:
-        msg = f"Checked {s.get('records', 0):,} records: none rejected"
-        msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
-        messages.info(request, msg + " Price the year to date next.")
-    else:
-        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT)
+    level, text = filing_parts.checked_message(v, queued_checks.NEXT)
+    messages.add_message(request, messages.WARNING if level == "warning" else messages.INFO, text)
 
 
 @login_required
@@ -505,6 +503,18 @@ def upload(request, pk):
     files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def do(d, o):
+        q = queued.queue_if_large(
+            request.user,
+            "claims.upload",
+            deadline=d,
+            organisation=o,
+            files=files,
+            extra_records=service.year_records(o, d),
+            precheck=lambda: service.can_upload(request.user, d, o),
+        )
+        if q is not None:  # too large to check while the page waits: a worker checks it, the page shows where it stands
+            messages.info(request, queued.queued_words(q))
+            return
         c = combine_upload(files, spec.for_filing(d))
         _checked_message(request, service.upload_claims(request.user, d, o, c.data, c.filename, sources=c.sources))
 
@@ -514,7 +524,17 @@ def upload(request, pk):
 @login_required
 @require_POST
 def check(request, pk):
-    return _action(request, pk, lambda d, o: _checked_message(request, service.check(request.user, _latest(d, o))), "")
+    def do(d, o):
+        v = _latest(d, o)
+        q = queued.queue_if_large(
+            request.user, "claims.check", deadline=d, organisation=o, version=v, extra_records=service.version_records(v)
+        )
+        if q is not None:
+            messages.info(request, queued.queued_words(q))
+            return
+        _checked_message(request, service.check(request.user, v))
+
+    return _action(request, pk, do, "")
 
 
 @login_required
@@ -570,6 +590,14 @@ def reopen(request, pk):
     return _action(request, pk, do, "")
 
 
+def _may_upload_pii(request, org) -> None:
+    if not vault.can_upload(request.user, org, getattr(request, "assurance", None)):
+        raise AccessDenied(
+            "You may not upload this filing's personal information: it takes the approved PII grant and the sign-in the access policy "
+            "asks for."
+        )
+
+
 @login_required
 @require_POST
 def pii_upload(request, pk):
@@ -580,8 +608,24 @@ def pii_upload(request, pk):
     f = form.cleaned_data["file"]
 
     def do(deadline, org):
+        v, content = _latest(deadline, org), f.read()
+        if v.locked:
+            raise AccessDenied("This version is confirmed. Ask to reopen it to change its personal information.")
+        q = queued.queue_if_large(
+            request.user,
+            "claims.pii",
+            deadline=deadline,
+            organisation=org,
+            version=v,
+            files=[(f.name, content)],
+            assurance=getattr(request, "assurance", None) or "",
+            precheck=lambda: _may_upload_pii(request, org),
+        )
+        if q is not None:
+            messages.info(request, queued.queued_words(q))
+            return
         try:
-            up = service.upload_pii(request.user, _latest(deadline, org), f.read(), f.name, getattr(request, "assurance", None))
+            up = service.upload_pii(request.user, v, content, f.name, getattr(request, "assurance", None))
         except PIIError as e:
             raise AccessDenied(str(e)) from None
         if up.status == up.Status.ACCEPTED:

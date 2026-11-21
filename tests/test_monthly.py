@@ -534,3 +534,19 @@ def test_a_prgid_or_pa_too_long_for_the_report_lines_is_rejected_not_a_failed_ch
     v = service.upload(filer, month(1), pge, data, "january.zip")
     assert v.status == SubmissionVersion.Status.DRAFT and {"MON-PRG", "MON-PA"} <= {f["rule_id"] for f in service.findings(v)}
     assert not ReportLine.objects.filter(version=v, prg_id=long_prg).exists()
+
+
+def test_a_large_monthly_report_is_checked_by_a_worker(client, filer, year, pge, programs, settings):
+    from cedars.services.submissions import queued
+    from cedars.services.submissions.models import QueuedCheck
+
+    settings.QUEUED_CHECK_RECORDS, settings.QUEUED_CHECKS_BACKEND = 1, "local"
+    sign_in(client, filer)
+    jan = month(1)
+    measures = ["M1|PGE_Res_HVAC|2028Q1|10|40|0|0|0", "M2|PGE_Res_HVAC|2028Q1|1|0|0|0|0"]
+    f = SimpleUploadedFile("jan.zip", report(measures=measures))
+    r = client.post(reverse("monthly:upload", args=[jan.pk]), {"file": f}, follow=True)
+    assert b"checked by a worker" in r.content and b"waiting in the queue" in r.content
+    q = queued.execute(QueuedCheck.objects.get(kind="monthly.upload").pk)
+    assert q.status == "succeeded" and "none rejected" in q.result["text"]
+    assert SubmissionVersion.objects.get().status == "validated"

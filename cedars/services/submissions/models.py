@@ -1,4 +1,5 @@
 import calendar
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -322,3 +323,50 @@ class Attachment(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class QueuedCheck(models.Model):
+    """A filing upload, or a Check again, too large to check while the page waits (over the queued_check_records or queued_check_mb
+    limit): its files are kept in the uploads area under `files`, and a worker runs the module's whole check (queued.py) as it would
+    have run in the request, as the person who asked. The filing's page shows its place in the queue, then what the check found."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Waiting in the queue"
+        RUNNING = "running", "Being checked"
+        SUCCEEDED = "succeeded", "Checked"
+        FAILED = "failed", "Not checked"
+
+    ENDED = ("succeeded", "failed")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=60, help_text="What the worker does, e.g. claims.upload (queued.register_queued_check)")
+    deadline = models.ForeignKey(Deadline, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    version = models.ForeignKey(SubmissionVersion, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    organisation = models.ForeignKey("accounts.Organisation", null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    assurance = models.CharField(max_length=20, blank=True, help_text="How the person had signed in (the PII vault asks)")
+    files = models.JSONField(default=list, blank=True, help_text="[{name, key, bytes}] in the uploads area, deleted once checked")
+    params = models.JSONField(default=dict, blank=True)
+    records = models.PositiveIntegerField(default=0, help_text="Records the check reads, as counted before it was queued")
+    bytes = models.BigIntegerField(default=0, help_text="What the files unpack to")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    backend = models.CharField(max_length=10, blank=True, help_text="local, batch or inline")
+    backend_job_id = models.CharField(max_length=100, blank=True)
+    worker = models.CharField(max_length=200, blank=True)
+    result = models.JSONField(default=dict, blank=True, help_text="{level, text, version}: what the filing's page says once checked")
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    seen_at = models.DateTimeField(null=True, blank=True, help_text="When the person who asked saw the outcome on the filing's page")
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["status", "created_at"], name="submissions_queued_status")]
+
+    def __str__(self):
+        return f"{self.kind} {self.pk}"
+
+    @property
+    def ended(self) -> bool:
+        return self.status in self.ENDED

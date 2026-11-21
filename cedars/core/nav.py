@@ -178,6 +178,7 @@ SHARED = (
     "submissions:record*",
     "submissions:pricing_status",
     "submissions:checking_status",
+    "submissions:queued_status",
 )
 
 MENUS = (

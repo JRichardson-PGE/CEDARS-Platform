@@ -20,12 +20,13 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
 from cedars.services.releases import limits
 from cedars.services.specifications import service as specifications
-from cedars.services.submissions import corrections, filing_parts
+from cedars.services.submissions import corrections, filing_parts, queued
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, jobfile, service, shifts
+from . import queued as queued_checks
 from .models import PROGRAM_COST_FIELDS, ChangeLetter
 
 DEFAULT_ACCS = ["2020", "2021", "2022", "2024", "2026"]
@@ -246,9 +247,11 @@ def filing(request, pk):
     v = submissions.latest(sub) if sub else None
     can = {a: org is not None and access.has_permission(request.user, org, f"budgets.{a}") for a in ("submit", "confirm")}
     acting = org is not None and org == request.organisation
+    queued_check = queued.for_page(request.user, deadline, org)  # a large upload a worker is checking, or what it found
     if v is not None:
         service.ensure_lines(v)
     ctx = {
+        "queued": queued_check,
         "pa_choices": []
         if org
         else submissions.filer_statuses(
@@ -354,18 +357,17 @@ def upload(request, pk):
     files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def do(deadline, org):
+        q = queued.queue_if_large(
+            request.user, "budgets.upload", deadline=deadline, organisation=org, files=files,
+            precheck=lambda: queued_checks.can_upload(request.user, deadline, org),
+        )  # fmt: skip
+        if q is not None:  # too large to check while the page waits: a worker checks it, the page shows where it stands
+            messages.info(request, queued.queued_words(q))
+            return
         c = jobfile.combine(files)
         v = service.upload(request.user, deadline, org, c.data, c.filename, sources=c.sources)
-        s = v.findings or {}
-        if filing_parts.checking_words(v):
-            messages.info(request, filing_parts.checking_words(v))
-        elif v.status == SubmissionVersion.Status.VALIDATED:
-            msg = f"Checked {s.get('records', 0):,} records: none rejected"
-            msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
-            messages.info(request, msg + " Price it next.")
-        else:
-            rejected = s.get("rejected", 0)
-            messages.warning(request, f"{rejected:,} records are rejected. " + filing_parts.REJECTED_NEXT)
+        level, text = filing_parts.checked_message(v, queued_checks.NEXT)
+        messages.add_message(request, messages.WARNING if level == "warning" else messages.INFO, text)
 
     deadline = _deadline(pk)
     if request.organisation is None:
