@@ -194,11 +194,15 @@ measure's `AC_Gas_Impact_Profile` contains `FuelSub` (a residential gas-to-elect
 **C3.3 E3 tables and run parameters.** Discount rates, `CO2Gas`, NOx/PM10 factors and retail rate schedules come from CET's E3 tables and are picked by **ACC
 version**. The packaged tables are CET exports, whose `Version` column uses CET's own numbering; each is mapped to the ACC it holds when the table is read:
 
-| CET Version | 2021 | 2022 | 2024 | 2026 | 2027 |
-|---|---|---|---|---|---|
 | ACC | 2020 | 2021 | 2022 | 2024 | 2026 |
+|---|---|---|---|---|---|
+| CET Avoided Cost Version | 2021 | 2022 | 2024 | 2026 | 2028 |
+| Rows read (CET's `Version` column) | 2021 | 2022 | 2024 | 2026 | 2027 |
 
-(from each version's release date in RunParameters `AvoidedCostVersion`; the older versions 2018-2020 map to the 2017-2019 ACCs, which are not built in). The discount rates, base year and
+(from each version's release date in RunParameters `AvoidedCostVersion`; the older versions 2018-2020 map to the 2017-2019 ACCs, which are not built in).
+The 2026 ACC is CET's Avoided Cost Version 2028, which has no rows in CET's tables yet. Its tables are read from the rows labeled Version 2027
+(`AvoidedCostVersion` 5/25/2026), which CET added as a corrected Version 2026 for the 2024 ACC; in every packaged table they hold the same values as
+Version 2026. The discount rates, base year and
 `CO2Gas` (the RunParameters table) are the **run parameters**; a supplied run-parameters file replaces them for the PAs it lists. A built-in ACC uses its own tables, and a new
 ACC label borrows the tables of the ACC version you name (default: the newest built-in). The primary rate is `DiscountRateAnnual` (PG&E 7.66%, SCE 7.65%, SCG 7.38%,
 SDG&E 7.36%, the same in every built-in ACC); the societal rate `DiscountRateAnnual_SCT` is 5.03% for every utility. `BaseYear`: 2020 (2020 ACC), 2021 (2021 ACC), 2022 (2022 ACC),
