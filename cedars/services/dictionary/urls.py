@@ -17,6 +17,7 @@ urlpatterns = [
     path("lists/", views.lists, name="lists"),
     path("lists/<str:name>/", views.value_list, name="list"),
     path("lists/<str:name>/new-version", views.start_version, name="start_version"),
+    path("lists/<str:name>/follow-organizations", views.follow_organizations, name="follow_organizations"),
     path("lists/<str:name>/draft/", views.draft, name="draft"),
     path("lists/<str:name>/draft/add", views.add_code, name="add_code"),
     path("lists/<str:name>/draft/upload", views.upload_codes, name="upload_codes"),

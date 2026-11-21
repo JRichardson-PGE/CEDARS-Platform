@@ -63,6 +63,7 @@ KNOWN_PA_TYPES = {
     "SCE": "IOU",
     "SCG": "IOU",
     "SDGE": "IOU",
+    "PAC": "IOU",  # PacifiCorp (from 2027)
     # regional energy networks
     "BAY": "REN",  # Bay Area Regional Energy Network (BayREN)
     "CCR": "REN",  # Central California Rural Regional Energy Network
@@ -91,6 +92,7 @@ KNOWN_PA_NAMES = {
     "SCE": "Southern California Edison",
     "SCG": "Southern California Gas Company",
     "SDGE": "San Diego Gas & Electric",
+    "PAC": "PacifiCorp",
     "BAY": "Bay Area Regional Energy Network (BayREN)",
     "CCR": "Central California Rural Regional Energy Network",
     "IREN": "Inland Regional Energy Network",
@@ -113,6 +115,17 @@ KNOWN_PA_NAMES = {
 # The IOUs that fund statewide programs and agree their allocation factors (Jake, 2026-11-02). A new organization with one of these codes
 # starts out managing statewide allocations; the CPUC changes it on the organization's page.
 ALLOCATION_MANAGERS = ("PGE", "SCE", "SCG", "SDGE")
+
+
+def _pa_list_follows(actor: User | None, org: Organisation, reason: str) -> None:
+    """After a person changes a program administrator, bring the PA value list's draft in line with the organizations
+    (dictionary.value_lists.follow_organisations); a CPUC system administrator publishes it with its effective date. Changes the
+    platform makes itself (actor None: legacy loads, imports) wait for the list page's "Draft from the organizations"."""
+    if actor is None or org.kind != Organisation.Kind.PA:
+        return
+    from cedars.services.dictionary import value_lists
+
+    value_lists.follow_organisations(actor, reason=f"{org.code}: {reason}".strip(": "))
 
 
 def known_pa_name(code: str) -> str:
@@ -430,6 +443,7 @@ def rename_organisation(
     org.save(update_fields=["code", "name"])
     after = audit.snapshot(org, ["code", "name"]) | {"former_code": before["code"], "effective": day.isoformat()}
     audit.record("organisation.renamed", obj=org, before=before, after=after, reason=reason, actor=actor)
+    _pa_list_follows(actor, org, reason)
     return org
 
 
@@ -467,6 +481,7 @@ def add_former_code(
     )
     after = {"codes": [str(r) for r in code_history(org)]}
     audit.record("organisation.code_added", obj=org, before=before, after=after, reason=reason, actor=actor)
+    _pa_list_follows(actor, org, reason)
     return row
 
 
@@ -508,6 +523,7 @@ def merge_organisation(
     }
     audit.record("organisation.merged", obj=source, before=before, after=after, reason=reason, actor=actor)
     audit.record("organisation.merged", obj=into, before=before, after=after, reason=reason, actor=actor)
+    _pa_list_follows(actor, source, reason)
     return source
 
 
@@ -700,6 +716,7 @@ def create_organisation(actor: User | None, *, code: str, name: str, kind: str, 
     )
     OrganisationCode.objects.create(organisation=org, code=code, recorded_by=actor)
     audit.record("organisation.created", obj=org, after=audit.snapshot(org), actor=actor)
+    _pa_list_follows(actor, org, "added")
     return org
 
 
@@ -738,6 +755,8 @@ def change_organisation(actor: User | None, org: Organisation, *, reason: str, *
         return org
     org.save(update_fields=list(changes))
     audit.record("organisation.changed", obj=org, before=before, after=after, reason=reason, actor=actor)
+    if {"name", "pa_type"} & set(changes):
+        _pa_list_follows(actor, org, reason)
     return org
 
 
@@ -1453,6 +1472,7 @@ def retire_organisation(actor: User | None, org: Organisation, reason: str) -> O
     org.active = False
     org.save(update_fields=["active"])
     audit.record("organisation.retired", obj=org, before={"active": True}, after={"active": False}, reason=reason.strip(), actor=actor)
+    _pa_list_follows(actor, org, reason.strip())
     return org
 
 
@@ -1470,6 +1490,7 @@ def reinstate_organisation(actor: User | None, org: Organisation, reason: str) -
     org.active = True
     org.save(update_fields=["active"])
     audit.record("organisation.reinstated", obj=org, before={"active": False}, after={"active": True}, reason=reason.strip(), actor=actor)
+    _pa_list_follows(actor, org, reason.strip())
     return org
 
 

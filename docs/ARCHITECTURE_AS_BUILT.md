@@ -1575,6 +1575,12 @@ system "Former name" and the rename recorded as a `FieldRename`, so a later cata
 (`service.renamed`, applied by `load_catalog`), the change log matches fields by identity and shows the rename, and the old name's
 page redirects to the field.
 Value lists and their versions are handed to the engine before the rules or Edit inputs read them (`value_lists.apply_to_engine`). The program registry's own lists (`register_list`) are not.
+The engine's `pa` list follows the organizations (`value_lists.follow_organisations`): when a CPUC system administrator adds,
+renames, re-codes, retypes, merges, retires or brings back a program administrator (`accounts.service`), the list's draft is opened or
+updated with every PA's current and former codes, its name, its type as the list's `pa_group` (REN and CCA are `CCA_REN`) and an end
+year for a former, merged or retired code; codes no organization has (SW) stay as they are. The draft is published like any other
+version, with its effective date. Changes the platform makes itself (legacy loads, actor none) are not drafted: the PA list's page
+shows how the list in force differs from the organizations and a "Draft from the organizations" button.
 
 ### 10.3 A run, end to end
 
@@ -2428,6 +2434,8 @@ summarize. A pull request that builds part of a service or module updates its su
 - The version in force is handed to the engine before the rules check a file or Edit inputs offers dropdowns
   (`value_lists.apply_to_engine` over `recet.editor.set_value_list_changes`; an engine code the version lacks is not accepted).
 - The ReCET worker's own filing checks still read the engine's shipped lists.
+- The PA list follows the organizations: a program administrator's change drafts the list (`value_lists.follow_organisations`, called
+  from `accounts.service`), and the list's page shows any difference with a button to draft it.
 - Fields are retired, never dropped (`dictionary/changes.py`): a CPUC system administrator retires a field from a date (today or later)
   after a usage, audience and regulatory review, which makes a new catalog version (a copy of the current one, `based_on`, labeled
   "<label> rev N") with the field's `state` retired, `retired_from`, reason and the three reviews (database check: a retired field has a
