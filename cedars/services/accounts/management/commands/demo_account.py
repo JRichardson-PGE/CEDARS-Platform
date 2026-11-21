@@ -7,7 +7,7 @@ from django.db import transaction
 
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
-from cedars.services.accounts.models import Organisation, User
+from cedars.services.accounts.models import STATEWIDE_CODE, Membership, Organisation, User
 
 # A program administrator's filer: reads, submits and confirms in every module. Approving stays with the CPUC, and administering
 # the organization is --org-admin.
@@ -61,16 +61,19 @@ class Command(BaseCommand):
             organisation = service.by_code(code)
             if organisation is None:
                 raise CommandError(f"There is no organization {code}. Run `manage.py seed_sandbox` first.")
-            if organisation.kind != Organisation.Kind.PA:
+            if not organisation.files:
                 raise CommandError(f"{organisation.code} is not a program administrator.")
             organisations.append(organisation)
         if pa_type:
             typed = Organisation.objects.filter(kind=Organisation.Kind.PA, pa_type=pa_type.upper(), active=True).order_by("code")
             if not typed:
                 raise CommandError(f"There is no active program administrator of type {pa_type}.")
-            organisations += [o for o in typed if o not in organisations]
+            organisations += [o for o in typed if o not in organisations and o.files]
         if all_pas:
-            organisations = list(Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code"))
+            # Every PA that files; the statewide (SW) pseudo-PA is not one.
+            organisations = list(
+                Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).exclude(code=STATEWIDE_CODE).order_by("code")
+            )
             if not organisations:
                 raise CommandError("There is no active program administrator. Run `manage.py seed_sandbox` first.")
         if not password:
@@ -88,6 +91,12 @@ class Command(BaseCommand):
         user.save()
         EmailAddress.objects.update_or_create(user=user, email=user.email, defaults={"verified": True, "primary": True})
 
+        # Leaves the statewide pseudo-PA if an earlier run put the account in it.
+        left = []
+        for membership in Membership.objects.filter(user=user, organisation__code=STATEWIDE_CODE, ended_at__isnull=True):
+            service.end_membership(None, membership, reason="demo account: the statewide pseudo-PA is not a program administrator")
+            left.append(STATEWIDE_CODE)
+
         wanted = CPUC_ADMIN if cpuc else SUBMITTER + ([perms.ORG_ADMIN] if org_admin else [])
         added = 0
         for organisation in organisations:
@@ -96,7 +105,8 @@ class Command(BaseCommand):
                 if code not in held:
                     service.grant(None, user, organisation, code, reason="demo account")
                     added += 1
+        left_note = f"; left {', '.join(left)}" if left else ""
         self.stdout.write(
             f"{user.email}: {'created' if created else 'password reset'}, a member of {', '.join(o.code for o in organisations)} "
-            f"({added} permission{'s' if added != 1 else ''} added). Sign in with the password given."
+            f"({added} permission{'s' if added != 1 else ''} added{left_note}). Sign in with the password given."
         )

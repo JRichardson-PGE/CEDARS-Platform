@@ -2,7 +2,7 @@ import pytest
 from django.core.management import CommandError, call_command
 
 from cedars.services.accounts import service
-from cedars.services.accounts.models import Organisation, User
+from cedars.services.accounts.models import Membership, Organisation, User
 
 pytestmark = pytest.mark.django_db
 
@@ -113,3 +113,19 @@ def test_demo_account_all_pas_admin_and_filer():
         call_command("demo_account", EMAIL, "--all-pas", "--org", "PGE", "--password", "p")
     with pytest.raises(CommandError, match="leave out --org, --pa-type, --all-pas"):
         call_command("demo_account", EMAIL, "--all-pas", "--cpuc", "--password", "p")
+
+
+def test_demo_account_all_pas_skips_the_statewide_pseudo_pa_and_leaves_it():
+    call_command("seed_sandbox", "--year", "2028")
+    sw = Organisation.objects.filter(code="SW").first() or service.create_organisation(None, code="SW", name="Statewide", kind="pa")
+    call_command("demo_account", "filer@all-pas.example.org", "--all-pas", "--password", "a demo password 1")
+    user = User.objects.get(email="filer@all-pas.example.org")
+    assert "SW" not in user.memberships.values_list("organisation__code", flat=True)
+    with pytest.raises(CommandError, match="SW is not a program administrator"):
+        call_command("demo_account", EMAIL, "--org", "SW", "--password", "p")
+
+    # An account an earlier run put in SW leaves it on the next run, its grants revoked.
+    service.grant(None, user, sw, "claims.submit", reason="earlier run")
+    call_command("demo_account", "filer@all-pas.example.org", "--all-pas", "--password", "a demo password 1")
+    assert not Membership.objects.filter(user=user, organisation=sw, ended_at__isnull=True).exists()
+    assert "claims.submit" not in service.effective_permissions(user, sw)
