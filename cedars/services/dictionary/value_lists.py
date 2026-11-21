@@ -758,3 +758,136 @@ def reset_engine() -> None:
     global _applied
     with _lock:
         _applied = None
+
+
+# --- the PA list follows the organizations
+#
+# The platform's organizations are where program administrators are kept: their codes (and former codes), names, types and whether
+# they are still active. The engine's `pa` list (the codes the rules accept in a PA column) follows them: each change to a program
+# administrator makes, or adds to, a draft of the list (`follow_organisations`), which a CPUC system administrator publishes with the
+# date it takes effect, like any other list version. A code no organization has (the statewide pseudo-PA SW, or a PA not yet in the
+# platform) is left as it is.
+
+PA_LIST = "pa"
+PA_GROUPS = {"IOU": "IOU", "REN": "CCA_REN", "CCA": "CCA_REN"}  # an organization's PA type -> the list's pa_group
+
+
+def _last_year_before(day: date) -> int:
+    """The last claim year a code is accepted for when it stops on `day` (the first day it is no longer in use)."""
+    return day.year - 1 if (day.month, day.day) == (1, 1) else day.year
+
+
+def organisation_rows(current: dict[str, dict], today: date | None = None) -> dict[str, dict]:
+    """The PA list as the organizations give it, from the list's `current` rows ({code.lower(): row}): every program administrator's
+    current and former codes with its name, its type as the list's pa_group, and an end year for a former code (the last year before
+    it changed), a merged organization (the last year before the merger) or one no longer active (the year before today, unless the row
+    already has one). A new code starts this year. Rows for codes no organization has are kept unchanged."""
+    from cedars.services.accounts.models import STATEWIDE_CODE, Organisation, OrganisationCode
+
+    today = today or timezone.localdate()
+    out = {k: {**r, "extra": dict(r.get("extra") or {})} for k, r in current.items()}
+
+    def put(code: str, org, *, name: str, end_year, start_year=None):
+        key = code.lower()
+        start = start_year or today.year
+        if end_year is not None and start > end_year:
+            start = None  # a code that ended before it was recorded here: accepted from the start, up to its end year
+        row = out.get(key) or {"code": code, "description": "", "start_year": start, "end_year": None, "extra": {}}
+        row["description"] = name
+        row["end_year"] = end_year
+        if end_year is not None and (row.get("start_year") or 0) > end_year:
+            row["start_year"] = start
+        if org.pa_type in PA_GROUPS:
+            row["extra"]["pa_group"] = PA_GROUPS[org.pa_type]
+        out[key] = row
+
+    pas = Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(code=STATEWIDE_CODE).select_related("successor")
+    for org in pas:
+        end = current.get(org.code.lower(), {}).get("end_year")
+        if org.successor_id:
+            end = _last_year_before(org.merged_on) if org.merged_on else (end or today.year - 1)
+        elif not org.active:
+            end = end or today.year - 1
+        else:
+            end = None
+        put(org.code, org, name=org.name, end_year=end)
+        for c in OrganisationCode.objects.filter(organisation=org, valid_to__isnull=False).exclude(code__iexact=org.code):
+            put(
+                c.code,
+                org,
+                name=f"{org.name} (code until {c.valid_to:%Y-%m-%d}; now {org.code})",
+                end_year=_last_year_before(c.valid_to),
+                start_year=c.valid_from.year if c.valid_from else None,
+            )
+    return out
+
+
+def organisation_differences(today: date | None = None) -> dict[str, list]:
+    """How the PA list in force (else as shipped) differs from what the organizations give: {"added": [...], "changed": [(code, what)]}."""
+    vl = get_list(PA_LIST)
+    base = in_force(vl, today) or latest_published(vl)
+    current = {r["code"].lower(): r for r in (_full_rows(base) if base else shipped(PA_LIST))}
+    proposed = organisation_rows(current, today)
+    added = [r["code"] for k, r in proposed.items() if k not in current]
+    changed = []
+    for k, r in proposed.items():
+        if k in current:
+            what = [a for a in ("description", "end_year") if (current[k].get(a) or None) != (r.get(a) or None)]
+            if (current[k].get("extra") or {}).get("pa_group") != r["extra"].get("pa_group"):
+                what.append("pa_group")
+            if what:
+                changed.append((r["code"], what))
+    return {"added": sorted(added), "changed": sorted(changed)}
+
+
+def _full_rows(version: ValueListVersion) -> list[dict]:
+    return [
+        {"code": c.code, "description": c.description, "start_year": c.start_year, "end_year": c.end_year, "extra": c.extra}
+        for c in version.codes.all()
+    ]
+
+
+@transaction.atomic
+def follow_organisations(actor, reason: str = "") -> ValueListVersion | None:
+    """Bring the PA list's draft (started if there is none) in line with the organizations. Returns the draft, or None when the list
+    already matches (no draft is started for nothing) or the engine is not installed. Publishing stays a CPUC system administrator's
+    step, with the date the change takes effect."""
+    _require_admin(actor)
+    try:
+        vl = get_list(PA_LIST)
+        draft = draft_of(vl)
+        diff = organisation_differences() if draft is None else None
+    except (EngineMissing, ValueListError):
+        return None
+    if draft is None:
+        if not diff["added"] and not diff["changed"]:
+            return None
+        draft = start_draft(actor, vl)
+    codes = {c.code.lower(): c for c in draft.codes.all()}
+    current = {
+        k: {"code": c.code, "description": c.description, "start_year": c.start_year, "end_year": c.end_year, "extra": c.extra}
+        for k, c in codes.items()
+    }
+    why = reason or "The PA list follows the organizations."
+    for key, r in organisation_rows(current).items():
+        c = codes.get(key)
+        if c is None:
+            c = add_code(
+                actor, draft, r["code"], description=r["description"], start_year=r["start_year"], end_year=r["end_year"], reason=why
+            )
+        elif c.description != r["description"] or c.end_year != r["end_year"] or c.start_year != r["start_year"]:
+            years = {"start_year": r["start_year"]} if c.added_in_draft and c.start_year != r["start_year"] else {}
+            c = change_code(actor, c, description=r["description"], end_year=r["end_year"], reason=why, **years)
+        if (c.extra or {}).get("pa_group") != r["extra"].get("pa_group") and r["extra"].get("pa_group"):
+            before = dict(c.extra or {})
+            c.extra = {**before, "pa_group": r["extra"]["pa_group"]}
+            c.save(update_fields=["extra"])
+            audit.record(
+                "value_list.code_changed",
+                obj=draft,
+                before={"list": PA_LIST, "code": c.code, "extra": before},
+                after={"code": c.code, "extra": c.extra},
+                reason=why,
+                actor=actor,
+            )
+    return draft

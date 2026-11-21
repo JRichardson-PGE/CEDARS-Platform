@@ -16,6 +16,16 @@
   <form method="post" action="{% url 'dictionary:start_version' vl.name %}" class="actions">{% csrf_token %}<button type="submit">Start a new version</button></form>{% endif %}
 </section>
 {% endif %}
+{% if from_organizations %}
+<section class="card" aria-labelledby="orgs-h">
+  <h2 id="orgs-h">Follows the organizations</h2>
+  <p>This list follows the program administrators kept on the <a href="{% url 'administration:organisations' %}">Organizations</a> pages: their codes and former codes, names, PA types and whether they are still active. A change to a program administrator there opens or updates a draft here, which a CPUC system administrator publishes with the date it takes effect. A code no organization has (such as SW) is left as it is.</p>
+  {% if from_organizations.added or from_organizations.changed %}
+  <p><strong>The list in force differs from the organizations:</strong> {{ from_organizations.added|length }} code{{ from_organizations.added|length|pluralize }} to add{% if from_organizations.added %} ({{ from_organizations.added|join:", " }}){% endif %}, {{ from_organizations.changed|length }} to change{% if from_organizations.changed %} ({% for code, what in from_organizations.changed %}{{ code }}: {{ what|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}){% endif %}.</p>
+  {% if can_edit %}<form method="post" action="{% url 'dictionary:follow_organizations' vl.name %}" class="actions">{% csrf_token %}<button type="submit">Draft from the organizations</button></form>{% endif %}
+  {% else %}<p>The list in force matches the organizations.</p>{% endif %}
+</section>
+{% endif %}
 <form method="get" class="filters" role="search">
   <div class="field"><label for="version">Version</label><select id="version" name="version">
     {% for v in versions %}<option value="{{ v.number }}"{% if v == shown %} selected{% endif %}>Version {{ v.number }}, from {{ v.effective_from|date_words }}</option>{% endfor %}

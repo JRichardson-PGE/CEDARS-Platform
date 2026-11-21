@@ -109,11 +109,19 @@ dictionary/list:
     - One list's codes, in the version in force or any other version, with the claim years each code is accepted for, and every
       published version with the date it took effect and why it changed.
     - A CPUC system administrator starts a new version here (a draft copy of the newest version) and changes it on the draft's page.
+    - >-
+      The PA list follows the program administrators on the Organizations pages: a change to one there opens or updates a draft of
+      this list, and this page says when the list in force differs from the organizations.
   how:
     - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV or Excel.
     - "Administrators: Start a new version."
+    - "Administrators, on the PA list: Draft from the organizations, then check and publish the draft."
   see: rules-and-lists
   tour:
+    - target: "#orgs-h"
+      title: Follows the organizations
+      text: On the PA list only. Whether the list in force matches the program administrators on the Organizations pages.
+      optional: true
     - target: "#edit-h"
       title: Change this list
       text: For CPUC system administrators. Start a new version, or open the draft already started.

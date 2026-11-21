@@ -105,6 +105,7 @@ STUDIES = (
 VALUE_LISTS = (
     "dictionary:list*",
     "dictionary:start_version",
+    "dictionary:follow_organizations",
     "dictionary:draft",
     "dictionary:add_code",
     "dictionary:upload_codes",

@@ -74,7 +74,8 @@ def test_the_migration_types_existing_pas_and_audits_each(cpuc_admin):
     blank = [Organisation.objects.create(code=c, name=c, kind="pa") for c in ("TCR", "PCE", "SDGE", "NEWPA")]
     typed = Organisation.objects.create(code="RRN", name="RRN", kind="pa", pa_type="CCA")  # set by hand: left alone
     migration = importlib.import_module("cedars.services.accounts.migrations.0003_pa_types")
-    assert migration.KNOWN_PA_TYPES == access.KNOWN_PA_TYPES  # the copy matches the service's table as it stands
+    # the copy matches the service's table as it stood; PacifiCorp (from 2027) was added to the service's table after the migration
+    assert migration.KNOWN_PA_TYPES == {k: v for k, v in access.KNOWN_PA_TYPES.items() if k != "PAC"}
     migration.type_pas(apps, None)
     assert {o.code: o.pa_type for o in Organisation.objects.filter(pk__in=[o.pk for o in [*blank, typed]])} == {
         "TCR": "REN",

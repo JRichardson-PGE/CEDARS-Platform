@@ -416,8 +416,39 @@ def value_list(request, name):
             "can_edit": can,
             "release": value_lists.engine_release(),
             "changes": value_lists.changes_in(shown) if shown else None,
+            "from_organizations": _organisation_differences(vl),
         },
     )
+
+
+def _organisation_differences(vl) -> dict | None:
+    """For the PA list: how the version in force differs from the organizations (value_lists.organisation_differences)."""
+    if vl.name != value_lists.PA_LIST:
+        return None
+    try:
+        return value_lists.organisation_differences()
+    except (value_lists.EngineMissing, value_lists.ValueListError):
+        return None
+
+
+@login_required
+@require_POST
+def follow_organizations(request, name):
+    """Open or update the PA list's draft from the organizations."""
+    _require_editor(request)
+    vl = _list_or_404(name)
+    if vl.name != value_lists.PA_LIST:
+        raise Http404
+    try:
+        d = value_lists.follow_organisations(request.user, reason="Drafted from the organizations on the list page.")
+    except (AccessDenied, value_lists.ValueListError) as e:
+        messages.error(request, str(e))
+        return redirect("dictionary:list", name=vl.name)
+    if d is None:
+        messages.success(request, "The list already matches the organizations: nothing to draft.")
+        return redirect("dictionary:list", name=vl.name)
+    messages.success(request, f"{d} now follows the organizations. Check it, then publish it with the date it takes effect.")
+    return redirect("dictionary:draft", name=vl.name)
 
 
 def _require_editor(request):
