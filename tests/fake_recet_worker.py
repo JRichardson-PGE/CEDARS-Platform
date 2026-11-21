@@ -80,6 +80,10 @@ def main(argv):
         print("recet 0.1.78")
         return 0
     assert argv[0] == "run", argv
+    if argv[1] == "--measures":  # `recet run --measures ... --acc ...`: the fast lane's warm-up (FAKE_RECET_WARM_EXIT=1 fails it)
+        acc = argv[argv.index("--acc") + 1]
+        Path(os.environ.get("FAKE_RECET_WARM_LOG", os.devnull)).open("a").write(acc + "\n")
+        return int(os.environ.get("FAKE_RECET_WARM_EXIT", "0"))
     spec = json.loads(path(argv[1]).read_text())
     code = int(os.environ.get("FAKE_RECET_EXIT", "0"))
     if code == 2:

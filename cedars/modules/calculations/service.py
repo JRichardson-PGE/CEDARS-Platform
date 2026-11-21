@@ -646,7 +646,7 @@ def create_run(
         measure_count=info.records,
         lane=Run.Lane.SMALL if info.records <= small_run_records() else Run.Lane.LARGE,
         submission_version=submission_version,
-        backend=backend or dispatch.default_backend_name(),
+        backend=backend or dispatch.backend_for(info.records, req.release.release),
     )
     run.storage_prefix = f"runs/{run.id}/"
     uploads, results = storage.store("uploads"), storage.store("results")
@@ -949,6 +949,17 @@ def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -
 
 def _event(run: Run, action: str, **after):
     audit.record(action, obj=run, organisation=run.organisation, after=after or None, actor=None)
+
+
+def hand_over(run: Run, backend: str) -> Run | None:
+    """A queued run moved to another backend (calculations_sync, when the fast lane's worker stops being ready); None when a worker took
+    it meanwhile."""
+    moved = Run.objects.filter(pk=run.pk, status=Run.Status.QUEUED, backend=run.backend).update(backend=backend)
+    if not moved:
+        return None
+    run.refresh_from_db()
+    _event(run, "calculation_run.handed_over", backend=backend)
+    return run
 
 
 @transaction.atomic

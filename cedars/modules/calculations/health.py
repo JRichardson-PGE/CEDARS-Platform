@@ -1,5 +1,8 @@
 """The Calculations module's health checks (cedars/core/health.py): runs that wait or run too long, and runs that failed."""
 
+from datetime import timedelta
+
+from django.conf import settings
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -110,6 +113,74 @@ def workers() -> health.Result:
     return result
 
 
+def fast_lane() -> health.Result:
+    """With the fast lane on: a fast worker of the default release is ready (otherwise small checks and runs wait for AWS Batch to
+    start a worker, a minute or two, which is slower but not broken)."""
+    from . import dispatch
+
+    result = health.Result("calculations.fast_lane", "Calculations", "Fast lane for small checks and runs", link="/calculations/engines/")
+    if not dispatch.fast_lane_on():
+        result.summary = "The fast lane is off here: every check job and run goes to the platform's backend."
+        return result
+    ready = list(dispatch.fast_workers())
+    default = service.default_release()
+    want = default.release if default is not None else ""
+    if not ready:
+        result.status = health.ATTENTION
+        result.summary = (
+            "No fast worker is ready, so small checks and runs go to AWS Batch and wait a minute or two for it to start a worker. "
+            "Check the calculations-sync service's fast-lane container and its log (it warms up on each ACC of the reference folder)."
+        )
+    elif want and not any(w.release == want for w in ready):
+        result.status = health.ATTENTION
+        result.summary = (
+            f"The fast worker runs ReCET {', '.join(sorted({w.release for w in ready}))}, not the default release {want}: runs on "
+            f"{want} go to AWS Batch. Deploy the platform image of that release."
+        )
+    else:
+        result.summary = (
+            f"{len(ready)} fast worker{'s' if len(ready) != 1 else ''} ready (ReCET {', '.join(sorted({w.release for w in ready}))}): "
+            f"check jobs and runs of up to {dispatch.fast_records():,} records start within seconds."
+        )
+    return result
+
+
+def reference_folder_health() -> health.Result:
+    """Where this deployment keeps the workers' shared reference folder: the last sync found every file a new run would be pinned to,
+    and it ran lately."""
+    from datetime import datetime
+
+    from . import reference_folder
+
+    result = health.Result("calculations.reference_folder", "Calculations", "Workers' reference folder", link="/reference-data/packs/")
+    found = reference_folder.state()
+    if found is None:
+        result.summary = "This deployment keeps no shared reference folder (each worker has its own)."
+        return result
+    checked = datetime.fromisoformat(found["checked"])
+    every = int(getattr(settings, "CALCULATIONS_REFERENCE_SYNC_SECONDS", 300))
+    missing, failed = found.get("behind") or [], found.get("failed") or {}
+    result.items = [
+        health.Item(f"reference:{rel}", rel, checked, failed.get(rel) or "not in the folder yet, or another version")
+        for rel in missing[:50]
+    ]
+    if missing:
+        result.status = health.ATTENTION
+        result.summary = (
+            f"{len(missing)} file{'s' if len(missing) != 1 else ''} of the data packs in force {'are' if len(missing) != 1 else 'is'} "
+            "not in the workers' reference folder, so runs pinned to them are refused. The calculations sync copies them within "
+            "minutes; if this stays, check its log."
+        )
+    elif timezone.now() - checked > timedelta(seconds=every * 3 + 3600):
+        result.status = health.ATTENTION
+        result.summary = (
+            f"The workers' reference folder was last checked {health.ago(checked)} ago: check that the calculations sync is running."
+        )
+    else:
+        result.summary = f"The workers' reference folder held every file of the data packs in force when checked {health.ago(checked)} ago."
+    return result
+
+
 def settings_minutes(name: str) -> int:
     return int(health.limit(name).total_seconds() // 60)
 
@@ -118,3 +189,5 @@ def register() -> None:
     health.register("calculations.stalled", stalled)
     health.register("calculations.failed", failed)
     health.register("calculations.workers", workers)
+    health.register("calculations.fast_lane", fast_lane)
+    health.register("calculations.reference_folder", reference_folder_health)

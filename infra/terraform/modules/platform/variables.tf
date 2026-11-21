@@ -158,6 +158,40 @@ variable "batch_max_vcpus" {
   default     = 32
 }
 
+variable "fast_lane" {
+  description = "Run the fast lane: an always-on worker beside the calculations sync for check jobs and small runs (fast_lane.tf)"
+  type        = bool
+  default     = true
+}
+
+variable "fast_lane_cpu" {
+  description = "CPU units of the calculations-sync task (the sync and the fast-lane worker share it); 1024 = 1 vCPU"
+  type        = number
+  default     = 1024
+}
+
+variable "fast_lane_memory" {
+  description = "MiB of the calculations-sync task; pricing 5,000 measures takes well under 2 GiB"
+  type        = number
+  default     = 4096
+}
+
+variable "fast_lane_disk_gb" {
+  description = "GiB of scratch disk for the fast-lane worker's engine cache and work folders"
+  type        = number
+  default     = 40
+}
+
+variable "efs_throughput_mode" {
+  description = "The reference folder's throughput mode: bursting (reads free, credits earned by size) or elastic (billed per GB read)"
+  type        = string
+  default     = "bursting"
+  validation {
+    condition     = contains(["bursting", "elastic"], var.efs_throughput_mode)
+    error_message = "bursting or elastic"
+  }
+}
+
 variable "small_run_max_vcpus" {
   description = "vCPUs reserved for the small-run queue, so small runs finish within a minute during a maximum job"
   type        = number

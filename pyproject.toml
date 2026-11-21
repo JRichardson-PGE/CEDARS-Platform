@@ -46,7 +46,7 @@ version = { attr = "cedars.__version__" }
 include = ["cedars*"]
 
 [tool.setuptools.package-data]
-cedars = ["**/templates/**/*", "**/static/**/*", "**/typst/*.typ"]
+cedars = ["**/templates/**/*", "**/static/**/*", "**/typst/*.typ", "modules/calculations/data/*.csv"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "cedars.settings.test"

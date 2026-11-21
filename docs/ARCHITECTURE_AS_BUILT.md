@@ -94,8 +94,9 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 | --- | --- | --- | --- |
 | Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks of uploads within the queued-check limits (larger ones are queued), Edit inputs, Results; queues runs and jobs; rereads the front page's stale claims rows on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
 | Calculations worker, local backend | `manage.py calculations_worker [--lane small\|large] [--checks also\|only\|never] [--once]` | Takes a queued check job of its release first (`recet worker check`: a filing's rules, see [the filing workflow](#6-the-filing-workflow)), else claims a queued run from PostgreSQL (`SELECT ... FOR UPDATE SKIP LOCKED`, small lane first), runs `recet worker run`, copies progress, records the receipt; heartbeats as a `Worker` row | Development, sandbox and a single server |
-| Calculations on AWS Batch | `recet worker run <spec URI>` in the release's job definition | The same worker, as a Batch job on the small-runs or large-runs queue; a check job is a job on the small-runs queue with its command overridden to `recet worker check <spec URI>` | AWS Batch on Fargate |
-| Calculations sync | `manage.py calculations_sync --loop --sleep 60` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs and check jobs; fails jobs Batch ended without a receipt; with queued checks on Batch, fails a queued check whose job ended unfinished and submits the next | Always-on ECS service (`jobs.tf`) |
+| Calculations on AWS Batch | `recet worker run <spec URI>` in the release's job definition | The same worker, as a Batch job on the small-runs or large-runs queue; a check job is a job on the small-runs queue with its command overridden to `recet worker check <spec URI>`. It reads the reference data from the shared reference folder, mounted read-only (`RECET_DATA`) | AWS Batch on Fargate |
+| Fast lane | `manage.py calculations_worker --fast` | With AWS Batch: the always-on worker that takes check jobs and runs of up to the `fast_lane_records` limit (5,000 records by default), so they start within seconds instead of waiting a minute or two for Batch to start a worker. It prices a one-measure job on each ACC of the reference folder before its heartbeat names the `fast` lane (ready), keeps a ready file fresh for its container's health check, and finishes what it is doing when stopped | Second container of the calculations-sync ECS task (`fast_lane.tf`) |
+| Calculations sync | `manage.py calculations_sync --loop --sleep 10` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs and check jobs; fails jobs Batch ended without a receipt; with queued checks on Batch, fails a queued check whose job ended unfinished and submits the next; hands queued fast-lane work to Batch when no fast worker of its release is ready, and fails fast-lane work left running by a worker that stopped; every 5 minutes, on a thread of its own, fills the workers' shared reference folder from the data packs (`reference_folder.py`) | Always-on ECS service with the fast lane (`fast_lane.tf`) |
 | Queued checks, local backend | `manage.py run_queued_checks --loop` | Takes uploads too large to check while the page waits, oldest first, while fewer than the `queued_checks_at_once` limit run (an advisory lock keeps the count across workers), and checks each in a child process of its own (`run_queued_checks --check <id>`): the module's whole check (compile, module checks, record writes; its rules still go to the engine release's worker as check jobs) | A single server and the sandbox |
 | Queued checks on AWS Batch | `manage.py run_queued_checks --check <id>` in the web image's `queued-checks` job definition | One queued check per job, with the web tasks' access and `queued_check_memory` (16 GiB by default) | AWS Batch on Fargate (`queued_checks.tf`) |
 | Impact profiles jobs | `manage.py run_impact_profile_jobs --loop --sleep 5` | Upload checks, profile generation, eTRM syncs started from a page, library writes; one queue per PA plus `system`, one job at a time per queue | Always-on ECS service; inline in the request when `IMPACT_PROFILES_INLINE_JOBS` |
@@ -162,7 +163,7 @@ flowchart TB
     alb --> web["ECS Fargate: web tasks<br/>(security group: web)"]
     subgraph jobs["ECS Fargate: background (security group: jobs, no vault URL)"]
       pj["profile-jobs<br/>run_impact_profile_jobs --loop"]
-      cs["calculations-sync<br/>calculations_sync --loop"]
+      cs["calculations-sync<br/>calculations_sync --loop<br/>+ fast lane: calculations_worker --fast"]
       dd["data-downloads<br/>run_data_downloads --loop"]
     end
     sched["EventBridge Scheduler<br/>daily jobs, check_health every 10 min"] --> jobs
@@ -180,8 +181,11 @@ flowchart TB
   end
   web --> s3[("S3: uploads, results,<br/>refdata, snapshots")]
   jobs --> s3
-  batch -- "reads uploads and refdata,<br/>writes results" --> s3
-  cs -- "DescribeJobs" --> batch
+  batch -- "reads uploads,<br/>writes results" --> s3
+  efs[("EFS: the workers'<br/>reference folder")]
+  cs -- "fills from refdata<br/>(read-write)" --> efs
+  batch -- "reads (read-only)" --> efs
+  cs -- "DescribeJobs, SubmitJob<br/>(fallback)" --> batch
   cs -- "DescribeJobs, SubmitJob" --> qcb
   qcb --> s3
   web --> ses["SES SMTP"]
@@ -195,6 +199,21 @@ database. Queued checks (`queued_checks.tf`) are the exception: they are the web
 the web security group with the web task's role, environment and secrets, PII vault included (a PII upload is checked there).
 `monitoring.tf` adds metric filters on `check_health`'s JSON line and alarms for failing or silent checks, unhealthy web
 tasks, a background service with no running task, 5xx answers, memory and database load.
+
+The ReCET worker prices from a reference folder on its own file system (the ACC files and the impact-profile library, about 15 GB).
+In AWS that folder is one EFS file system (`efs.tf`), reached only from the jobs and worker security groups, through one access point,
+over TLS with the task's role. The calculations sync is its only writer: every 5 minutes it copies from the refdata bucket the files a
+new run would be pinned to (per ACC year the newest published electric ACC pack, else the newest draft, and the impact-profile library
+chosen the same way), checks each file's SHA-256 against its pack's manifest, and writes the folder's `manifest.json` in ReCET's format
+(each file's size and SHA-256, a draft pack's ACC marked as a draft) so a worker never hashes the files. AWS Batch ReCET jobs and the
+fast lane mount it read-only. A newly published pack reaches it on the next pass; a run pinned to it before then is refused by the
+worker as having different reference files and can be started again, and the `calculations.reference_folder` health check lists what
+the folder does not hold yet. Reads are free in bursting throughput mode; an alarm says when burst credits run low.
+
+The calculations-sync service (`fast_lane.tf`) is one task with two containers: the sync and the fast lane's worker. A deploy starts
+the new task beside the old one (minimum healthy 100%) and stops the old only once the new fast lane is healthy, that is warmed up on
+every ACC (its health check reads the ready file; up to 10 minutes), so small work keeps its fast start through a deploy; the two syncs
+overlap for those minutes, which they may, since every record change they make is conditional on the record's state.
 
 The web and jobs tasks get their settings from the module's variables and their secrets from one Secrets Manager value
 (`secrets.tf`): `support_email`, `feedback_url`, `issue_repository`, `issue_app_id` and `issue_app_installation_id` become the
@@ -217,6 +236,8 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `QUEUED_CHECK_RECORDS`, `QUEUED_CHECK_MB`, `QUEUED_CHECKS_AT_ONCE` | 25,000; 25; 1 | First-run defaults of the editable `queued_check_records`, `queued_check_mb` and `queued_checks_at_once` limits: over either of the first two an upload is queued; how many queued checks run at once |
 | `QUEUED_CHECKS_BATCH_QUEUE`, `QUEUED_CHECKS_BATCH_JOB_DEFINITION`, `QUEUED_CHECKS_MAX_HOURS` | blank; blank; 6 | The Batch queue and job definition of queued checks; a check running longer is taken to have died with its worker |
 | `CALCULATIONS_WORKER_COMMAND` | `recet worker` | What the local backend runs |
+| `CALCULATIONS_FAST_LANE`, `CALCULATIONS_FAST_LANE_RECORDS`, `CALCULATIONS_FAST_READY_FILE` | off; 5,000; `/tmp/cedars-fast-lane-ready` | With the batch backend, check jobs and runs up to that many records (the editable `fast_lane_records` limit) go to a ready fast worker (`calculations_worker --fast`), which keeps the ready file fresh for its health check |
+| `CALCULATIONS_REFERENCE_FOLDER`, `CALCULATIONS_REFERENCE_SYNC_SECONDS` | blank; 300 | The workers' shared reference folder that `calculations_sync` fills from the data packs, and how often (blank: not kept here) |
 | `CEDARS_BATCH_QUEUE_SMALL`, `CEDARS_BATCH_QUEUE_LARGE`, `CEDARS_BATCH_JOB_DEFINITION` | blank | The Batch queues and the job definition a release names none of |
 | `CALCULATIONS_SMALL_RUN_RECORDS`, `CALCULATIONS_MAX_RECORDS` | 10,000; 2,000,000 | The small-runs lane's size; the largest job accepted |
 | `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots |
@@ -1741,8 +1762,8 @@ several workers can share a queue.
 
 | Command | Kind | What it does | Schedule (Terraform) |
 | --- | --- | --- | --- |
-| `calculations_worker` | Always on (local backend) | Runs queued check jobs of its release with `recet worker check`, then prices queued runs with `recet worker run`, small lane first (`--checks only` keeps a worker free for checks) | Not used in AWS (Batch prices runs and runs check jobs) |
-| `calculations_sync` | Always on | Copies Batch jobs' progress and receipts into runs; submits waiting queued checks and fails those whose job ended unfinished | ECS service, every 60 s |
+| `calculations_worker` | Always on (local backend) | Runs queued check jobs of its release with `recet worker check`, then prices queued runs with `recet worker run`, small lane first (`--checks only` keeps a worker free for checks) | In AWS only as the fast lane (`--fast`): check jobs and runs up to the `fast_lane_records` limit; Batch takes the rest |
+| `calculations_sync` | Always on | Copies Batch jobs' progress and receipts into runs; submits waiting queued checks and fails those whose job ended unfinished; hands fast-lane work to Batch when no fast worker is ready; fills the workers' reference folder from the data packs | ECS service with the fast lane, every 10 s |
 | `run_queued_checks` | Always on (local backend) | Checks uploads too large to check while the page waits, each in a child process (`--loop`; `--check <id>` runs one, as a Batch job does; `--sync` is the Batch pass on its own) | Not used in AWS (a Batch job per check) |
 | `run_impact_profile_jobs` | Always on | Impact profiles' per-PA job queues | ECS service, polls every 5 s |
 | `run_data_downloads` | Always on | Background record downloads | ECS service, polls every 10 s |
@@ -3015,6 +3036,15 @@ summarize. A pull request that builds part of a service or module updates its su
   - Local and AWS Batch dispatch (`dispatch.py`, `calculations_worker`, `calculations_sync`). A local worker records the release it runs
     and its lanes as a `Worker` heartbeat and takes only that release's runs, New run says when no live worker serves a release, and the
     `calculations.workers` health check fails for a release that is the default or has queued runs with no worker.
+  - The fast lane, with AWS Batch (`CALCULATIONS_FAST_LANE`): a run or check job of up to the editable `fast_lane_records` limit is
+    recorded with the local backend and taken by the always-on fast worker when one of its release is ready (`dispatch.backend_for`,
+    a `Worker` naming the `fast` lane seen in the last 2 minutes); otherwise, and for larger work, it goes to Batch. The fast worker warms
+    up on each ACC of the reference folder before it says it is ready; `calculations_sync` hands queued fast-lane work to Batch when no
+    fast worker is ready (`service.hand_over`, `jobs.hand_over`) and fails work a stopped worker left running; the
+    `calculations.fast_lane` health check says when no fast worker is ready.
+  - The workers' shared reference folder (`reference_folder.py`, `CALCULATIONS_REFERENCE_FOLDER`): filled by `calculations_sync` from
+    the registered packs with ReCET's `manifest.json`, mounted read-only by Batch jobs and the fast lane; the
+    `calculations.reference_folder` health check reads what the last pass found.
   - Statewide allocation versions pinned per run, and the registry's programs for the program year in every run.
   - Queue position and estimates; New run / runs / run pages with downloads. The run page shows the engine's input check from
     preflight.json, unpriced measures and the ACC check first, and the run's log.txt, which the worker sends while it runs from ReCET
@@ -3605,8 +3635,9 @@ summarize. A pull request that builds part of a service or module updates its su
   document, or in the CPUC; guidance and DEER resources are the CPUC's to file. Search reads titles, summaries, file names and the files' own
   text (read when a file is stored; the nightly `documents_read_text` job catches up on files stored without it).
 - Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; three always-on services, the Impact profiles job worker, the
-  calculations sync and the record download worker; scheduled jobs on EventBridge Scheduler, `infra/terraform/modules/platform/jobs.tf`), AWS Batch on Fargate
-  (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), RDS
+  calculations sync with the fast lane's worker (`fast_lane.tf`) and the record download worker; scheduled jobs on EventBridge Scheduler, `infra/terraform/modules/platform/jobs.tf`), AWS Batch on Fargate
+  (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), EFS (the
+  workers' shared reference folder, `efs.tf`), RDS
   PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
   snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
   the CPUC's cloud team reviews it in their account.
