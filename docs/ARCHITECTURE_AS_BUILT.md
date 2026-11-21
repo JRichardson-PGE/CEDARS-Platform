@@ -878,7 +878,8 @@ erDiagram
   Field {
     uuid identity "the same in every catalog version"
     string name "canonical (ReCET) name"
-    string kind "input, output, record"
+    string kind "input, output, filed, record"
+    json same_as "engine or filed fields a record column stores"
     string state "active, retired"
     date retired_from
   }
@@ -1567,8 +1568,13 @@ flowchart LR
 unit, source, cost-test treatment, time basis, aggregation, rounding and years in use (from ReCET's `field_docs` and
 `field_attributes`), its type and length from CEDARS' specification, its CET and legacy names, and the templates using it.
 `manage.py load_dictionary data/dictionary/recet-<version>.json` publishes it as a `CatalogVersion` with `Field`, `Alias` and
-`Usage` rows, plus the platform's own records (every column of the tables listed in `dictionary/platform.py`, kind `record`) unless
-`--engine-only`. The canonical names are ReCET's; CET and legacy CEDARS names are accepted on upload through the aliases.
+`Usage` rows, plus the fields the filing specifications define that the export lacks (`dictionary/filed.py`, kind `filed`: every
+Claim, Site, Participant, infrastructure cost, claim site, withdrawal and contact field, the vault's fields as confidential and the
+monthly Commitments fields, read from each specification's current version, else its starting version; no `Usage` rows, since the
+specification's templates are those tables' templates) and the platform's own records (every column of the tables listed in
+`dictionary/platform.py`, kind `record`), unless `--engine-only`. A record column that stores an engine or filed field names it in
+`same_as` (`platform.SAME_AS`, `SAME_AS_BY_COLUMN` and the program fields guide's dictionary names); the field page shows it as "Same
+as", and the stored field's page lists the columns as "Stored in". It is a link, not an alias: the crosswalk keeps legacy names only. The canonical names are ReCET's; CET and legacy CEDARS names are accepted on upload through the aliases.
 A field keeps one `identity` in every catalog version. A filing specification version that renames a field renames it here when it
 is published (`changes.rename_fields`): a new catalog version with the field under its new name, the old name kept as an alias of
 system "Former name" and the rename recorded as a `FieldRename`, so a later catalog that still uses the old name takes the new one
@@ -2417,6 +2423,8 @@ summarize. A pull request that builds part of a service or module updates its su
   `dictionary/data/platform_fields.yaml`, the help text, the program fields guide or a rule for a common column, its audience from the
   table's, restricted for a column naming a person; every other model is in `NOT_DESCRIBED` with why, and a test fails on a new model in
   neither or a column with no definition; the field page shows the table and its allowed values, the index filters by platform table),
+  the filing specifications' own fields as kind "filed" (`dictionary/filed.py`), "same as" links from a record column to the engine or
+  filed field it stores (`Field.same_as`, a test fails on a name the catalog lacks),
   aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads.
 - Claims, budget and monthly tables join the catalog with their modules.
 - Value lists (code sets) kept by CPUC system administrators without a code change (`dictionary/value_lists.py`, `/dictionary/lists/`):

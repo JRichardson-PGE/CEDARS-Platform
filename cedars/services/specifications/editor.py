@@ -44,7 +44,18 @@ NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 TEXT_TYPES = ("text", "phone", "email")
 EDITABLE = ["requirement", "type", "max_length", "decimals", "value_list", "default", "example", "unit", "definition", "guidance"]
 AREA = {"claims": "claims", "budgets": "budgets", "monthly": "monthly"}  # the release notes' part of CEDARS, by module
-DICTIONARY_TYPES = {"text": "text", "number": "number", "boolean": "flag", "year_quarter": "year_quarter", "date": "date"}
+DICTIONARY_TYPES = {
+    "text": "text",
+    "number": "number",
+    "boolean": "flag",
+    "year_quarter": "year_quarter",
+    "date": "date",
+    # a filed field's own types (dictionary/filed.py)
+    "integer": "integer",
+    "year_month": "year_month",
+    "phone": "phone",
+    "email": "email",
+}
 
 
 class EditError(SpecificationError):

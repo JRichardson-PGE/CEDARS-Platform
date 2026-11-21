@@ -134,8 +134,19 @@ def detail(request, name):
             "mandates": mandates.for_field(f.name),
             "can_retire": changelog.can_retire(request.user),
             "doc_ref": engine_docs.reference(f.doc_link) if f.doc_link else None,
+            "same_as": _same_as(f, v),
         },
     )
+
+
+def _same_as(f: Field, v) -> dict:
+    """The fields the column stores (its `same_as`) and the platform columns that store this field, each with whether the catalog has
+    it (a name the catalog lacks is shown without a link)."""
+    names = list(f.same_as or [])
+    known = {x.lower(): x for x in Field.objects.filter(version=v, name__in=names).values_list("name", flat=True)}
+    stores = [(n, n.lower() in known) for n in names]
+    stored_in = list(Field.objects.filter(version=v, same_as__contains=[f.name]).order_by("name").values_list("name", flat=True))
+    return {"stores": stores, "stored_in": stored_in}
 
 
 # --- retiring a field and the change log

@@ -74,7 +74,7 @@ def main(out_dir: Path) -> Path:
                 "group": group,
                 "definition": text,
                 "doc_link": d.link if d else "",
-                "data_type": t.get("type", "number" if attrs["unit"] not in ("", "text") and kind == "output" else "text"),
+                "data_type": t.get("type", "number" if attrs["unit"].strip().lower() not in ("", "text") and kind == "output" else "text"),
                 "max_length": t.get("max_length"),
                 **attrs,
                 "aliases": aliases.get(name, []),

@@ -40,6 +40,7 @@ class Field(models.Model):
         INPUT = "input", "Input"
         OUTPUT = "output", "Output"
         RECORD = "record", "Platform record"
+        FILED = "filed", "Filed field"
 
     class Audience(models.TextChoices):
         PUBLIC = "public", "Public"
@@ -58,7 +59,7 @@ class Field(models.Model):
     data_type = models.CharField(
         max_length=20,
         default="text",
-        help_text="text, number, boolean or year_quarter; a platform record's column also date, datetime, json or reference",
+        help_text="text, number, boolean, year_quarter; filed: integer, date, year_month, phone, email; records: json, reference",
     )
     max_length = models.PositiveIntegerField(null=True, blank=True)
     unit = models.TextField(blank=True)
@@ -74,6 +75,11 @@ class Field(models.Model):
         default=list,
         blank=True,
         help_text="[[code, label], ...]: the codes a platform record's column may hold (its choices)",
+    )
+    same_as = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="The engine or filed fields a record column stores, by name (a link, not another name)",
     )
     required_by = models.TextField(
         blank=True, help_text="The decision or resolution that requires the field, so a retirement review can tell"

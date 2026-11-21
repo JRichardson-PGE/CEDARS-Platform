@@ -73,6 +73,7 @@ claims.ClaimRecord:
     withdrawn: "Whether the claim is withdrawn in the version."
 claims.RestatementLine:
   fields:
+    pa: "The PA the results are credited to: the run's CreditedPA (the PA of the measure's program in the ProgramCost file, as filed)."
     role: "Which of the restatement's runs the line is from (the values below)."
 monthly.ReportLine:
   fields:
@@ -332,3 +333,16 @@ specifications.CheckSetting:
 specifications.ExampleSet:
   fields:
     slug: "The short form of the example's name in its download addresses."
+budgets.BudgetResult:
+  fields:
+    pa: "The PA the results are credited to: the run's CreditedPA (the PA of the measure's program in the ProgramCost file, as filed)."
+    year: "The program year the results are summed for: the run's Used_Year (0 when the run gives none)."
+claims.ClaimResult:
+  fields:
+    pa: "The PA the results are credited to: the run's CreditedPA (the PA of the measure's program in the ProgramCost file, as filed)."
+monthly.MonthlyResult:
+  fields:
+    pa: "The PA the results are credited to: the run's CreditedPA (the PA of the measure's program in the ProgramCost file, as filed)."
+impact_profiles.LoadShape:
+  fields:
+    bldg_loc: "The building location: a climate zone number (1 to 16), without eTRM's CZ prefix (BldgLoc)."

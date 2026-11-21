@@ -10,6 +10,9 @@ dictionary/index:
       filing calendar, filings and their versions, budget lines and results, fund shifts, claims, monthly reports, publication
       snapshots and holds, documents and studies, impact profiles, rules and release notes. Their names are module.Table.column, and
       their kind is Platform record.
+    - >-
+      The fields the filing specifications define beyond the engine's (every Claim, Site, Participant, infrastructure cost and monthly
+      Commitments field, and the PII vault's fields) are here too, as kind Filed field, so every field filed or kept has one entry.
     - Download the whole catalog as CSV, or the upload templates for each kind of filing.
   how:
     - Search by any name a field is known by, or by words in its definition.
@@ -23,7 +26,7 @@ dictionary/index:
       text: The catalog and the name crosswalk as CSV, the value lists the rules check codes against, and every version's changes.
     - target: main form.filters
       title: Search
-      text: Search names and definitions, and narrow to inputs, outputs or platform records, one platform table, or retired fields, then choose Apply.
+      text: Search names and definitions, and narrow to inputs, outputs, filed fields or platform records, one platform table, or retired fields, then choose Apply.
     - target: main table.list
       title: Fields
       text: Each field by kind and group. Select a name for its full entry.
@@ -41,7 +44,13 @@ dictionary/field:
       dictionary version that changed it, and the register entries that require it are linked.
     - >-
       A platform record's column says which table it is in and what the table holds, and lists the codes it may hold when it has a
-      fixed set.
+      fixed set. Where it keeps the same value as an engine or filed field, "Same as" links that field, and that field's page lists
+      the columns that keep it under "Stored in": the names differ because one is where the platform stores the value and the other
+      is the file column it came from.
+    - >-
+      A filed field is one a filing specification defines that the engine does not use (a Claim, Site, Participant, infrastructure
+      cost or monthly Commitments field, or a field kept in the PII vault); its source names the specification and the tables that
+      have it.
     - >-
       A field checked against a value list shows the list's codes, in the version in force (or any other published version), with the
       claim years each code is accepted for. Retired codes stay in the list, marked with the last year they are accepted for.
