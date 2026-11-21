@@ -21,7 +21,7 @@ described in [WEB_GUIDE.md](WEB_GUIDE.md). The other documents:
 ## What the tool does
 
 It takes the two files you would upload to CET - `Measure.csv` and (optionally) `ProgramCost.csv` - prices every measure on real **hourly** avoided-cost data, and writes one row per measure with every input column and every output the CET reports
-that the tool can calculate: benefits, supply costs, participant and bill-impact values, the TRC / PAC / RIM / SCB / SCH costs and ratios, program-cost weighting, and CO2 / NOx / PM10. Four avoided-cost versions ship with it:
+that the tool can calculate: benefits, supply costs, participant and bill-impact values, the TRC / PAC / RIM / SCB / SCH costs and ratios, program-cost weighting, and CO2 / NOx / PM10. Five avoided-cost versions ship with it:
 
 | Version key | Avoided-cost data | CET "Version" used for discount rates, emissions and retail rates |
 |---|---|---|
@@ -29,7 +29,7 @@ that the tool can calculate: benefits, supply costs, participant and bill-impact
 | `2021` | the 2021 ACC (TRC only: no societal tests) | 2022 |
 | `2022` | the 2022 ACC (TRC only: no societal tests) | 2024 |
 | `2024` | the 2024 ACC | 2026 |
-| `2026` | the 2026 ACC (final, v1b) | 2027 |
+| `2026` | the 2026 ACC (final, v1b) | 2027 (the 2026 ACC is CET's Avoided Cost Version 2028, which has no tables yet; the rows labeled 2027, a corrected Version 2026, hold the same values as 2026) |
 
 You can replace 8,760-hour load profiles, gas monthly profiles and the ACC files themselves with your own; a supplied item that **matches** a built-in one replaces it, one that matches nothing is added. The avoided costs and load
 profiles are ReCET's own (the ACC releases and CEDARS' profile library); from CET it uses only its run parameters (discount rates, base year, gas CO2), its NOx / PM10
