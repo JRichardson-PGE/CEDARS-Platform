@@ -1,6 +1,7 @@
 """Rule sets as data, run by the engine's rule runner (recet.filing_rules.check_frame) so the platform, ReCET runs and the pre-upload
 checker apply exactly the same rules. The engine is imported only when rules are run or imported from it (engine/README.md)."""
 
+import codecs
 import io
 import re
 from dataclasses import dataclass
@@ -823,17 +824,36 @@ def read_table(content: bytes):
     import pandas as pd
 
     _, fieldnames = _engine()
-    text = content.decode("utf-8-sig", errors="strict") if _is_utf8(content) else content.decode("cp1252")
-    header = text.split("\n", 1)[0]
+    encoding = "utf-8-sig" if _is_utf8(content) else "cp1252"
+    end = content.find(b"\n")
+    header = (content if end < 0 else content[:end]).decode(encoding)
     sep = "|" if "|" in header else ("\t" if "\t" in header else ",")
-    df = pd.read_csv(io.StringIO(text), sep=sep, dtype=str, keep_default_na=False)
+    # read from the bytes themselves: the file is not also held as decoded text while it is parsed
+    df = pd.read_csv(io.BytesIO(content), sep=sep, dtype=str, keep_default_na=False, encoding=encoding)
+    df.columns = [str(c).strip() for c in df.columns]
+    return fieldnames.to_recet(df)
+
+
+def frame(columns: list[str], rows):
+    """Rows of text (mappings of column name to text, values already trimmed) as `read_table` reads the same rows written as a CSV,
+    built directly: no CSV is written and read back, so a large table is not held a second and third time as text on the way."""
+    import pandas as pd
+
+    _, fieldnames = _engine()
+    rows = rows if isinstance(rows, list) else list(rows)
+    df = pd.DataFrame({c: pd.array([r.get(c, "") for r in rows], dtype=str) for c in columns}, index=pd.RangeIndex(len(rows)))
     df.columns = [str(c).strip() for c in df.columns]
     return fieldnames.to_recet(df)
 
 
 def _is_utf8(content: bytes) -> bool:
+    """Whether the bytes are UTF-8, checked a block at a time (a large file is never decoded whole just to find out)."""
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    step = 1 << 20
     try:
-        content.decode("utf-8")
+        for i in range(0, len(content), step):
+            decoder.decode(content[i : i + step])
+        decoder.decode(b"", final=True)
     except UnicodeDecodeError:
         return False
     return True

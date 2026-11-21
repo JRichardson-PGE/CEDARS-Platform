@@ -701,7 +701,7 @@ def _rule_set(v: SubmissionVersion):
 
 
 def _columns(tables: dict[str, bytes]) -> dict[str, list[str]]:
-    return {t: [c.lower() for c in jobfile.rows(tables[t])[0]] for t in jobfile.TABLES if t in tables}
+    return {t: [c.lower() for c in jobfile.header(tables[t])] for t in jobfile.TABLES if t in tables}
 
 
 def _key(table: str, row: dict) -> tuple[str, ...]:

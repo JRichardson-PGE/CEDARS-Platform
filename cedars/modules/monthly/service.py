@@ -685,7 +685,7 @@ def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entr
             "key": folder + "job.zip",
             "sha256": up.sha256(job),
             "bytes": len(job),
-            "measures": len(up.rows(tables["Measure"])[1]),
+            "measures": up.count(tables["Measure"]),
         },
     ]
     v = submissions.attach_files(actor, v, files)

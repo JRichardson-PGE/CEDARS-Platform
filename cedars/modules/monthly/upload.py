@@ -10,7 +10,9 @@ import zipfile
 from decimal import Decimal, InvalidOperation
 from pathlib import PurePosixPath
 
+from cedars.core import rows as compact
 from cedars.core import uploads
+from cedars.core.rows import Row
 
 BCA_TABLES = ("Measure", "ProgramCost")  # the engine's input tables, as a job holds them
 TABLES = ("Commitments",) + BCA_TABLES
@@ -139,7 +141,7 @@ def _check_tables(tables: dict, required: dict[str, list[str]] | None, workbook:
             "ProgramCost (Measure may have no rows)."
         )
     for t in TABLES:
-        header, _ = rows(tables[t])
+        header = compact.read_header(tables[t])
         have = {h.lower() for h in header}
         lacking = [c for c in (required or {}).get(t, ()) if c.lower() not in have]
         if lacking:
@@ -170,30 +172,21 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def text(content: bytes) -> str:
-    try:
-        return content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return content.decode("cp1252")
-
-
-def rows(content: bytes) -> tuple[list[str], list[dict[str, str]]]:
+def rows(content: bytes) -> tuple[list[str], list[Row]]:
     """The header and the rows of one table, as text, keyed by the header (stripped). CEDARS' files are pipe-delimited; a tab or a
-    comma in the header line is taken instead when it has no pipe."""
-    body = text(content)
-    first = body.split("\n", 1)[0]
-    sep = "|" if "|" in first else ("\t" if "\t" in first else ",")
-    reader = csv.reader(io.StringIO(body), delimiter=sep)
-    try:
-        header = [h.strip() for h in next(reader)]
-    except StopIteration:
-        return [], []
-    out = []
-    for r in reader:
-        if not r or all(not c.strip() for c in r):
-            continue
-        out.append({h: (r[i].strip() if i < len(r) else "") for i, h in enumerate(header)})
-    return header, out
+    comma in the header line is taken instead when it has no pipe.
+    Rows are compact rows (cedars.core.rows.Row), which read like dicts; the file is read line by line."""
+    return compact.read_csv(content, skip_blank_header=False)
+
+
+def count(content: bytes) -> int:
+    """How many records one table holds (rows with text in some cell)."""
+    return compact.count_rows(content)
+
+
+def header(content: bytes) -> list[str]:
+    """One table's header, stripped, from its first line alone."""
+    return compact.read_header(content)
 
 
 def get(row: dict, field: str) -> str:
