@@ -1139,6 +1139,10 @@ def _price(
     spec = specifications.of_filing(v.submission.deadline)
     release = specifications.engine_release_of(spec)
     cost_test_set = specifications.cost_test_set_of(spec) or cost_test_set
+    # A legacy correction version names the CET replica that prices the year (specifications.calculation_of); every other version
+    # is priced with ReCET's own calculation.
+    calculation = specifications.calculation_of(spec)
+    replica = calculation != "recet"
     run = _pricers[0](
         actor,
         v,
@@ -1150,8 +1154,14 @@ def _price(
         cost_test_set=cost_test_set,
         **({"release": release} if release else {}),
         **({"profiles_8760": profiles_8760} if profiles_8760 else {}),
+        **({"calculation": calculation} if replica else {}),
     )
-    after = {"run": str(run), "acc": acc_version, **({"release": release} if release else {})}
+    after = {
+        "run": str(run),
+        "acc": acc_version,
+        **({"release": release} if release else {}),
+        **({"calculation": calculation} if replica else {}),
+    }
     audit.record("submission.pricing_started", obj=v, after=after, actor=actor)
     return str(run)
 

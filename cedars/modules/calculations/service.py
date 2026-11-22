@@ -600,8 +600,11 @@ def create_run(
         req = replace(req, name=run_name(job_name, req.acc_version))
     st = _check(req)
     custom = custom_cost_tests(req, st, filing=submission_version is not None)
-    if submission_version is not None and req.calculation != RECET:
-        raise AccessDenied("A filing is priced only with ReCET's own calculation; a CET replica is never a filing's engine.")
+    if submission_version is not None and req.calculation != _filing_calculation(submission_version):
+        raise AccessDenied(
+            "A filing is priced only with ReCET's own calculation, or with the CET replica its legacy correction version names; "
+            "a CET replica is never another filing's engine."
+        )
     if req.cet_outputs is not None and req.calculation != RECET:
         raise AccessDenied("A CET replica does not take a CET outputs comparison: compare the replica's run with ReCET's on Compare.")
     try:
@@ -1162,12 +1165,15 @@ def price_submission(
     cost_test_set: PackVersion | None = None,
     profiles_8760: bytes | None = None,
     release: str = "",
+    calculation: str = RECET,
 ):
     """The pricer the submissions service calls (registered in apps.py): a filing version's job on `release`, the engine release the
-    filing's specification version names (blank: the default release), ReCET's own calculation; with settings allocate_statewide,
-    statewide programs are allocated with the filing's allocation version (or the most recent confirmed one for the program year).
-    `cost_test_set`: the published set the filing's specification version or setup requires (blank: the published set in force for the
-    job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
+    filing's specification version names (blank: the default release), with `calculation`: ReCET's own, or the CET replica a legacy
+    correction version names (a corrected legacy year is priced the way legacy CEDARS priced it: on the replica's own tables and cost
+    tests, with no statewide allocation, cost-test set or supplied profiles, which a replica does not take). With settings
+    allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most recent confirmed one for the
+    program year). `cost_test_set`: the published set the filing's specification version or setup requires (blank: the published set
+    in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
     named = bool(release)
     if named:
         release = releases().filter(release=release).first()
@@ -1176,20 +1182,25 @@ def price_submission(
                 "The filing's specification version names an engine release that is not an active release here; a CPUC system "
                 "administrator registers it, or makes it active, on Engine releases."
             )
-        if RECET not in (release.calculations or []):
-            raise PricingUnavailable(
-                f"ReCET {release.release}, the engine release the filing's specification version names, does not offer ReCET's own "
-                "calculation."
-            )
     else:
         release = default_release()
     if release is None:
         raise PricingUnavailable("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
     which = "The engine release the filing's specification version names" if named else "The default engine release"
+    if calculation not in (release.calculations or []):
+        raise PricingUnavailable(
+            f"{which}, ReCET {release.release}, does not offer "
+            f"{calculation_label(calculation) if calculation != RECET else 'ReCET' + chr(39) + 's own calculation'}, which the "
+            "filing's specification version prices with."
+        )
+    replica = calculation != RECET
+    if replica:  # what a replica does not take (ReCET cet_versions/job.REFUSED)
+        settings = {k: v for k, v in (settings or {}).items() if k not in REPLICA_REFUSES}
+        allocation_version = cost_test_set = profiles_8760 = None
     req = RunRequest(
         name=name,
         release=release,
-        calculation=RECET,
+        calculation=calculation,
         acc_version=acc_version,
         settings=settings or {},
         allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
@@ -1197,18 +1208,26 @@ def price_submission(
         profiles_8760=profiles_8760,
     )
     # The CPUC's set-up, which the filer cannot change: the release must carry the filing's ACC, and its packs be published.
-    if acc_version not in accs_for(release, RECET):
+    if acc_version not in accs_for(release, calculation):
         fix = (
             "Register the ACC with that release on Engine releases." if named else "Make a release with it the default on Engine releases."
         )
-        raise PricingUnavailable(
-            f"{which}, ReCET {release.release}, has no {acc_version} ACC (it has {', '.join(accs_for(release, RECET)) or 'none'}). {fix}"
-        )
+        have = ", ".join(accs_for(release, calculation)) or "none"
+        on = f" for {calculation_label(calculation)}" if replica else ""
+        raise PricingUnavailable(f"{which}, ReCET {release.release}, has no {acc_version} ACC{on} (it has {have}). {fix}")
     try:
         packs_for(req, filing=True)
     except AccessDenied as e:
         raise PricingUnavailable(str(e)) from e
     return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
+
+
+def _filing_calculation(version) -> str:
+    """The calculation a filing version is priced with: its deadline's specification version's (ReCET's own unless a legacy correction
+    version names a CET replica)."""
+    from cedars.services.specifications import service as specifications
+
+    return specifications.calculation_of(specifications.of_filing(version.submission.deadline))
 
 
 def restate_options() -> list[dict]:
