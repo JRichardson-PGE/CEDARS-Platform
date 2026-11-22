@@ -455,9 +455,13 @@ def year_records(organisation, deadline: Deadline) -> int:
 
 
 def version_records(v: SubmissionVersion) -> int:
-    """The records Check again reads: the version's year to date as last compiled (its own records when never compiled)."""
+    """The records Check again reads: the version's own records plus the year to date it is compiled over now, which is its base as it
+    stands today (an earlier confirmation replaced since the last check can be far larger), or the year to date as last compiled when
+    that is more."""
     f = v.findings or {}
-    return sum((f.get("compiled") or {}).values()) or int(f.get("records") or 0)
+    own = sum((f.get("tables") or {}).values()) or int(f.get("records") or 0)
+    s = v.submission
+    return max(sum((f.get("compiled") or {}).values()), own + year_records(s.organisation, s.deadline))
 
 
 def can_upload(actor, deadline: Deadline, organisation) -> None:
