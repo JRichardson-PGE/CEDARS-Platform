@@ -665,6 +665,10 @@ def test_nmec_chains_projects_and_sem_participants_link_up(client, filer, year, 
     )
     v29 = service.upload_claims(filer, d29, pge, claims_zip(nxt), "2029q1.zip")
     assert {(f["record_id"], f["rule_id"]) for f in service.findings(v29) if f["severity"] == "reject"} == {("PGE-2029-002", "CLM-CHAIN")}
+    # only the parents named are read from the earlier years (a PA's legacy years hold millions of claims), compared trimmed and in any case
+    found = service.earlier_records(pge, 2029, [" pge-2028-010 ", "PGE-2028-404", ""])
+    assert list(found) == ["pge-2028-010"] and found["pge-2028-010"].impact_type == "Cust-NMEC"
+    assert service.earlier_records(pge, 2029, []) == {}
     nxt = {t: [r for r in rows if r.get("ClaimID") != "PGE-2029-002"] for t, rows in nxt.items()}
     v29 = service.upload_claims(filer, d29, pge, claims_zip(nxt), "2029q1.zip")
     finish_run(Run.objects.get(pk=service.price(filer, v29)))
