@@ -107,3 +107,11 @@ class BudgetsConfig(AppConfig):
         from .corrections import BudgetsEditor
 
         record_corrections.register(BudgetsEditor())  # records corrected in place on an open draft
+
+        from cedars.services.submissions.service import register_legacy_corrections
+
+        from . import legacy_corrections
+
+        register_legacy_corrections(  # an imported budget filing from 2024 on may be corrected, starting from its imported records
+            "budgets", year=legacy_corrections.year, start=legacy_corrections.start
+        )

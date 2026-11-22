@@ -57,7 +57,7 @@ def test_a_field_the_legacy_download_never_held_is_optional():
 def test_found_by_the_year_they_correct():
     assert service.for_legacy("claims", 2024) == _v(2024) and service.for_legacy("claims", 2025) == _v(2024)
     assert service.for_legacy("claims", 2026) == _v(2026) and service.for_legacy("claims", 2027) == _v(2026)
-    assert service.for_legacy("claims", 2023) is None and service.for_legacy("budgets", 2025) is None
+    assert service.for_legacy("claims", 2023) is None and service.for_legacy("monthly", 2025) is None
     assert service.calculation_of(_v(2026)) == "cet-25.1"
     assert service.calculation_of(service.current(Specification.objects.get(code="claims"))) == "recet"
     assert service.calculation_of(None) == "recet"

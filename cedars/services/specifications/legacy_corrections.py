@@ -9,9 +9,12 @@ to be checked against and priced with. Each version here:
     not a specification's current version, nor a choice when a filing set is set up or moved;
   - names the calculation that prices it (`calculation`): the CET replica of the release legacy CEDARS priced those years with, in the
     current engine release, so a corrected filing is priced the way the rest of it was;
-  - holds the claims tables a legacy year can carry (Claim, Measure, ProgramCost, Withdrawal), in the platform's names: a field that
-    the year's legacy download did not hold is optional, since the records being corrected never had it. Legacy years hold no
-    site, contact or participant tables to correct, and no PII.
+  - holds the tables a legacy filing can carry, in the platform's names: for claims Claim, Measure, ProgramCost and Withdrawal; for
+    budget filings Measure and ProgramCost. A field that the legacy downloads did not hold is optional, since the records being
+    corrected never had it. Legacy years hold no site, contact or participant tables to correct, and no PII.
+
+A budget filing covers several program years: its correction version is the one whose years hold the filing's first program year,
+priced on the same CET replica as that year's claims (Jake, 2026-11-22).
 
 The documents are generated from the stored starting version and the legacy crosswalk (`documents`), stored in legacy_corrections/*.json
 (`manage.py specification_legacy_corrections --write`) and loaded by migration 0010. A test holds the stored documents to the generator.
@@ -31,10 +34,12 @@ from cedars.services.dictionary import legacy as crosswalk
 from . import service
 
 FOLDER = Path(__file__).resolve().parent / "legacy_corrections"
-KEPT_TABLES = {"claims": ("Claim", "Measure", "ProgramCost", "Withdrawal")}
-# The legacy download layout each specification's correctable years came in, and its table names in the crosswalk.
-LEGACY_LAYOUT = {"claims": "claims_b"}
+KEPT_TABLES = {"claims": ("Claim", "Measure", "ProgramCost", "Withdrawal"), "budget_filing": ("Measure", "ProgramCost")}
+# The legacy download layouts each specification's correctable years came in (a field is held only if every one holds it), and its
+# table names in the crosswalk.
+LEGACY_LAYOUTS = {"claims": ("claims_b",), "budget_filing": ("filings", "filings_2024_2027", "filings_2026_2027_tual")}
 LAYOUT_TABLES = {"Claim": ("Claim", "Key"), "Measure": ("Measure", "Key")}
+SOURCE = {"claims": "claims", "budget_filing": "budget filing"}
 NOT_IN_LEGACY = (
     "Legacy CEDARS did not hold this field for these years, so the records being corrected do not have it: it may be left blank."
 )
@@ -54,16 +59,39 @@ class Correction:
 
 
 # Jake, 2026-11-21: claims of 2024-2025 were priced in legacy CEDARS with CET 24.3, those of 2026-2027 with CET 25.1; corrections are
-# expected only for 2024 on, so earlier years stay read-only.
+# expected only for 2024 on, so earlier years stay read-only. Jake, 2026-11-22: a legacy budget filing is priced on the same replica as
+# the claims of its first program year (24.3 for 2024-2025, 25.1 from 2026, through the 2028-2035 cycle).
 CORRECTIONS = (
     Correction("claims", 2024, 2025, "cet-24.3", "CET 24.3"),
     Correction("claims", 2026, 2027, "cet-25.1", "CET 25.1"),
+    Correction("budget_filing", 2024, 2025, "cet-24.3", "CET 24.3"),
+    Correction("budget_filing", 2026, 2035, "cet-25.1", "CET 25.1"),
 )
 
 
 def _legacy_fields(spec: str, table: str) -> set[str]:
-    layout = LEGACY_LAYOUT[spec]
-    return {m.canonical for m in crosswalk.columns(layout).values() if m.table in LAYOUT_TABLES.get(table, ())}
+    held = [
+        {m.canonical for m in crosswalk.columns(layout).values() if m.table in LAYOUT_TABLES.get(table, ())}
+        for layout in LEGACY_LAYOUTS[spec]
+    ]
+    return set.intersection(*held)
+
+
+def _summary(c: Correction) -> str:
+    years = f"{c.first_year}-{c.last_year}"
+    if c.specification == "claims":
+        return (
+            f"For correcting the claims of {years} imported from legacy CEDARS, and nothing else: a correction of one of those years is "
+            f"checked against this version and priced on the {c.release_label} replica, the release legacy CEDARS priced them with, so "
+            "the corrected year is priced the way the rest of it was. It holds the claim, measure, program cost and withdrawal tables; a "
+            "field legacy CEDARS did not hold for those years is optional. It is never used for a new claim year."
+        )
+    return (
+        f"For correcting the budget filings imported from legacy CEDARS whose first program year is in {years}, and nothing else: a "
+        f"correction is checked against this version and priced on the {c.release_label} replica, the release those years' claims are "
+        "priced with. It holds the measure and program cost tables; a field legacy CEDARS did not hold for its filings is optional. It "
+        "is never used for a new filing."
+    )
 
 
 def document(c: Correction) -> dict:
@@ -81,19 +109,14 @@ def document(c: Correction) -> dict:
                     f["requirement"] = "optional"
                     f["guidance"] = " ".join(x for x in (f.get("guidance", ""), NOT_IN_LEGACY) if x)
         tables.append(t)
-    years = f"{c.first_year}-{c.last_year}"
     return {
         "format": service.FORMAT,
         "specification": start["specification"],
         "version": {
             "name": c.name,
             "slug": slugify(c.name),
-            "summary": f"For correcting the claims of {years} imported from legacy CEDARS, and nothing else: a correction of one of those "
-            "years is checked against this version and priced on the "
-            f"{c.release_label} replica, the release legacy CEDARS priced them with, so the corrected year is priced the way the rest of "
-            "it was. It holds the claim, measure, program cost and withdrawal tables; a field legacy CEDARS did not hold for those years "
-            "is optional. It is never used for a new claim year.",
-            "source": "Generated from the starting claims version and the legacy CEDARS crosswalk",
+            "summary": _summary(c),
+            "source": f"Generated from the starting {SOURCE[c.specification]} version and the legacy CEDARS crosswalk",
             "rule_set_code": start["version"].get("rule_set_code", ""),
             "engine_release": "",
             "cost_test_set": None,

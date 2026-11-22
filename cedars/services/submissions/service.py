@@ -1493,7 +1493,8 @@ def decide_reopen(actor, req: ReopenRequest, approve: bool, note: str = "") -> S
 @dataclass(frozen=True)
 class LegacyCorrections:
     """How a module's legacy filings are corrected: `year(deadline)` gives the legacy year a deadline's filings are (None: not a legacy
-    year this module corrects); `start(new, imported)` prepares the new draft version from the imported version it corrects."""
+    year this module corrects); `start(new, imported)` prepares the new draft version from the imported version it corrects, and may
+    return file entries it stored for the draft (a budget filing's job built from the imported records), added to the draft's files."""
 
     year: Callable
     start: Callable
@@ -1581,14 +1582,23 @@ def _start_legacy_correction(actor, submission: Submission, reason: str) -> Subm
         files=list(imported.files or []),
         specification_version=spec,
     )
+    prepared = _legacy_corrections[submission.module].start(v, imported) or []
+    if prepared:
+        v.files = [*v.files, *prepared]
+        v.save(update_fields=["files"])
     audit.record(
         "submission.reopened",
         obj=v,
         reason=reason,
-        after={"number": v.number, "from_version": imported.number, "legacy": True, "specification": str(spec)},
+        after={
+            "number": v.number,
+            "from_version": imported.number,
+            "legacy": True,
+            "specification": str(spec),
+            **({"prepared": [f.get("name", "") for f in prepared]} if prepared else {}),
+        },
         actor=actor,
     )
-    _legacy_corrections[submission.module].start(v, imported)
     return v
 
 
