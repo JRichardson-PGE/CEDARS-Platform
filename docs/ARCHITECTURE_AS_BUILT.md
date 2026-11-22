@@ -1675,8 +1675,10 @@ flowchart LR
   wheel and the image, then load the new catalog with `load_dictionary`.
 - **Engine releases are data** (`EngineRelease`): a CPUC system administrator adds a release by its version number, with its worker
   image and Batch job definition, the calculations it offers (`recet` and CET replicas such as `cet-25.1`) and the ACCs each
-  has, and makes one the default. Filings are priced only with ReCET's own `recet` calculation, on the release their specification version
-  names, else the default release; replicas are for analysis runs. A release an in-use specification version names cannot be retired. A local worker reports the release it runs (`Worker`), takes only that release's runs, and New run and the health page say when
+  has, and makes one the default. Filings are priced with ReCET's own `recet` calculation, on the release their specification version
+  names, else the default release; replicas are for analysis runs, except a legacy correction: its specification version names the CET
+  replica of the year (`specifications.calculation_of`), and `price_submission` prices it on that replica, without the statewide
+  allocation, cost-test set or supplied profiles a replica does not take (`create_run` refuses any other replica for a filing). A release an in-use specification version names cannot be retired. A local worker reports the release it runs (`Worker`), takes only that release's runs, and New run and the health page say when
   a release has no live worker.
 
 ### 10.2 The field dictionary
@@ -2874,7 +2876,8 @@ summarize. A pull request that builds part of a service or module updates its su
 - Legacy corrections: a request (`ReopenRequest.legacy`, migration submissions 0013) a CPUC approver decides, starting a version filed
   on the platform from the imported files on the year's correction version (`request_legacy_correction`, `register_legacy_corrections`).
   Claims registers it: a claim year's correction compiles over the imported records and program costs
-  (`claims/legacy_corrections.py`); budget filings do not yet.
+  (`claims/legacy_corrections.py`) and is priced whole on the year's CET replica; budget filings do not yet. Not yet built: a run
+  reproducing the import on the replica, with the records that differ listed.
 - `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
   layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
 - `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and
