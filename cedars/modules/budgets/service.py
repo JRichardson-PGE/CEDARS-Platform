@@ -676,8 +676,10 @@ def finish_check(job) -> None:
     """A check job a budget filing version's check submitted has ended (rules.jobs finisher): once every job of the version's check has
     ended, check the version's file again with them, so it takes their findings. A job of a check since replaced is ignored."""
     pk = (job.caller or {}).get("version")
+    if not submissions.finish_ready(pk, job):  # not the last job to end: nothing to do, and no waiting on a long re-check's lock
+        return
     with transaction.atomic():
-        v = SubmissionVersion.objects.select_for_update().filter(pk=pk).first()
+        v = submissions.lock_for_finish(pk)
         now = submissions.checking(v)
         if now is None or str(job.pk) not in (now.get("jobs") or []):
             return

@@ -324,3 +324,41 @@ def test_a_job_that_never_reached_a_worker_is_not_reused(rules, draft, cpuc_admi
     # a job a backend took is still reused
     precheck.check("claims", "Measure", content, rule_set=rs, filing_year=2028)
     assert handed == [second.pk] and CheckJob.objects.count() == 2
+
+
+def test_only_the_last_job_to_end_locks_the_version_and_not_against_inserts(
+    rules,
+    draft,
+    cpuc_admin,
+    filer,
+    year,
+    pge,
+    programs,
+    worker_mode,
+    here,  # noqa: F811
+):
+    """A job that is not the last of its check to end reads the version without locking it, so it never waits behind a long re-check
+    holding the lock; the last one's re-check locks the version FOR NO KEY UPDATE, which does not hold up inserts that only refer to it."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    rs, version = draft
+    wide_rules(rules, cpuc_admin, rs)
+    Deadline.objects.filter(pk=deadline().pk).update(specification_version=version)
+    v = claims.upload_claims(filer, deadline(), pge, the_file(), "q1.zip")
+    queued = list(CheckJob.objects.filter(status=CheckJob.Status.QUEUED).order_by("created_at"))
+    table = SubmissionVersion._meta.db_table
+
+    def locks(queries):
+        return [q["sql"] for q in queries if table in q["sql"] and " FOR " in q["sql"]]
+
+    for _ in range(len(queued) - 1):
+        with CaptureQueriesContext(connection) as seen:
+            assert dispatch.check_one("test-worker", here, poll=0.05)
+        assert locks(seen.captured_queries) == []
+    with CaptureQueriesContext(connection) as seen:
+        assert dispatch.check_one("test-worker", here, poll=0.05)
+    taken = locks(seen.captured_queries)
+    assert taken and "FOR NO KEY UPDATE" in taken[0]  # held through the re-check; recording its result at the end locks it fully
+    v.refresh_from_db()
+    assert "checking" not in v.findings

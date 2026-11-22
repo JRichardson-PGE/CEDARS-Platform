@@ -1293,7 +1293,10 @@ of its release before runs, or submits it to AWS Batch. A filing's check does no
 (`submissions.record_checking`: a draft whose findings so far carry `checking: {jobs, release, since}`; it cannot be priced), the filing
 page shows the check's state and polls `submissions:checking_status` (`/filings/versions/<pk>/checking.json`) through `core/watch.js`, and when the last
 job ends the module's finisher (`register_finisher`) locks the version and checks it again with the finished jobs, whose findings it
-takes by their key (the SHA-256 of everything they depend on). A worker can end every job before the request has committed the
+takes by their key (the SHA-256 of everything they depend on). The finisher first reads, without a lock, whether its job is the last of
+the version's check to end (`submissions.finish_ready`), so the others return at once instead of waiting behind a long re-check (a
+million-record filing takes minutes); the last one locks the version FOR NO KEY UPDATE (`submissions.lock_for_finish`), which keeps
+out another writer of the version but not inserts of rows that only refer to it. A worker can end every job before the request has committed the
 version's checking record (the jobs connection commits at once; the check goes on writing its files), and each finisher then finds the
 version not yet waiting for it; so `record_checking` also hands the last job to the finisher once its record commits, when all of
 them have already ended (`jobs.notify_if_ended`). A correction of a few records waits for its jobs up to the
