@@ -584,17 +584,26 @@ def check_waiting_runs(user) -> None:
 
 @transaction.atomic
 def create_run(
-    actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None, job_name: str = ""
+    actor,
+    organisation,
+    req: RunRequest,
+    job_zip: Path,
+    *,
+    submission_version=None,
+    backend: str | None = None,
+    job_name: str = "",
+    filer_checked: bool = False,
 ) -> Run:
     """Check the request and the upload, put the inputs in storage, write the job spec and queue the run. `job_zip` is a local file
     (an upload's temporary file): a job zip or a job workbook; it is copied, never moved. A run with no name is named after
-    `job_name` (the uploaded file's or the draft's name) and its ACC."""
+    `job_name` (the uploaded file's or the draft's name) and its ACC. `filer_checked`: an analysis run the submissions service starts
+    for a filer it has checked (a legacy year reproduced on its replica), so it needs no run permission of its own."""
     from . import dispatch
 
     # a filing's run: the submissions service has checked <module>.submit
-    if submission_version is None and not can_submit(actor, organisation):
+    if submission_version is None and not filer_checked and not can_submit(actor, organisation):
         raise AccessDenied(f"You need the {perms.label('calculations.submit')} permission in {organisation.code} to start a run for it.")
-    if submission_version is None:
+    if submission_version is None and not filer_checked:
         check_waiting_runs(actor)
     if not req.name.strip():
         req = replace(req, name=run_name(job_name, req.acc_version))
@@ -1254,18 +1263,26 @@ def restate_version(
     settings: dict | None = None,
     cost_test_set: PackVersion | None = None,
     profiles_8760: bytes | None = None,
+    calculation: str = RECET,
 ):
     """The restater the submissions service calls (registered in apps.py): a published filing's job priced again as an
-    analysis run for `organisation` (None: the actor's own), ReCET's own calculation on `release`. The run is not linked to the version
+    analysis run for `organisation` (None: the actor's own), on `release` with `calculation` (ReCET's own; a CET replica reproduces an
+    imported legacy year, submissions.reproduce_legacy). The run is not linked to the version
     (submission_version stays empty), so its end never records anything on the filing; it is an ordinary run its owner and organization
     see on Runs. Returns the run's id."""
     r = EngineRelease.objects.filter(release=release).first()
     if r is None:
         raise AccessDenied(f"ReCET {release} is not a registered engine release.")
+    if calculation not in (r.calculations or []):
+        raise AccessDenied(f"ReCET {release} does not offer {calculation_label(calculation)}.")
+    if calculation != RECET:  # what a replica does not take (ReCET cet_versions/job.REFUSED)
+        settings = {k: v for k, v in (settings or {}).items() if k not in REPLICA_REFUSES}
+        allocation_version = cost_test_set = profiles_8760 = None
+        record_accs = ()
     req = RunRequest(
         name=name,
         release=r,
-        calculation=RECET,
+        calculation=calculation,
         acc_version=acc_version,
         settings=settings or {},
         allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
@@ -1273,7 +1290,8 @@ def restate_version(
         record_accs=tuple(record_accs),
         profiles_8760=profiles_8760,
     )
-    return create_run(actor, organisation, req, job_zip).pk
+    # a replica reproducing an imported year: started by the submissions service for a filer of the filing (reproduce_legacy)
+    return create_run(actor, organisation, req, job_zip, filer_checked=calculation != RECET).pk
 
 
 def describe_run(run_id: str) -> dict | None:

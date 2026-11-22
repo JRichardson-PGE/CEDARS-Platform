@@ -101,3 +101,58 @@ def test_an_import_without_its_tables_is_refused_at_approval(tmp_path, filer, ap
     with pytest.raises(AccessDenied, match="Inputs.parquet"):
         submissions.decide_reopen(approver, req, True, "Go ahead")
     assert v1.submission.versions.count() == 1
+
+
+# --- the import reproduced on the replica
+
+
+@pytest.fixture
+def replica_release(cpuc_admin):
+    from cedars.modules.calculations import service as calculations
+
+    acc = claims.default_acc(2025)
+    return calculations.add_release(
+        cpuc_admin, release="0.1.90", calculations=["recet", "cet-24.3"], accs={"recet": [acc], "cet-24.3": [acc]}, default=True
+    )
+
+
+def _finished(monkeypatch, rows: list[dict]):
+    """The reproduction's run, finished, with these measure-level outputs."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from cedars.core import storage
+
+    sink = pa.BufferOutputStream()
+    pq.write_table(pa.Table.from_pylist(rows), sink)
+    storage.store("results").put_bytes("test/measure_level_run.parquet", sink.getvalue().to_pybytes())
+    described = {"ended": True, "succeeded": True, "error": "", "results": {"measure_level": "test/measure_level_run.parquet"}}
+    monkeypatch.setattr(submissions, "restated_run", lambda run_id: described)
+
+
+def test_the_import_is_reproduced_once_on_the_replica_and_compared(tmp_path, filer, approver, replica_release, monkeypatch):
+    from cedars.modules.calculations.models import Run
+
+    v1 = _loaded(tmp_path)
+    v2 = _corrected(filer, approver, v1)
+    rep = legacy_corrections.reproduce(filer, v2, v1)
+    run = Run.objects.get(pk=rep.run_id)
+    assert run.calculation == "cet-24.3" and run.submission_version_id is None and run.organisation.code == "PGE"
+    assert legacy_corrections.reproduce(filer, v2, v1) == rep  # once per import and replica
+    imported = legacy_corrections._read(v1, "Outputs.parquet").to_pylist()
+    ids = legacy_corrections._keyed([r["ClaimID"] for r in imported])
+    rows = [{"CEInputID": cid, "ElecBen": r["ElecBen"], "GasBen": r["GasBen"]} for cid, r in zip(ids, imported, strict=True)]
+    rows[2]["ElecBen"] = (rows[2]["ElecBen"] or 0) + 100  # the replica prices one record differently
+    _finished(monkeypatch, rows)
+    out = legacy_corrections.compare(rep)
+    assert out["state"] == "done" and out["records"] == 3 and out["differ"] == 1
+    assert out["examples"][0]["claim_id"] == "PGE-2025-0002" and out["examples"][0]["field"] == "ElecBen"
+    rep.refresh_from_db()
+    assert rep.compared["differ"] == 1  # kept: read once
+
+
+def test_a_failed_reproduction_says_so(tmp_path, filer, approver, replica_release, monkeypatch):
+    v1 = _loaded(tmp_path)
+    rep = legacy_corrections.reproduce(filer, _corrected(filer, approver, v1), v1)
+    monkeypatch.setattr(submissions, "restated_run", lambda run_id: {"ended": True, "succeeded": False, "error": "boom", "results": {}})
+    assert legacy_corrections.compare(rep) == {"state": "failed", "error": "boom"}

@@ -518,8 +518,8 @@ def claims_totals(organisation: Organisation, year: int) -> list[dict]:
 
 def register_restater(restate: Callable, options: Callable, describe: Callable) -> None:
     """The Calculations module's restater: restate(actor, organisation, version, job_zip, *, name, release, acc_version,
-    record_accs, allocation_version, settings, cost_test_set, profiles_8760) starts an analysis run on the job (a local file) for
-    `organisation` (None: the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release",
+    record_accs, allocation_version, settings, cost_test_set, profiles_8760, calculation) starts an analysis run on the job (a local
+    file) for `organisation` (None: the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release",
     "default", "accs"}], the active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status",
     "label", "ended", "error", "url", "release", "acc", "allocation", "cost_tests", "programs", "results"} for a run, or None once it
     is gone (expired)."""
@@ -552,6 +552,30 @@ def restate(actor, v: SubmissionVersion, job_zip, *, organisation, name: str, re
         "submission.restatement_started",
         obj=v,
         after={"run": str(run), "release": release, "acc": acc_version, "for": organisation.code if organisation else None},
+        actor=actor,
+        organisation=organisation,
+    )
+    return str(run)
+
+
+def reproduce_legacy(
+    actor, v: SubmissionVersion, job_zip, *, organisation, name: str, release: str, acc_version: str, calculation: str
+) -> str:
+    """Start a run reproducing an imported version's records on the CET replica that prices its correction: an analysis run for
+    `organisation`, never linked to the version, whose outputs the module compares with the ones legacy CEDARS published, so a
+    correction's reviewers see which untouched records the replica prices differently. `job_zip` is the module's job of the imported
+    records. Returns the run's id."""
+    v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
+    if v.origin != SubmissionVersion.Origin.IMPORTED:
+        raise AccessDenied("Only an imported version is reproduced on a CET replica.")
+    _require(actor, v.submission, "submit")  # a filer of the filing: the run needs no run permission of its own
+    if not _restaters:
+        raise AccessDenied("The calculation service is not installed here, so legacy filings cannot be reproduced.")
+    run = _restaters[0][0](actor, organisation, v, job_zip, name=name, release=release, acc_version=acc_version, calculation=calculation)
+    audit.record(
+        "submission.legacy_reproduction_started",
+        obj=v,
+        after={"run": str(run), "release": release, "acc": acc_version, "calculation": calculation},
         actor=actor,
         organisation=organisation,
     )
