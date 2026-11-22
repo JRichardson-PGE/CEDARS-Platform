@@ -8,6 +8,10 @@
 {% for p in pending %}{% with r=p.r %}
 <div class="card">
   <h3>{% if p.page %}<a href="{{ p.page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</h3>
+  {% if r.legacy %}<p class="legacy-request"><span class="status info">Legacy correction</span> This filing was imported from legacy CEDARS.
+  Approving starts version {{ p.stands.number|add:1 }} on the platform: it starts from the imported records, is checked against
+  {% if p.legacy_spec %}<a href="{% url 'specifications:version' p.legacy_spec.specification.code p.legacy_spec.slug %}">{{ p.legacy_spec.name }}</a>{% else %}the year's legacy correction version{% endif %}
+  and is priced on {% if p.legacy_spec %}the {{ p.legacy_spec.calculation_label }}{% else %}the year's CET replica{% endif %}. No later legacy download is loaded over it.</p>{% endif %}
   <p>{{ r.requested_by|person }} asked {{ r.requested_at|date_words }}: {{ r.reason }}</p>
   {% if p.approver != user %}<p class="small muted">You decide as {{ p.approver|person_name }}'s delegate.</p>{% endif %}
   <ul class="small">
@@ -28,7 +32,7 @@
 <h2>Decided</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Decided requests">
 <table class="list"><thead><tr><th scope="col">Filing</th><th scope="col">Decision</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
-<tbody>{% for r, page in decided %}<tr><th scope="row">{% if page %}<a href="{{ page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
+<tbody>{% for r, page in decided %}<tr><th scope="row">{% if page %}<a href="{{ page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}{% if r.legacy %} <span class="small muted">(legacy correction)</span>{% endif %}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
 </div>
 {% endif %}
 {% endblock %}

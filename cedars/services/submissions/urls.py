@@ -10,6 +10,7 @@ urlpatterns = [
     path("calendar/sets/", views.filing_sets, name="filing_sets"),
     path("workflow-settings/", views.workflow_settings, name="workflow_settings"),
     path("reopen-requests/", views.reopen_requests, name="reopen_requests"),
+    path("submissions/<int:pk>/legacy-correction/", views.legacy_correction, name="legacy_correction"),
     path("delegates/", views.delegations, name="delegations"),
     path("delegates/<int:pk>/end", views.end_delegation, name="end_delegation"),
     path("reopen-requests/<int:pk>", views.decide, name="decide"),

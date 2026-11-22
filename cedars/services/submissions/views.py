@@ -779,6 +779,7 @@ def reopen_requests(request):
                 "stands_page": comments.version_page(stands) if stands else "",
                 "earlier": earlier,
                 "comments": comments.Comment.objects.filter(version__submission=r.submission).count(),
+                "legacy_spec": service.legacy_correction_spec(r.submission) if r.legacy else None,
             }
         )
     decided = [
@@ -800,6 +801,20 @@ def decide(request, pk):
     else:
         messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission.plain_name}.")
     return redirect("submissions:reopen_requests")
+
+
+@login_required
+@require_POST
+def legacy_correction(request, pk):
+    """Ask to correct a filing imported from legacy CEDARS; the request waits for a CPUC approver. Back to the filing's page."""
+    sub = get_object_or_404(Submission.objects.select_related("deadline", "organisation"), pk=pk)
+    try:
+        service.request_legacy_correction(request.user, sub, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, f"Your request to correct {sub.plain_name} is with the CPUC's approvers; you will hear their decision.")
+    return redirect(service.filing_page(sub, service.current(sub)) or "/")
 
 
 @login_required

@@ -1,0 +1,13 @@
+{% if show %}<div id="legacy-correction">
+  {% if pending %}<p>A request to correct this legacy filing, sent {{ pending.requested_at|date_words }}, is waiting for a CPUC approver.</p>
+  {% else %}
+  <details class="inline-form"><summary>Ask to correct this legacy filing</summary>
+  <form method="post" action="{% url 'submissions:legacy_correction' v.submission.pk %}" class="stack form-narrow">{% csrf_token %}
+    <div class="field"><label for="legacy-reason">Reason for the correction</label><textarea id="legacy-reason" name="reason" rows="2" required aria-describedby="legacy-reason-help"></textarea>
+      <span class="helptext" id="legacy-reason-help">A CPUC approver decides. Once approved, version {{ v.number|add:1 }} starts from the imported records: you file only the
+      records that change, it is checked against <a href="{% url 'specifications:version' spec.specification.code spec.slug %}">{{ spec.name }}</a>
+      and the whole filing is priced again on the {{ spec.calculation_label }}. Version {{ v.number }} stays as imported.</span></div>
+    <div class="actions"><button type="submit">Ask to correct</button></div>
+  </form></details>
+  {% endif %}
+</div>{% endif %}

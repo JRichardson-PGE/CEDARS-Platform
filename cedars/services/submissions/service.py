@@ -12,7 +12,14 @@ asks this service to price its version and never imports the Calculations module
 
 Imported versions (`import_version`): legacy CEDARS' years load as published versions marked imported (origin "imported"), as CEDARS
 published them. They are read-only history: every path that would change, reprice, un-confirm, reopen or correct a submission that holds
-one refuses (`_refuse_imported`), and no publisher hook runs for them (the loading module writes its own derived lines).
+only imported versions refuses (`_refuse_imported`), and no publisher hook runs for them (the loading module writes its own derived lines).
+
+Legacy corrections (`request_legacy_correction`): a filing organization may ask to correct a recent legacy year whose module registered
+how (`register_legacy_corrections`) and for whose year a legacy correction specification version is published
+(specifications.for_legacy). The request always waits for a CPUC approver, whatever the module's reopen policy. Approval starts a draft
+version filed on the platform: it holds the imported version's files, the deadline is pinned to the correction version (so the draft is
+checked and priced against it), and the module's starter prepares it. From then on the submission is the platform's: no later legacy
+download is imported over it, and its versions are corrected like any other.
 
 Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
 for a year by program, so another module (Monthly reports' 13th-month report) reads them without importing Claims.
@@ -25,6 +32,7 @@ restatement was started on it.
 
 import hashlib
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from django.db import transaction
 from django.db.models import Count, Max, Q
@@ -565,7 +573,12 @@ IMPORTED_MESSAGE = "This filing was imported from legacy CEDARS. It is read-only
 
 
 def is_imported(submission: Submission) -> bool:
-    return submission.versions.filter(origin=SubmissionVersion.Origin.IMPORTED).exists()
+    """Imported from legacy CEDARS and not since corrected on the platform: read-only."""
+    versions = submission.versions
+    return (
+        versions.filter(origin=SubmissionVersion.Origin.IMPORTED).exists()
+        and not versions.filter(origin=SubmissionVersion.Origin.FILED).exists()
+    )
 
 
 def _refuse_imported(submission: Submission) -> None:
@@ -1340,6 +1353,8 @@ def request_reopen(actor, submission: Submission, reason: str) -> ReopenRequest 
     version is created at once (returned); under "approval" a request waits for an approver (returned); "closed" refuses."""
     submission = Submission.objects.select_related("deadline", "organisation").get(pk=submission.pk)
     _require(actor, submission, "submit")
+    if is_imported(submission) and legacy_correction_spec(submission) is not None:
+        raise AccessDenied(f"{IMPORTED_MESSAGE} Ask for a legacy correction instead: it goes to a CPUC approver.")
     _refuse_imported(submission)
     if not reason.strip():
         raise AccessDenied("Give the reason for the correction.")
@@ -1385,8 +1400,10 @@ def _tell_deciders(req: ReopenRequest, actor, reason: str) -> None:
     s = req.submission
     notifications.tell_about_request(
         [u for u in deciders(s.module) if u != actor],
-        f"Correction requested: {s.plain_name}",
-        f"{_who(actor, s.organisation)} ({s.organisation.code}) asked to correct it after its due date.\n\nReason: {reason}",
+        f"{'Legacy correction' if req.legacy else 'Correction'} requested: {s.plain_name}",
+        f"{_who(actor, s.organisation)} ({s.organisation.code}) asked to correct "
+        + ("this filing imported from legacy CEDARS." if req.legacy else "it after its due date.")
+        + f"\n\nReason: {reason}",
         "/filings/reopen-requests/",
         key=notifications.request_key("submissions.reopenrequest", req.pk, "requested"),
         about=notifications.DECIDE,
@@ -1453,7 +1470,116 @@ def decide_reopen(actor, req: ReopenRequest, approve: bool, note: str = "") -> S
     req.save()
     _tell_requester(req, approve, note or "")
     audit.record(f"reopen.{req.status}", obj=req, reason=note, actor=actor)
-    return _new_version(actor, req.submission, req.reason) if approve else None
+    if not approve:
+        return None
+    if req.legacy:
+        return _start_legacy_correction(actor, req.submission, req.reason)
+    return _new_version(actor, req.submission, req.reason)
+
+
+# --- correcting a legacy CEDARS filing
+
+
+@dataclass(frozen=True)
+class LegacyCorrections:
+    """How a module's legacy filings are corrected: `year(deadline)` gives the legacy year a deadline's filings are (None: not a legacy
+    year this module corrects); `start(new, imported)` prepares the new draft version from the imported version it corrects."""
+
+    year: Callable
+    start: Callable
+
+
+_legacy_corrections: dict[str, LegacyCorrections] = {}
+
+
+def register_legacy_corrections(module: str, *, year: Callable, start: Callable) -> None:
+    """Called by a filing module in its AppConfig.ready(): its imported legacy filings may then be corrected
+    (`request_legacy_correction`)."""
+    _legacy_corrections[module] = LegacyCorrections(year, start)
+
+
+def legacy_correction_spec(submission: Submission):
+    """The legacy correction specification version a correction of this imported filing is checked and priced against, or None: the
+    module corrects no legacy filings, the filing is not (only) imported, it is outside every total (statewide claims CEDARS published
+    unallocated), or no correction version covers its year."""
+    hooks = _legacy_corrections.get(submission.module)
+    if hooks is None or not is_imported(submission):
+        return None
+    v = latest(submission)
+    if v is None or not v.imported or (v.calculation or {}).get("outside_totals"):
+        return None
+    year = hooks.year(submission.deadline)
+    return specifications.for_legacy(submission.module, int(year)) if year else None
+
+
+def legacy_correction_refusal(actor, submission: Submission) -> str:
+    """Why `actor` may not ask to correct this imported filing now ("" = they may)."""
+    if legacy_correction_spec(submission) is None:
+        return "This legacy filing cannot be corrected on the platform."
+    if not getattr(actor, "is_authenticated", False) or not access.has_permission(
+        actor, submission.organisation, f"{submission.module}.submit"
+    ):
+        return f"Only a filer of {submission.organisation.code} asks to correct its filing."
+    if submission.reopen_requests.filter(status=ReopenRequest.Status.PENDING).exists():
+        return "A request to correct this filing is already waiting for a CPUC approver."
+    return ""
+
+
+@transaction.atomic
+def request_legacy_correction(actor, submission: Submission, reason: str) -> ReopenRequest:
+    """Ask to correct a filing imported from legacy CEDARS: only the filing organization's filers may, with a reason, and the request
+    always waits for a CPUC approver (one approval; the module's reopen policy does not apply)."""
+    submission = Submission.objects.select_for_update().select_related("deadline", "organisation").get(pk=submission.pk)
+    _require(actor, submission, "submit")
+    refused = legacy_correction_refusal(actor, submission)
+    if refused:
+        raise AccessDenied(refused)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for the correction.")
+    req = ReopenRequest.objects.create(submission=submission, requested_by=actor, reason=reason, legacy=True)
+    _tell_deciders(req, actor, reason)
+    audit.record("reopen.requested", obj=req, reason=reason, after={"legacy": True}, actor=actor)
+    return req
+
+
+def _start_legacy_correction(actor, submission: Submission, reason: str) -> SubmissionVersion:
+    """The approved legacy correction's draft: the next version, filed on the platform, holding the imported version's files, its
+    deadline pinned to the year's correction version; then the module's starter prepares it."""
+    submission = Submission.objects.select_for_update().select_related("deadline", "organisation").get(pk=submission.pk)
+    spec = legacy_correction_spec(submission)
+    if spec is None:
+        raise AccessDenied("This legacy filing can no longer be corrected on the platform (no correction version covers its year).")
+    imported = latest(submission)
+    deadline = submission.deadline
+    if deadline.specification_version_id != spec.pk:
+        before = {"specification": str(deadline.specification_version) if deadline.specification_version_id else None}
+        deadline.specification_version = spec
+        deadline.save(update_fields=["specification_version"])
+        audit.record(
+            "deadline.specification_set",
+            obj=deadline,
+            before=before,
+            after={"specification": str(spec)},
+            reason="A legacy correction is checked and priced against the year's correction version",
+            actor=actor,
+        )
+    v = SubmissionVersion.objects.create(
+        submission=submission,
+        number=imported.number + 1,
+        reason=reason,
+        created_by=actor,
+        files=list(imported.files or []),
+        specification_version=spec,
+    )
+    audit.record(
+        "submission.reopened",
+        obj=v,
+        reason=reason,
+        after={"number": v.number, "from_version": imported.number, "legacy": True, "specification": str(spec)},
+        actor=actor,
+    )
+    _legacy_corrections[submission.module].start(v, imported)
+    return v
 
 
 def pending_corrections(actor, module: str) -> dict[int, int] | None:
