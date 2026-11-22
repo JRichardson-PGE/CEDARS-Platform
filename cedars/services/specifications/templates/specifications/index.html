@@ -33,6 +33,10 @@ and corrections use that version, whenever they are made. Several versions can b
     </tbody>
   </table>
   </div>
+  {% if s.corrections %}<h3 id="corrections-{{ s.spec.code }}">For correcting legacy filings</h3>
+  <p class="small">A correction of a recent year imported from legacy CEDARS is checked against the version for its year and priced on the
+  CET replica legacy CEDARS priced that year with. No new filing set uses these versions.</p>
+  <ul class="compact">{% for v in s.corrections %}<li><a href="{% url 'specifications:version' s.spec.code v.slug %}">{{ v.name }}</a>: {{ v.legacy_years }}, priced on the {{ v.calculation_label }}</li>{% endfor %}</ul>{% endif %}
   {% if s.historic %}<h3 id="historic-{{ s.spec.code }}">Legacy CEDARS layouts</h3>
   <p class="small">The layouts of legacy CEDARS' record-level downloads that the imported years came in. Read only: those years were filed
   and checked in legacy CEDARS.</p>

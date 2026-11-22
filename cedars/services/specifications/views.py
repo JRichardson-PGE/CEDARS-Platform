@@ -43,6 +43,7 @@ def index(request):
                 "coming": service.coming(s),
                 "versions": [(v, len(service.in_use(v))) for v in versions],
                 "historic": [(v, historic.years_of(v)) for v in historic.versions(s)],
+                "corrections": list(service.legacy_corrections(s)),
             }
         )
     nav_menu = "filings" if "member" in nav.roles_of(request.user) else "published"

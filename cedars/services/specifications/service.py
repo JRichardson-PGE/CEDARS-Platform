@@ -212,6 +212,7 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         file_format=v.get("file_format") or {},
         created_by=actor,
         **({"legacy_layouts": v["legacy_layouts"]} if v.get("legacy_layouts") else {}),  # migration 0009 on
+        **_legacy_correction(v),  # migration 0010 on
     )
     for i, t in enumerate(document["tables"]):
         table = Table.objects.create(
@@ -257,6 +258,17 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
     return version
 
 
+def _legacy_correction(v: dict) -> dict:
+    """A legacy correction version's years and calculation from its document (legacy_corrections.py); {} for any other version."""
+    out = {}
+    years = v.get("legacy_years") or []
+    if years:
+        out["legacy_first_year"], out["legacy_last_year"] = int(years[0]), int(years[-1])
+    if v.get("calculation"):
+        out["calculation"] = v["calculation"]
+    return out
+
+
 FIELD_ATTRS = [
     "name",
     "other_names",
@@ -288,6 +300,8 @@ def fingerprint(document: dict) -> str:
     content["version"] = {
         k: document["version"].get(k) for k in ("name", "rule_set_code", "engine_release", "cost_test_set", "file_format")
     }
+    # a legacy correction version's years and calculation (absent from every other version, so their fingerprints stay as they were)
+    content["version"].update({k: document["version"][k] for k in ("legacy_years", "calculation") if document["version"].get(k)})
     return hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -321,7 +335,7 @@ def current(specification, on=None):
     """The specification's current version: the newest published one in effect (`effective_on` passed, or blank), which new filing
     sets are set up with; None before any is."""
     _, Version = _models()
-    qs = Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED)
+    qs = Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED, legacy_first_year__isnull=True)
     return _in_effect(qs, on).order_by("-published_at", "-pk").first()
 
 
@@ -332,7 +346,9 @@ def coming(specification, on=None) -> list:
     _, Version = _models()
     on = on or timezone.localdate()
     return list(
-        Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED, effective_on__gt=on).order_by("effective_on")
+        Version.objects.filter(
+            specification=specification, status=Version.Status.PUBLISHED, effective_on__gt=on, legacy_first_year__isnull=True
+        ).order_by("effective_on")
     )
 
 
@@ -341,6 +357,32 @@ def for_module(module: str):
     Specification, _ = _models()
     spec = Specification.objects.filter(module=module).first()
     return current(spec) if spec else None
+
+
+def legacy_corrections(specification=None):
+    """The published versions for correcting legacy CEDARS filings (legacy_corrections.py), by their years."""
+    _, Version = _models()
+    qs = Version.objects.filter(status=Version.Status.PUBLISHED, legacy_first_year__isnull=False).select_related("specification")
+    if specification is not None:
+        qs = qs.filter(specification=specification)
+    return qs.order_by("specification__position", "legacy_first_year", "-published_at")
+
+
+def for_legacy(module: str, year: int):
+    """The published version a correction of a legacy CEDARS filing of `module` for `year` is checked and priced against: the newest
+    legacy correction version whose years hold `year`. None: that year is not correctable."""
+    return (
+        legacy_corrections()
+        .filter(specification__module=module, legacy_first_year__lte=year, legacy_last_year__gte=year)
+        .order_by("-published_at", "-pk")
+        .first()
+    )
+
+
+def calculation_of(version) -> str:
+    """The calculation that prices a filing on `version`: "recet" (ReCET's own) or a CET replica such as "cet-25.1"."""
+    c = (getattr(version, "calculation", "") or "").strip() if version is not None else ""
+    return c or "recet"
 
 
 def public_versions(specification):
@@ -374,6 +416,12 @@ def as_document(version) -> dict:
             "engine_release": version.engine_release,
             "cost_test_set": {"id": pack.label, "version": pack.version} if pack else None,
             "file_format": version.file_format,
+            **(
+                {"legacy_years": [version.legacy_first_year, version.legacy_last_year]}
+                if getattr(version, "legacy_first_year", None) is not None
+                else {}
+            ),
+            **({"calculation": version.calculation} if getattr(version, "calculation", "") else {}),
         },
         "tables": tables,
         "checks": [{k: getattr(c, k) for k in CHECK_ATTRS} for c in version.checks.all()],
@@ -717,6 +765,10 @@ def settings_rows(version) -> list[list[str]]:
         ],
         ["Fingerprint (SHA-256)", version.fingerprint],
     ]
+    if version.calculation or version.corrects_legacy:
+        rows.insert(6, ["Calculation", version.calculation_label])
+    if version.corrects_legacy:
+        rows.insert(3, ["Corrects", f"Legacy CEDARS filings of {version.legacy_years} only (never a new filing set)"])
     if version.historic:  # a legacy CEDARS download layout: nothing prices or checks it
         rows[4:7] = [["Source", version.source], ["Legacy layouts", ", ".join(version.legacy_layouts or [])]]
     fmt = version.file_format or {}
@@ -881,9 +933,10 @@ def can_read(user, version) -> bool:
 
 
 def readable_versions(user, specification):
-    """The versions of a specification the user may read, newest first; the legacy CEDARS layouts are listed apart (historic.py)."""
+    """The versions of a specification the user may read, newest first; the legacy CEDARS layouts (historic.py) and the legacy correction
+    versions (legacy_corrections.py) are listed apart."""
     _, Version = _models()
-    qs = Version.objects.filter(specification=specification).exclude(status=Version.Status.HISTORIC)
+    qs = Version.objects.filter(specification=specification).exclude(status=Version.Status.HISTORIC).filter(legacy_first_year__isnull=True)
     return [v for v in qs if can_read(user, v)]
 
 
