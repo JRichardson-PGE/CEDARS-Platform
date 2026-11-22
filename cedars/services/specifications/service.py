@@ -198,8 +198,13 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         raise SpecificationError("A version needs a name.")
     if Version.objects.filter(specification=spec, name=name).exists():
         raise SpecificationError(f"{spec.name} already has a version called {name}.")
+    # A version loaded published while the specification has a draft (or a proposed version) is built as a draft of a holding
+    # specification, since a specification has one draft at a time, and moved to its own as it is given its status.
+    holding = None
+    if status != "draft" and Version.objects.filter(specification=spec, status__in=("draft", "proposed")).exists():
+        holding = Specification.objects.create(code=f"loading-{spec.code}"[:40], module=f"loading-{spec.module}"[:40], name=spec.name)
     version = Version.objects.create(
-        specification=spec,
+        specification=holding or spec,
         name=name,
         slug=slugify(name),
         status="draft",
@@ -248,6 +253,8 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         for i, e in enumerate(document.get("examples", []))
     )
     if status != "draft":
+        if holding is not None:
+            version.specification = spec
         version.status = status
         if status in ("published", "withdrawn"):
             version.published_at = timezone.now()
@@ -255,6 +262,8 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         if status in ("published", "withdrawn", "historic"):
             version.fingerprint = fingerprint(document)
         version.save()
+    if holding is not None:
+        holding.delete()
     return version
 
 
