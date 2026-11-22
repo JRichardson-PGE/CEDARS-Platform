@@ -169,3 +169,18 @@ def test_the_checker_page_and_api_refuse_a_file_over_the_limit(signed_in, make_u
     r = c.post("/api/v1/rules/check", {"file": big, "table": "Measure"})
     assert r.status_code == 400 and "the pre-upload checker reads files of up to 1 MB" in r.content.decode()
     assert c.get("/rules/check/").context["max_mb"] == 1  # the page says it beside the file field
+
+
+@pytest.mark.django_db
+def test_a_restatements_acc_by_claim_file_follows_its_limit(settings, cpuc_admin):
+    from cedars.modules.claims import restatements
+
+    settings.RESTATEMENT_ACC_FILE_MAX_MB = 150
+    assert limits.value("restatement_acc_file_mb") == 150  # the upload limit's default: a file naming every claim of a 1M year fits
+    releases.set_limit(cpuc_admin, "restatement_acc_file_mb", 1, "testing the limit")
+    big = b"ClaimID,ACC\n" + b"PGE-2027-000001,2024\n" * 60_000  # about 1.3 MB
+    with pytest.raises(AccessDenied, match="over 1 MB"):
+        restatements.parse_overrides(big, {"PGE-2027-000001"}, ["2024"])
+    assert restatements.parse_overrides(b"ClaimID,ACC\nPGE-2027-000001,2024\n", {"PGE-2027-000001"}, ["2024"]) == {
+        "PGE-2027-000001": "2024"
+    }

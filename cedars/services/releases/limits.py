@@ -111,6 +111,18 @@ LIMITS = [
         "CEDARS_UPLOAD_MAX_UNZIPPED_MB",
     ),
     Limit(
+        "restatement_acc_file_mb",
+        "Size of a restatement's ACC by claim file",
+        UPLOADS,
+        _editable("restatement_acc_file_mb", "RESTATEMENT_ACC_FILE_MAX_MB"),
+        "MB",
+        "The optional file of ClaimIDs and ACCs uploaded with a restatement of confirmed claims, read while you wait.",
+        "The restatement is refused, naming the limit. Restate on one ACC, or name fewer claims.",
+        "RESTATEMENT_ACC_FILE_MAX_MB",
+        editable=True,
+        bounds=(1, 1024),
+    ),
+    Limit(
         "checker_mb",
         "Size of a file checked before upload",
         UPLOADS,
