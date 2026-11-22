@@ -109,3 +109,13 @@ def test_the_pages_show_them_apart(client):
     assert "For correcting legacy filings" in index and URL in index and "2026-2027, priced on the CET 25.1 replica" in index
     versions_table = index.split("For correcting legacy filings")[0]
     assert "Legacy corrections, 2024-2025</a></th>" not in versions_table  # not listed with the ordinary versions
+
+
+def test_loaded_published_while_the_specification_has_a_draft(cpuc_admin):
+    spec = Specification.objects.get(code="claims")
+    draft = editor.start_draft(cpuc_admin, service.current(spec), "Claims 2030", "Next year")
+    doc = legacy_corrections.document(legacy_corrections.Correction("claims", 2028, 2029, "cet-25.1", "CET 25.1"))
+    v = service.load(doc, status="published")
+    assert v.specification == spec and v.status == "published" and v.tables.count() == 4
+    draft.refresh_from_db()
+    assert draft.status == "draft" and not Specification.objects.filter(code__startswith="loading-").exists()
