@@ -17,7 +17,7 @@ from cedars.services.registry import service as registry
 from .test_documents import details, make_people, upload
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.101.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.102.json"
 BASE = Path(__file__).parent.parent / "cedars" / "core" / "templates" / "core" / "base.html"
 
 
