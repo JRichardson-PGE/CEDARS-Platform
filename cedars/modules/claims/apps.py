@@ -111,3 +111,11 @@ class ClaimsConfig(AppConfig):
         from .corrections import ClaimsEditor
 
         record_corrections.register(ClaimsEditor())  # records corrected in place on an open draft
+
+        from cedars.services.submissions.service import register_legacy_corrections
+
+        from . import legacy_corrections
+
+        register_legacy_corrections(  # an imported claim year from 2024 on may be corrected, compiled over its imported records
+            "claims", year=legacy_corrections.year, start=legacy_corrections.start
+        )
