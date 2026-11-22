@@ -37,16 +37,19 @@ SEVERITY_WORDS = {"reject": "Rejects the record", "warning": "Warning", "either"
 
 def prior_of(version):
     """The version a document compares this one with: the published version it was copied from, else the newest version of the same
-    specification published before it. None for a first version, and for a legacy CEDARS layout (it changes nothing)."""
+    specification published before it. None for a first version, for a legacy CEDARS layout (it changes nothing) and for a legacy
+    correction version not copied from another; a legacy correction version is never the one compared with."""
     from .models import SpecificationVersion
 
     if version.historic:
         return None
     if version.based_on_id and version.based_on_id != version.pk:
         return version.based_on
-    qs = SpecificationVersion.objects.filter(specification=version.specification, status=SpecificationVersion.Status.PUBLISHED).exclude(
-        pk=version.pk
-    )
+    if version.corrects_legacy:
+        return None  # a legacy correction version is generated whole, not a change from the versions before it
+    qs = SpecificationVersion.objects.filter(
+        specification=version.specification, status=SpecificationVersion.Status.PUBLISHED, legacy_first_year__isnull=True
+    ).exclude(pk=version.pk)
     if version.published_at:
         qs = qs.filter(published_at__lt=version.published_at)
     return qs.order_by("-published_at", "-pk").first()

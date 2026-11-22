@@ -6,7 +6,7 @@
 <p id="spec-status"><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>
   {% if v.published_at %}{{ v.published_at|date_words }}.{% endif %}
   {% if v.effective_on %}Takes effect {{ v.effective_on|date_words }}{% if v.short_notice_reason %}, with short notice: {{ v.short_notice_reason }}{% endif %}.{% endif %}
-  {% if is_current %}<strong>The current version:</strong> new filings are set up with it.{% elif coming %}<strong>Coming:</strong> filing sets set up from that day use it.{% elif v.status == "published" %}A newer version is published; filings set up with this one keep it.{% endif %}
+  {% if v.corrects_legacy %}<strong id="legacy-correction">For correcting legacy CEDARS filings of {{ v.legacy_years }} only:</strong> a correction of one of those years is checked against it and priced on the {{ v.calculation_label }}. No new filing set uses it.{% elif is_current %}<strong>The current version:</strong> new filings are set up with it.{% elif coming %}<strong>Coming:</strong> filing sets set up from that day use it.{% elif v.status == "published" %}A newer version is published; filings set up with this one keep it.{% endif %}
   {% if v.release_note %}<a href="{% url 'releases:detail' v.release_note.pk %}">The release note that announced it</a>.{% endif %}
   {% if v.historic %}The layout legacy CEDARS published its record-level downloads in{% if years %} for {{ years }}{% endif %}. Read only: no filing is set up with it or checked against it.{% endif %}
   {% if v.status == "withdrawn" %}Withdrawn {{ v.withdrawn_at|date_words }}: {{ v.withdrawn_reason }}{% endif %}

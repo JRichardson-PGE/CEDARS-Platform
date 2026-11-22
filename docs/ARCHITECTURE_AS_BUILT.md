@@ -295,7 +295,7 @@ The apps, in `INSTALLED_APPS` order:
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
 | Service | `cedars.services.dictionary` | Field catalog versions (the engine's and the platform's own records), aliases, usages, value lists, field retirement, templates and schemas, the legacy crosswalk |
 | Service | `cedars.services.rules` | Rule sets and rules as data, run by the engine's rule runner; the pre-upload checker; the list of checks written in code |
-| Service | `cedars.services.specifications` | Filing specifications: one per kind of filing, in versions the CPUC names, each holding the filing's tables and fields, the rule set and built-in checks it is checked against, what prices it, its file format and example records; the starting versions generated from the filing modules' layouts; the version each deadline is pinned to; the editor (`editor.py`: drafts copied from a published version, locked fields, which built-in checks run, the checks before publishing, proposing for comment, publishing with notice and a release note); comments on proposed versions (`comments.py`); legacy CEDARS' download layouts as read-only historic versions (`historic.py`) |
+| Service | `cedars.services.specifications` | Filing specifications: one per kind of filing, in versions the CPUC names, each holding the filing's tables and fields, the rule set and built-in checks it is checked against, what prices it, its file format and example records; the starting versions generated from the filing modules' layouts; the version each deadline is pinned to; the editor (`editor.py`: drafts copied from a published version, locked fields, which built-in checks run, the checks before publishing, proposing for comment, publishing with notice and a release note); comments on proposed versions (`comments.py`); legacy CEDARS' download layouts as read-only historic versions (`historic.py`); versions for correcting legacy filings of recent years (`legacy_corrections.py`) |
 | Service | `cedars.services.submissions` | The filing calendar, the one state machine for every filing, workflow policy, reopen requests and delegations, comments, corrections in place, publication hooks, pricing through the registered pricer |
 | Service | `cedars.services.refdata` | Reference-data packs (ACC, impact profiles, eTRM permutations, cost-test sets ...), tie-outs, pinning; the cost-test set builder |
 | Service | `cedars.services.notifications` | Subscriptions fed from the audit trail, follows, deadline reminders, the notifications page, email |
@@ -648,6 +648,9 @@ erDiagram
     string slug
     string status "draft, proposed, published, withdrawn, historic"
     json legacy_layouts "historic: the legacy download layouts it records"
+    int legacy_first_year "legacy correction: first year it corrects"
+    int legacy_last_year "legacy correction: last year"
+    string calculation "blank: ReCET; or a CET replica, cet-25.1"
     string rule_set_code
     string engine_release "blank: the default release"
     json file_format
@@ -740,6 +743,18 @@ trigger freezes it and refuses deleting it, migration 0009), and has no template
 leave it out. Its page lists the legacy imports loaded from downloads in its layouts (`legacy.imports_in_layouts`), the specifications
 page lists the layouts under each specification, and an imported version's page links its layout (`legacy.imported`,
 `historic.for_layouts`).
+
+**Legacy correction versions** (`specifications/legacy_corrections.py`). A correction of a recent year imported from legacy CEDARS is a
+version filed on the platform, so it is checked against a published version made for it ahead of time. Each covers the legacy years it
+corrects (`legacy_first_year`..`legacy_last_year`) and names the calculation that prices it (`calculation`): the CET replica of the
+release legacy CEDARS priced those years with, in the current engine release (claims 2024-2025 on CET 24.3, 2026-2027 on CET 25.1). It
+holds the claim, measure, program cost and withdrawal tables of the starting claims version, a field the year's legacy download did not
+hold made optional. The documents are generated (`legacy_corrections.documents`), stored as `legacy_corrections/<name>.json`
+(`manage.py specification_legacy_corrections --write`, and without `--write` a check; a test holds them to the generator) and loaded
+published by migration 0010. Such a version is never a specification's current or coming version, never a choice when a filing set is
+set up or moved (`current`, `coming`, `moving.choices` and `readable_versions` leave it out); `for_legacy(module, year)` finds the one
+for a year, `calculation_of(version)` gives the calculation that prices a filing on a version ("recet" for every other version), and the
+specifications page lists them apart. A draft copied from one keeps its years and calculation.
 
 **Renaming a field** (`editor.rename_field`): a field that is not locked keeps its place and attributes under a new name, recorded as
 `SpecField.renamed_from` (migration 0004); the old name joins its other accepted names, so a file in the old layout still uploads, and
@@ -1089,7 +1104,7 @@ erDiagram
 | An imported version is published; a version's number is unique in its submission; an ID that follows a statewide program has a date | Check and unique constraints |
 | The audit trail is append-only | Trigger, `audit` migration 0002 |
 | Published rule sets, value list versions, reference packs, release notes and mandates never change; a published mandate is never deleted | Triggers (rules 0002, dictionary 0002, refdata 0002, releases 0001 and 0002) |
-| A specification version that is not a draft never changes, except a proposed one being returned to draft, having its comment period moved or being published, and a published one withdrawn; a comment on a proposed version never changes; a published or historic one is never deleted; the tables, fields, checks and examples of a version that is not a draft never change; one draft per specification; a version's name is unique in its specification; a draft's rule set is published only with its version | Triggers (specifications 0001, 0008, 0009), partial unique and check constraints; `rules.publish` |
+| A specification version that is not a draft never changes, except a proposed one being returned to draft, having its comment period moved or being published, and a published one withdrawn; a comment on a proposed version never changes; a published or historic one is never deleted; the tables, fields, checks and examples of a version that is not a draft never change; one draft per specification; a version's name is unique in its specification; a legacy correction version's years are in order; a draft's rule set is published only with its version | Triggers (specifications 0001, 0008, 0009), partial unique and check constraints; `rules.publish` |
 | Change letters, filing comments and attachments never change | Triggers (budgets 0004, claims 0002, monthly 0003, submissions 0004) |
 | Published document versions and their files, EM&V deliverable stages and placeholder flags never change | Triggers (documents 0003, 0007, 0016) |
 | The vault holds only its own tables; nothing else migrates there | `VaultRouter.allow_migrate` and `allow_relation` |
@@ -1800,6 +1815,7 @@ One-off and administrative commands:
 | `import_profile_library`, `export_profile_library` | Loads legacy CEDARS' profile library; writes the platform's |
 | `stage_legacy_sources`, `load_legacy_filings`, `load_legacy_claims`, `snapshot_legacy` | Stages legacy CEDARS downloads, loads them as imported versions, snapshots them |
 | `specification_historic` | Writes legacy CEDARS' download layouts as historic specification versions' documents (`--write`), or checks the stored ones still match the crosswalk |
+| `specification_legacy_corrections` | Writes the legacy correction versions' documents (`--write`), or checks the stored ones still match the generator |
 | `dashboard_parity` | Checks the query layer against CEDARS' published totals |
 | `documents_import_pda`, `documents_import_psr`, `documents_import_cedars` | Migrates the PDA, PSR and CEDARS' own documents |
 | `snapshot_published`, `rescan_publication_holds` | Repairs a failed snapshot copy; scans held snapshots again |
@@ -2632,6 +2648,8 @@ summarize. A pull request that builds part of a service or module updates its su
     returning it to draft and publishing it as proposed (`propose`, `comments.py`, `SpecComment`, migration 0008).
   - Legacy CEDARS' download layouts as read-only historic versions linked from the imported years (`historic.py`, `legacy_layouts`,
     migration 0009).
+  - Versions for correcting legacy CEDARS filings of recent years, each naming the CET replica that prices them, never offered for a new
+    filing set (`legacy_corrections.py`, `legacy_first_year`, `legacy_last_year`, `calculation`, migration 0010).
   - The checks before publishing (`problems`).
   - Publishing with the release notes' notice or a reason, a release note and the draft rule set published the same day.
 - `effective_on` decides when new filing sets take a version (migration 0003).

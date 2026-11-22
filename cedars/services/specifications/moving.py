@@ -48,9 +48,10 @@ def register_filing_set(module: str, *, recheck, accs) -> None:
 
 def choices(module: str) -> list:
     """The versions a filing set of `module` may be set up with: the published versions of its specification in effect, newest first
-    (the first is the current one, offered by default)."""
+    (the first is the current one, offered by default). A legacy correction version is never one: only a legacy correction uses it."""
     _, Version = service._models()
-    qs = Version.objects.filter(specification__module=module, status=Version.Status.PUBLISHED).select_related("specification")
+    qs = Version.objects.filter(specification__module=module, status=Version.Status.PUBLISHED, legacy_first_year__isnull=True)
+    qs = qs.select_related("specification")
     return list(service._in_effect(qs).order_by("-published_at", "-pk"))
 
 

@@ -19,11 +19,10 @@ def load_starting(apps, schema_editor):
     today = timezone.localdate()
     for path in sorted(STARTING.glob("*.json")):
         document = json.loads(path.read_text(encoding="utf-8"))
-        current = (
-            Version.objects.filter(specification__code=document["specification"]["code"], status="published")
-            .order_by("-published_at", "-pk")
-            .first()
-        )
+        published = Version.objects.filter(specification__code=document["specification"]["code"], status="published")
+        if any(f.name == "legacy_first_year" for f in Version._meta.get_fields()):
+            published = published.filter(legacy_first_year__isnull=True)  # run again after 0010: a legacy correction is never current
+        current = published.order_by("-published_at", "-pk").first()
         if current is not None and current.fingerprint == service.fingerprint(document):
             continue
         code = document["version"].get("rule_set_code", "")

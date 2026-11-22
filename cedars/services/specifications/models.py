@@ -109,6 +109,15 @@ class SpecificationVersion(models.Model):
     comments_close_at = models.DateTimeField(
         null=True, blank=True, help_text="When comments on the proposed version close (the start of the day after the last day)"
     )
+    legacy_first_year = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="A legacy correction version: the first legacy year it corrects (blank: an ordinary version)"
+    )
+    legacy_last_year = models.PositiveSmallIntegerField(null=True, blank=True, help_text="A legacy correction version: the last year")
+    calculation = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="The calculation that prices its filings: blank for ReCET's own, or a CET replica such as cet-25.1",
+    )
 
     class Meta:
         ordering = ["specification", "-published_at", "-pk"]
@@ -123,6 +132,11 @@ class SpecificationVersion(models.Model):
                 name="specifications_published_has_date",
             ),
             models.CheckConstraint(condition=~Q(name=""), name="specifications_version_has_name"),
+            models.CheckConstraint(
+                condition=Q(legacy_first_year__isnull=True, legacy_last_year__isnull=True)
+                | Q(legacy_first_year__isnull=False, legacy_last_year__gte=models.F("legacy_first_year")),
+                name="specifications_legacy_years_in_order",
+            ),
         ]
 
     def __str__(self):
@@ -141,6 +155,25 @@ class SpecificationVersion(models.Model):
     def historic(self) -> bool:
         """A legacy CEDARS download layout, recorded read-only for the years imported from it: never assigned, never checked."""
         return self.status == self.Status.HISTORIC
+
+    @property
+    def corrects_legacy(self) -> bool:
+        """A version for correcting legacy CEDARS filings of its years only (legacy_corrections.py): never offered for a new filing set."""
+        return self.legacy_first_year is not None
+
+    @property
+    def legacy_years(self) -> str:
+        """The legacy years it corrects, e.g. 2024-2025 ("" for an ordinary version)."""
+        if self.legacy_first_year is None:
+            return ""
+        last = self.legacy_last_year or self.legacy_first_year
+        return str(last) if last == self.legacy_first_year else f"{self.legacy_first_year}-{last}"
+
+    @property
+    def calculation_label(self) -> str:
+        """The calculation in words: "ReCET" or "CET 25.1 replica"."""
+        c = (self.calculation or "").strip()
+        return "ReCET" if c in ("", "recet") else f"CET {c.removeprefix('cet-')} replica"
 
     @property
     def open_for_comment(self) -> bool:
