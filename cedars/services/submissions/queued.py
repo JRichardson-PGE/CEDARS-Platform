@@ -5,7 +5,8 @@ Limits page, changed on Change limits), is kept in the uploads area and recorded
 in the queue. A worker then runs the module's own check on it (the function the module registered for its kind with
 `register_queued_check`), as the person who asked and exactly as the request would have, and the page shows what it found. A smaller
 upload is checked in the request as before. Everything after the module's check is unchanged: its rules still go to the engine
-release's worker as check jobs, and the version is finished when they end.
+release's worker as check jobs, and the version is finished when they end; when those jobs read more records than the same limit, the
+finish is itself a queued check (kind `<module>.finish`, service.finish_check), so it never runs in the Batch sync loop.
 
 Where queued checks run (QUEUED_CHECKS_BACKEND):
 

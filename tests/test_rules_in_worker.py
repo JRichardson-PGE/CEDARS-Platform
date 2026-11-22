@@ -362,3 +362,43 @@ def test_only_the_last_job_to_end_locks_the_version_and_not_against_inserts(
     assert taken and "FOR NO KEY UPDATE" in taken[0]  # held through the re-check; recording its result at the end locks it fully
     v.refresh_from_db()
     assert "checking" not in v.findings
+
+
+def test_a_large_check_is_finished_by_a_queued_check_worker(
+    rules,
+    draft,
+    cpuc_admin,
+    filer,
+    year,
+    pge,
+    programs,
+    worker_mode,
+    settings,
+    here,  # noqa: F811
+):
+    """When the check's jobs read more records than the queued_check_records limit, the last one to end does not check the version
+    again where it ended (the Batch sync loop, a worker) but queues the finish; a queued-check worker then takes the findings, and a
+    second ending of the same check does not queue it twice."""
+    from cedars.services.submissions import queued
+    from cedars.services.submissions.models import QueuedCheck
+
+    rs, version = draft
+    sem, big = wide_rules(rules, cpuc_admin, rs)
+    Deadline.objects.filter(pk=deadline().pk).update(specification_version=version)
+    v = claims.upload_claims(filer, deadline(), pge, the_file(), "q1.zip")
+    settings.QUEUED_CHECK_RECORDS = 3
+    settings.QUEUED_CHECKS_BACKEND = "local"
+    while dispatch.check_one("test-worker", here, poll=0.05):
+        pass
+    v.refresh_from_db()
+    assert v.findings.get("checking")  # every job ended, but the version waits for the queued finish
+    q = QueuedCheck.objects.get(kind="claims.finish", version=v)
+    assert q.status == QueuedCheck.Status.QUEUED and q.records == sum(j.rows for j in CheckJob.objects.all())
+    claims.finish_check(CheckJob.objects.order_by("-finished_at").first())  # e.g. a nudge: nothing queued twice
+    assert QueuedCheck.objects.filter(kind="claims.finish").count() == 1
+    queued.execute(q.pk, "test")
+    q.refresh_from_db()
+    v.refresh_from_db()
+    assert q.status == QueuedCheck.Status.SUCCEEDED and q.result["version"] == v.pk
+    assert "checking" not in v.findings and v.status == SubmissionVersion.Status.DRAFT
+    assert {sem.rule_id, big.rule_id} <= {f["rule_id"] for f in claims.findings(v)}  # the rules' findings, taken by the worker
