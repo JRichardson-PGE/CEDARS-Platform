@@ -379,6 +379,9 @@ DOCUMENTS_MAX_FILE_MB = int(env("DOCUMENTS_MAX_FILE_MB", "200"))
 # Monthly reports, or as a calculation job (.zip), and how many files one filing upload may hold.
 CEDARS_UPLOAD_MAX_MB = int(env("CEDARS_UPLOAD_MAX_MB", "150"))
 CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
+# A restatement's optional "ACC by claim" file (ClaimID, ACC): read while the person waits. First-run default: the upload limit, so a file
+# naming every claim of a large year fits (about 23 bytes a claim); a CPUC system administrator can change it on Change limits.
+RESTATEMENT_ACC_FILE_MAX_MB = int(env("RESTATEMENT_ACC_FILE_MAX_MB", str(CEDARS_UPLOAD_MAX_MB)))
 # What an uploaded .zip or Excel workbook may unpack to, all its files together, checked before any of it is unpacked (a small .zip
 # can hold a very large file). The same as the calculation engine's own limit on a job's unzipped files.
 CEDARS_UPLOAD_MAX_UNZIPPED_MB = int(env("CEDARS_UPLOAD_MAX_UNZIPPED_MB", "1024"))

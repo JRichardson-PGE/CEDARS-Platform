@@ -31,6 +31,7 @@ from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
+from cedars.services.releases import limits
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
@@ -38,7 +39,6 @@ from . import service
 from .models import ClaimYear, Restatement, RestatementLine
 
 ROLES = ("restated", "bridge")
-MAX_OVERRIDE_BYTES = 20 * 1024 * 1024
 # The figures compared, as (key, label, kind): a ratio is its benefits over its cost (service.RATIOS).
 FIGURES = [
     ("TotalSystemBenefit", "Total system benefit", "money"),
@@ -134,8 +134,9 @@ def parse_overrides(data: bytes, claims: set[str], accs: list[str]) -> dict[str,
     """{ClaimID: ACC} from a CSV with a ClaimID (or CEInputID) column and an ACC (or ACCVersion) column, comma- or pipe-delimited. Every
     ClaimID must be one of the version's priced claims and every ACC one the release has ("2024" or "2024 ACC"). AccessDenied names
     the first few problems."""
-    if len(data) > MAX_OVERRIDE_BYTES:
-        raise AccessDenied(f"The ClaimID and ACC file is over {MAX_OVERRIDE_BYTES // (1024 * 1024)} MB.")
+    most = int(limits.value("restatement_acc_file_mb"))  # on the Limits page (/limits/)
+    if len(data) > most * 1024 * 1024:
+        raise AccessDenied(f"The ClaimID and ACC file is over {most:,} MB.")
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError:
