@@ -291,3 +291,36 @@ def test_jobs_that_end_before_the_version_is_recorded_as_being_checked_still_fin
     v.refresh_from_db()
     assert "checking" not in v.findings
     assert {sem.rule_id, big.rule_id} <= {f["rule_id"] for f in claims.findings(v)}  # the worker's findings, taken
+
+
+def test_a_job_that_never_reached_a_worker_is_not_reused(rules, draft, cpuc_admin, worker_mode, monkeypatch, here):  # noqa: F811
+    """A dispatcher that fails (AWS Batch refusing the submit) fails its job, and a queued job no backend took is passed over: the
+    next check with the same inputs makes a new job and hands it over, instead of waiting on one nobody would run."""
+    rs, _version = draft
+    wide_rules(rules, cpuc_admin, rs)
+    content = table_of(the_file(), "Measure")
+    monkeypatch.setattr(jobs, "wait_seconds", lambda: 0)
+
+    def refused(job):
+        raise RuntimeError("AccessDenied: not authorized to perform batch:SubmitJob")
+
+    monkeypatch.setattr(jobs, "_dispatchers", [jobs.Dispatcher(resolve=lambda r: r or here, submit=refused, serves=lambda r: True)])
+    with pytest.raises(RuntimeError):
+        precheck.check("claims", "Measure", content, rule_set=rs, filing_year=2028)
+    first = CheckJob.objects.get()
+    assert first.status == CheckJob.Status.FAILED and "could not be handed to a worker" in first.error and "AccessDenied" in first.error
+
+    # a job left queued with no backend (the process stopped between recording it and handing it over)
+    CheckJob.objects.filter(pk=first.pk).update(status=CheckJob.Status.QUEUED, finished_at=None, error="")
+    handed = []
+    d = jobs.Dispatcher(
+        resolve=lambda r: r or here, submit=lambda job: (handed.append(job.pk), jobs.submitted(job, "local")), serves=lambda r: True
+    )
+    monkeypatch.setattr(jobs, "_dispatchers", [d])
+    precheck.check("claims", "Measure", content, rule_set=rs, filing_year=2028)
+    second = CheckJob.objects.exclude(pk=first.pk).get()
+    assert handed == [second.pk] and second.key == first.key and second.backend == "local"
+
+    # a job a backend took is still reused
+    precheck.check("claims", "Measure", content, rule_set=rs, filing_year=2028)
+    assert handed == [second.pk] and CheckJob.objects.count() == 2
