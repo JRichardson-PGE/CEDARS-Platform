@@ -37,6 +37,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from cedars.core import letters, storage
@@ -1603,7 +1604,9 @@ def derive_checks(
     # NMEC chains: a true-up's parent is a claim the PA filed, this year so far or in a confirmed earlier year, not withdrawn,
     # and never the claim itself or one of its own true-ups
     if any(r.get("ParentClaimID") for r in own.get("Claim", upload.Table("Claim", [], [])).rows):
-        before = earlier_records(organisation, year)
+        before = earlier_records(
+            organisation, year, (r.get("ParentClaimID", "") for r in own.get("Claim", upload.Table("Claim", [], [])).rows)
+        )
         parents = {_claim(r): r.get("ParentClaimID", "").strip().lower() for r in compiled.get("Claim", upload.Table("Claim", [], [])).rows}
         out_now = withdrawn(compiled)
         for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
@@ -2380,10 +2383,20 @@ def _standing_records(**filters):
     )
 
 
-def earlier_records(organisation, year: int) -> dict[str, ClaimRecord]:
-    """The PA's confirmed claims of earlier claim years, by compared ClaimID: the parents a true-up may name."""
+def earlier_records(organisation, year: int, claim_ids: Iterable[str]) -> dict[str, ClaimRecord]:
+    """Those of `claim_ids` (compared ClaimIDs: trimmed, lower case) that are the PA's confirmed claims of earlier claim years: the
+    parents a true-up names. Only the named claims are read, never the PA's earlier years whole (a PA's legacy years hold millions)."""
+    wanted = {c.strip().lower() for c in claim_ids if c and c.strip()}
+    if not wanted:
+        return {}
     versions = [v for v in standing_versions(organisation=organisation) if v.submission.deadline.period.year < year]
-    return {r.claim_id.strip().lower(): r for r in ClaimRecord.objects.filter(version__in=versions)}
+    found = (
+        ClaimRecord.objects.filter(version__in=versions)
+        .annotate(compared=Lower(Trim("claim_id")))
+        .filter(compared__in=wanted)
+        .only("claim_id", "impact_type", "withdrawn")
+    )
+    return {r.compared: r for r in found}
 
 
 def find_claim(claim_id: str) -> ClaimRecord | None:
