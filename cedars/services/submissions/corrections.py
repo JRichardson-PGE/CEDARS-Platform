@@ -326,7 +326,10 @@ def group_of(t: TableDef, row: dict) -> tuple[str, ...]:
 def refusal(user, v: SubmissionVersion) -> str:
     """Why `user` may not correct the version's records now ("" = they may)."""
     sub = v.submission
-    if v.imported or sub.versions.filter(origin=SubmissionVersion.Origin.IMPORTED).exists():
+    if v.imported or (
+        sub.versions.filter(origin=SubmissionVersion.Origin.IMPORTED).exists()
+        and not sub.versions.filter(origin=SubmissionVersion.Origin.FILED).exists()
+    ):
         return "This filing was imported from legacy CEDARS. It is read-only."
     if v.locked:
         return (

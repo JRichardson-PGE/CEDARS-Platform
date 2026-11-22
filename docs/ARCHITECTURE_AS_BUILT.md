@@ -357,6 +357,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_run_state` | submissions | calculations | Whether a version's pricing run is still running or ended without pricing it |
 | `register_run_walkthrough` | submissions | calculations | The measure walkthrough of the run that priced a version, linked from the version's page |
 | `register_restater` | submissions | calculations | Price a published filing again as an analysis run (restatements) |
+| `register_legacy_corrections` | submissions | (claims, budgets: with their legacy correction pages) | The legacy year a deadline's imported filings are, and how an approved legacy correction's draft is prepared from the imported version |
 | `register_publisher` | submissions | budgets, claims, monthly | Publish or withdraw a confirmed version's module data |
 | `register_listener` | submissions | snapshots | Snapshot a published version after commit, or drop it on un-confirm |
 | `register_reader` | submissions | budgets, claims, monthly | Who may read a filing on the Filings page |
@@ -550,7 +551,7 @@ erDiagram
   Organisation }o--o{ Deadline : "expected filers"
   Organisation ||--o{ Submission : files
   Submission ||--o{ SubmissionVersion : "version 1..n"
-  Submission ||--o{ ReopenRequest : "after the due date"
+  Submission ||--o{ ReopenRequest : "after the due date, or a legacy correction"
   SubmissionVersion ||--o{ Comment : discussed
   Comment ||--o{ Attachment : carries
   RuleSet |o--o{ SubmissionVersion : "checked with"
@@ -1402,6 +1403,16 @@ stateDiagram-v2
   unless `late_confirmation` is off. A system administrator changes both on the workflow settings page; a change that tightens the
   rule offers a release note.
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
+- **Legacy corrections** (`request_legacy_correction`): a filer of the filing organization may ask to correct an imported filing when
+  its module registered `register_legacy_corrections` and a legacy correction specification version covers its year
+  (`specifications.for_legacy`; not for the statewide claims CEDARS publishes unallocated, which are outside every total). The request
+  (`ReopenRequest.legacy`) always waits for a CPUC approver or delegate, whatever `reopen_after_due` says; the ordinary reopen refuses an
+  imported filing and points to it. Approval starts version n+1 filed on the platform with the imported version's files, pins the
+  deadline to the correction version (audit `deadline.specification_set`), so the draft is checked and priced against it, and hands it
+  to the module's starter. From then on `is_imported` is false: the submission is corrected like any other, and `import_version`
+  refuses to load a later legacy download over it. The imported filing's outcome card offers the request (`{% legacy_correction v %}`,
+  `/filings/submissions/<id>/legacy-correction/`) and the approvers' page marks it a legacy correction with the version it is checked
+  against.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
   Correct records opens on the version's records with findings (`with_findings`, rejected first; findings about a whole table said
@@ -2855,7 +2866,9 @@ summarize. A pull request that builds part of a service or module updates its su
   `dictionary/data/legacy_crosswalk.csv` and `legacy_layouts.json`: all six published layouts, 1,083 columns, each mapped to a Measure,
   Claim, Participant, program (Prg_) or output field, or kept as `Legacy_*`; none dropped; listed in the dictionary's crosswalk download).
 - Imported versions in the submissions service (`origin` "imported", always published, `submissions.import_version`; every change,
-  pricing, un-confirm, reopen and correction path refuses a submission that holds one).
+  pricing, un-confirm, reopen and correction path refuses a submission that holds only imported versions).
+- Legacy corrections: a request (`ReopenRequest.legacy`, migration submissions 0013) a CPUC approver decides, starting a version filed
+  on the platform from the imported files on the year's correction version (`request_legacy_correction`, `register_legacy_corrections`).
 - `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
   layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
 - `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and

@@ -2,11 +2,12 @@
 primary button; un-confirming and asking to reopen are secondary. Context: v, stage, status_words, tiles, can_submit, can_confirm,
 can_correct, records_url, pricing_run, pending_reopen, past_due, later_locked (Claims), legacy, and out: the module's addresses and
 words (price_url, price_label, price_help, confirm_url, confirm_help, check_url, unconfirm_url, reopen_url, results_url,
-results_heading, results_link, results_about, what: "these claims", "this filing", "this report").{% endcomment %}
+results_heading, results_link, results_about, what: "these claims", "this filing", "this report").{% endcomment %}{% load legacy_correction %}
 <section class="card outcome" aria-labelledby="now-h" id="outcome">
   <h2 id="now-h">Version {{ v.number }}: {{ status_words }}</h2>
   {% if stage.key == "legacy" %}
   <p>Imported from legacy CEDARS{% if legacy.records or legacy.outside_totals %}, {{ legacy.records|default:legacy.outside_totals|floatformat:"0g" }} records{% if legacy.outside_totals %} kept outside every total{% endif %}{% endif %}. It is read-only: <a href="{{ out.results_url }}">its page</a> shows what it holds, its source and its reconciliation.</p>
+  {% legacy_correction v %}
   {% elif stage.key == "upload" %}
   <p>Nothing has been uploaded yet.{% if can_submit %} <a href="#upload-h">Upload the file</a>: it is checked as soon as it arrives.{% endif %}</p>
   {% elif stage.key == "stale" %}

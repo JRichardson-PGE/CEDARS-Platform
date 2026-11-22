@@ -225,6 +225,9 @@ class ReopenRequest(models.Model):
     decided_as_delegate_of = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_note = models.TextField(blank=True)
+    legacy = models.BooleanField(
+        default=False, help_text="A correction of a filing imported from legacy CEDARS (always decided by an approver)"
+    )
 
     class Meta:
         ordering = ["-requested_at"]

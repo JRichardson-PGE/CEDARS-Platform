@@ -174,6 +174,7 @@ NO_MENU = (
 SHARED = (
     "submissions:attachment",
     "submissions:comment",
+    "submissions:legacy_correction",
     "submissions:correction*",
     "submissions:record*",
     "submissions:pricing_status",
