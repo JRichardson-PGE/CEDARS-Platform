@@ -1293,7 +1293,10 @@ of its release before runs, or submits it to AWS Batch. A filing's check does no
 (`submissions.record_checking`: a draft whose findings so far carry `checking: {jobs, release, since}`; it cannot be priced), the filing
 page shows the check's state and polls `submissions:checking_status` (`/filings/versions/<pk>/checking.json`) through `core/watch.js`, and when the last
 job ends the module's finisher (`register_finisher`) locks the version and checks it again with the finished jobs, whose findings it
-takes by their key (the SHA-256 of everything they depend on). A correction of a few records waits for its jobs up to the
+takes by their key (the SHA-256 of everything they depend on). A worker can end every job before the request has committed the
+version's checking record (the jobs connection commits at once; the check goes on writing its files), and each finisher then finds the
+version not yet waiting for it; so `record_checking` also hands the last job to the finisher once its record commits, when all of
+them have already ended (`jobs.notify_if_ended`). A correction of a few records waits for its jobs up to the
 `check_wait_seconds` limit, and past it the whole version is checked without waiting; the pre-upload checker (the release of the
 newest version naming its rule set), example files and the impact test (each the release of the version they check under) wait too,
 and a check that could not be had (no worker runs the release, it did not finish in time, the job failed) is a rejecting finding that
@@ -1431,7 +1434,7 @@ sequenceDiagram
   M->>R: the rule set of the filing's specification version, in an engine run for its release
   R->>O: each table, the tables it reads, check.json
   R->>C: dispatcher: queue the check jobs (local worker or AWS Batch)
-  M->>S: record_checking (a draft being checked)
+  M->>S: record_checking (a draft being checked; once committed, jobs already ended go to the finisher)
   W->>O: recet worker check: findings.json, receipt.json
   C->>R: finish the job
   R->>M: finisher, once every job of the check has ended

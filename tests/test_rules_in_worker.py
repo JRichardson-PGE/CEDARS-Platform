@@ -252,3 +252,42 @@ def test_ended_check_jobs_are_purged(rules, draft, cpuc_admin, at_once):  # noqa
     assert [ref for ref, _ in found] == [f"check_job:{job.pk}"]
     found[0][1]()
     assert not CheckJob.objects.exists() and not storage.store("results").exists(job.storage_prefix + "check.json")
+
+
+def test_jobs_that_end_before_the_version_is_recorded_as_being_checked_still_finish_it(
+    rules,
+    draft,
+    cpuc_admin,
+    filer,
+    year,
+    pge,
+    programs,
+    worker_mode,
+    monkeypatch,
+    here,
+    django_capture_on_commit_callbacks,  # noqa: F811
+):
+    # the worker ends every job while the upload is still writing its files, before the version is recorded as being checked: each
+    # job's finisher finds the version not yet waiting for it and passes it over; once the record is committed, the version is finished
+    from cedars.services.submissions import service as submissions
+
+    rs, version = draft
+    sem, big = wide_rules(rules, cpuc_admin, rs)
+    Deadline.objects.filter(pk=deadline().pk).update(specification_version=version)
+    record = submissions.record_checking
+
+    def late_record(*a, **kw):
+        while dispatch.check_one("test-worker", here, poll=0.05):
+            pass
+        return record(*a, **kw)
+
+    monkeypatch.setattr(submissions, "record_checking", late_record)
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        v = claims.upload_claims(filer, deadline(), pge, the_file(), "q1.zip")
+    v.refresh_from_db()
+    assert v.findings.get("checking") and not CheckJob.objects.exclude(status__in=CheckJob.ENDED).exists()  # passed over
+    for callback in callbacks:
+        callback()
+    v.refresh_from_db()
+    assert "checking" not in v.findings
+    assert {sem.rule_id, big.rule_id} <= {f["rule_id"] for f in claims.findings(v)}  # the worker's findings, taken

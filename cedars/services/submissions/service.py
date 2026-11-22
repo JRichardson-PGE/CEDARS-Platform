@@ -968,12 +968,19 @@ def record_validation(actor, v: SubmissionVersion, rule_set, summary: dict) -> S
 def record_checking(actor, v: SubmissionVersion, rule_set, summary: dict) -> SubmissionVersion:
     """The module's own checks ran, and the rules are being run by the worker of the engine release the filing's specification version
     names: summary = the findings so far, with {"checking": {jobs, release, since}}. The version is a draft until the module records the
-    whole check (record_validation) once the jobs end; it cannot be priced meanwhile."""
+    whole check (record_validation) once the jobs end; it cannot be priced meanwhile. Jobs that ended before this record was committed
+    are handed to the module's finisher once it is."""
+    from cedars.services.rules import jobs
+
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
     _require(actor, v.submission, "submit")
     _refuse_imported(v.submission)
     if v.locked:
         raise AccessDenied("A confirmed version cannot be re-validated.")
+    # the jobs may all end before this record is committed (a worker takes them at once, the check goes on writing its files): once it
+    # is, a version whose jobs have already ended is finished then, rather than waiting for a job end that has already passed
+    ids = list((summary.get("checking") or {}).get("jobs") or [])
+    transaction.on_commit(lambda: jobs.notify_if_ended(ids), robust=True)
     return _change(
         actor,
         v,

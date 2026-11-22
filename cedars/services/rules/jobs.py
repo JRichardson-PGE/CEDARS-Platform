@@ -471,6 +471,15 @@ def notify(job: CheckJob) -> None:
         log.exception("finishing check job %s", job.pk)
 
 
+def notify_if_ended(ids) -> None:
+    """Hand the last of the jobs named to its module's finisher when every one has already ended. Called once the version that names
+    them has been recorded as being checked: a job can end on the jobs connection before that record is committed, and its finisher,
+    finding the version not yet waiting for it, passes it over; without this the version would stay "being checked"."""
+    done = all_ended(ids)
+    if done:
+        notify(max(done, key=lambda j: (j.finished_at or j.created_at, str(j.pk))))
+
+
 def all_ended(ids) -> list[CheckJob] | None:
     """The jobs named, once every one has ended; None while any is still to run (or a job named is gone)."""
     found = list(jobs().filter(pk__in=list(ids)))
