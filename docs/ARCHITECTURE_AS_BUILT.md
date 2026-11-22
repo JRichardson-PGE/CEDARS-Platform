@@ -1412,7 +1412,10 @@ stateDiagram-v2
   to the module's starter. From then on `is_imported` is false: the submission is corrected like any other, and `import_version`
   refuses to load a later legacy download over it. The imported filing's outcome card offers the request (`{% legacy_correction v %}`,
   `/filings/submissions/<id>/legacy-correction/`) and the approvers' page marks it a legacy correction with the version it is checked
-  against.
+  against. Claims registers it (`claims/legacy_corrections.py`): an imported claim year's correction is compiled over the imported
+  records, read back from its Parquet files as claim tables (a repeated ClaimID suffixed "#2" as on its claim record), with one
+  ProgramCost row per program summing the weighted program costs, so the program administrator uploads only what changes and a filed
+  program cost row replaces the program's row.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
   Correct records opens on the version's records with findings (`with_findings`, rejected first; findings about a whole table said
@@ -1605,7 +1608,8 @@ split among the funding PAs by the weighted factors (section 8.1).
 - Claims are filed quarter by quarter. Each upload holds the records new or changed since the last confirmed quarter and is
   **compiled** over the standing version of the year's latest earlier confirmation (records replace earlier ones by primary key); the
   compiled year to date is what is checked, priced and published. Confirmations go in order, and a later confirmed quarter blocks
-  un-confirming or reopening an earlier one.
+  un-confirming or reopening an earlier one. A legacy claim year's correction (a version after an imported one, with no earlier
+  confirmation) is compiled over the imported records instead (`legacy_corrections.base_tables`).
 - Checks: the module's `CLM-*` checks (columns, types, keys, quarters, registry programs, references between tables, NMEC, SEM, deemed,
   fuel substitution, payments, CCA/REN rules, eTRM by Measure Detail ID with blank deemed fields filled from the eTRM pack) and CEDARS'
   claims rule set (the specification version's: CEDARS' own rules cover Measure and ProgramCost, and a version's rules may test any claim table).
@@ -2869,6 +2873,8 @@ summarize. A pull request that builds part of a service or module updates its su
   pricing, un-confirm, reopen and correction path refuses a submission that holds only imported versions).
 - Legacy corrections: a request (`ReopenRequest.legacy`, migration submissions 0013) a CPUC approver decides, starting a version filed
   on the platform from the imported files on the year's correction version (`request_legacy_correction`, `register_legacy_corrections`).
+  Claims registers it: a claim year's correction compiles over the imported records and program costs
+  (`claims/legacy_corrections.py`); budget filings do not yet.
 - `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
   layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
 - `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and

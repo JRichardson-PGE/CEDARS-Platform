@@ -61,7 +61,7 @@ from cedars.services.submissions.corrections import Scope
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 from cedars.services.vault import service as vault
 
-from . import spec, upload
+from . import legacy_corrections, spec, upload
 from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
 
 MODULE = "claims"
@@ -751,6 +751,8 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     base = compiled_tables(base_v) if base_v else {}
     previous = corrected_version(v)
     corrected = compiled_tables(previous) if previous else {}
+    if base_v is None and previous is not None and previous.origin == SubmissionVersion.Origin.IMPORTED:
+        base = legacy_corrections.base_tables(previous, lay)  # a legacy year corrected: compiled over the imported records
     deemed, etrm_summary = fill_deemed(lay, own, base)
     comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
     rs = specifications.rule_set_for_filing(deadline, RULE_SET)  # the rules of the filing's specification version, on any date
