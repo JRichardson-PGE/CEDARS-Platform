@@ -44,6 +44,7 @@ class Migration(migrations.Migration):
         ("releases", "0005_site_notices"),
         ("rules", "0004_check_job_retention"),
         ("specifications", "0009_legacy_layouts"),
+        ("submissions", "0011_pin_specification_versions"),  # deadlines are pinned to the current versions before these exist
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
