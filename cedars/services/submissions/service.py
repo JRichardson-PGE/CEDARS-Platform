@@ -1000,6 +1000,24 @@ def checking(v: SubmissionVersion | None) -> dict | None:
     return (v.findings or {}).get("checking") or None
 
 
+def finish_ready(pk, job) -> bool:
+    """Whether a check job's ending may finish its version's check: the version is still waiting for that job and every job of the
+    check has ended. Read without a lock, so a job that is not the last to end (or one of a check since replaced) returns at once
+    instead of waiting behind the lock a long re-check of the version holds; the finisher then reads it again under its lock."""
+    from cedars.services.rules import jobs
+
+    now = checking(SubmissionVersion.objects.filter(pk=pk).first())
+    if now is None or str(job.pk) not in (now.get("jobs") or []):
+        return False
+    return jobs.all_ended(now["jobs"]) is not None
+
+
+def lock_for_finish(pk) -> SubmissionVersion | None:
+    """The version, locked for the rest of the transaction to take its check jobs' findings: FOR NO KEY UPDATE, which keeps out
+    another writer of the version (an upload, a correction, a second finisher) but not the inserts of rows that only refer to it."""
+    return SubmissionVersion.objects.select_for_update(no_key=True).filter(pk=pk).first()
+
+
 def checking_state(v: SubmissionVersion) -> dict:
     """Where a version's check stands, for its filing page ({ended, text}): ended once the version records the whole check, or when
     every job ended without the version taking its findings (the page then offers Check again)."""

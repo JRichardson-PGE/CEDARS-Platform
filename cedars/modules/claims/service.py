@@ -830,8 +830,10 @@ def finish_check(job) -> None:
     ended, check the version again with them, so it takes their findings. A job of a check the version has since replaced (a new upload,
     a correction, Check again) is ignored."""
     pk = (job.caller or {}).get("version")
+    if not submissions.finish_ready(pk, job):  # not the last job to end: nothing to do, and no waiting on a long re-check's lock
+        return
     with transaction.atomic():
-        v = SubmissionVersion.objects.select_for_update().filter(pk=pk).first()
+        v = submissions.lock_for_finish(pk)
         now = submissions.checking(v)
         if now is None or str(job.pk) not in (now.get("jobs") or []):
             return
