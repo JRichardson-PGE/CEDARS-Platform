@@ -2107,10 +2107,10 @@ Whether the ACC a measure was priced on normally applies to its program year (it
 `acc_purpose`, "Priced for"). The ACC is the measure's `ACCVersion`, else the run's. Which ACCs apply comes from the table of budget filings and the ACC that
 prices each (`versions.BUDGET_FILING_ACC`, from CET's "Program year assignment to CET avoided cost version" table through 2027, then the schedule of
 expected filings): for *Quarterly Claims*, the ACC of the program year's final budget filing (one ACC per year, `versions.claims_acc`); for a named filing, that
-filing's ACC within its program years; for *Any filing* (the default), the ACC of any filing that covers the year (2028-2029: the 2024 or the 2026 ACC). It changes no priced value: a flagged measure is still priced on its ACC.
+filing's ACC within its program years. *Any filing* (the default) does not check the ACC: every record is `not checked` and nothing is flagged. It changes no priced value: a flagged measure is still priced on its ACC.
 
-A measure is `ok` if the ACC normally applies to its program year, flagged if it does not, and `not checked` if the table says nothing about the year (before 2020, after
-the last filing, or claims after 2035) or the version is a label that names no ACC year. The flagged measures are in the input check (`acc_not_for_program_year`:
+A measure is `ok` if the ACC normally applies to its program year, flagged if it does not, and `not checked` if the run is for *Any filing*, the table says nothing about the year (before 2020, after
+the last filing, or claims after 2035), or the version is a label that names no ACC year. The flagged measures are in the input check (`acc_not_for_program_year`:
 preflight.txt, and each record in the Cells sheet of `preflight_findings.xlsx`), and `run_settings.json` counts them by ACC and program year (`acc_check`, 2.9).
 
 ### 2.9c `cost_tests.yaml`

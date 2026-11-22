@@ -58,7 +58,7 @@ calculations/new:
       run's measures deliver savings in.
     - First Year and Market effects are CET's own settings; Price each ACC component separately and Combined 8,760 electric load profile add
       ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
-    - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.
+    - Priced for flags records whose ACC does not apply to their program year for claims or one named budget filing; any filing does not check the ACC.
     - What each cost-test set prices, under Advanced options, lists the registered sets, their program years and the tests each writes. An
       analysis run may instead take one of your own sets from the set builder (Or one of my cost-test sets) or a cost-test set file of
       your own (never a filing, or a run with filing checks or Priced for).
