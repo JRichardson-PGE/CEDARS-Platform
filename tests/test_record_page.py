@@ -18,7 +18,7 @@ from .test_claims import claim, claims_zip, deadline, filer, programs, row, tabl
 from .test_record_corrections import bad_q1
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.100.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.101.json"
 
 
 @pytest.fixture

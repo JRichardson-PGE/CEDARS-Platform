@@ -528,7 +528,7 @@ WaterEnergyBenGross{,_SB,_SH}     = ratio( WaterEnergyBen{...},     NTGRkWh + ME
 
 `ProgramCost.csv` costs belong to a *program*, not a measure, and are spread over the program's measures in proportion to their positive benefits.
 
-**C11.1 Program totals.** For each `ProgramCost` row `r` (with `Year` = the first four characters of its `ClaimYearQuarter`; a `PA` of `SW` is treated as `SCE`, what CET did in the real runs):
+**C11.1 Program totals.** For each `ProgramCost` row `r` (with `Year` = the first four characters of its `ClaimYearQuarter`; a `PA` of `SW` is treated as `SCE`, what CET did in the real runs, and so is any `PA` with no run parameters at the run's ACC: a REN or CCA from the 2022 ACC on, whose rows CET's table stops carrying; CEDARS passes those program costs to CET as SCE's, checked in CET_UI job 123406, where ProgramCost rows filed under BAY and MCE came back as SCE. A PA with its own rows, built-in or supplied, keeps them):
 
 ```text
 T_r = AdminCostsOverheadAndGA + AdminCostsOther + MarketingOutreach + DIActivity + DIInstallation + DIHardwareAndMaterials + DIRebateAndInspection + EMV + UserInputIncentive

@@ -1,13 +1,13 @@
 {
   "engine": {
-    "version": "0.1.100",
-    "commit": "cec124ade2968a269a2276106b852bcb5e372549"
+    "version": "0.1.101",
+    "commit": "4c90bca5b845db597bf70bfc727d87683eef8da4"
   },
   "documents": {
     "INPUT_FORMATS.md": "5b69d084c0d534f8f7e30c78807e71e9c278eadfdfa85a484bd556c05e94af87",
-    "INPUT_FIELDS.md": "28a54529ddcec0c3373a186e7a321bcd02de5033ef3de69ab575d67aea1f4426",
+    "INPUT_FIELDS.md": "fd4dd41c1bba6489994ebce650fd4a4c417c8c4ec7d4e9e82d0eeb0bfa4dedbe",
     "OUTPUT_FIELDS.md": "505c26a25d12d722122075110b06667c6cf42a4c418a5040edcce9a9f9b59bae",
-    "CALCULATIONS.md": "1fb5fb854accf90707ab148378917c13b06801c9199d61edbaaa6fe4b678a985",
+    "CALCULATIONS.md": "27598a71f6e8bb27e825a51a35787e5f12ce9dec4cc76791c975884aab930a5b",
     "COST_TESTS.md": "0feee33d17c812e50fb258743fe0766bacdd42e8aa1218edbf9008a2cd35ec94",
     "USER_GUIDE.md": "f05eaf3f545275ffb17a59399b63feb973bb4fb2f89c8a1953ccfc0cca89033a",
     "WORKER.md": "6bf0c043c4ad176cbb15abfd0f01c3c3d317c4a203a87ddc2f6b29222a5bcf20",
