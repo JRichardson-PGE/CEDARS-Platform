@@ -24,6 +24,7 @@ from cedars.services.submissions.models import QueuedCheck, SubmissionVersion
 from cedars.services.vault.models import PIIUpload
 
 from .conftest import sign_in
+from .test_budgets import release  # noqa: F401 - the engine release fixture
 from .test_claims import deadline, filer, programs, q1, year  # noqa: F401 - fixtures
 from .test_claims_pii import pii_zip
 
@@ -245,3 +246,18 @@ def test_ended_checks_are_purged_and_a_long_wait_is_a_health_failure(filer, year
     assert queued.stalled().status == "failing"
     queued.execute(a.pk)
     assert [k for k, _ in queued.expired(timezone.now() + timedelta(days=1))] == [f"queued_check:{a.pk}"]
+
+
+def test_check_again_counts_the_base_as_it_stands_now(filer, year, pge, programs, release):  # noqa: F811
+    """Check again compiles over the earlier confirmation as it stands today: when that was replaced by a far larger one since the
+    version was last checked, the larger year to date is counted, so the check is queued instead of run while the page waits."""
+    from .test_claims import confirmed
+
+    first = confirmed(filer, pge, q1())
+    v = service.upload_claims(filer, deadline("Q2 claim"), pge, q1(), "q2.zip")
+    before = service.version_records(v)
+    assert before >= sum(v.findings["compiled"].values())
+    # the Q1 confirmation's year to date grows to a million records (as a 1M Q1 replacing it would make it)
+    first.findings = {**first.findings, "compiled": {"Claim": 1_000_000, "Measure": 1_000_000}}
+    first.save(update_fields=["findings"])
+    assert service.version_records(v) >= 2_000_000 > before
