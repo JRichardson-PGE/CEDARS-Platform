@@ -240,7 +240,7 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `CALCULATIONS_REFERENCE_FOLDER`, `CALCULATIONS_REFERENCE_SYNC_SECONDS` | blank; 300 | The workers' shared reference folder that `calculations_sync` fills from the data packs, and how often (blank: not kept here) |
 | `CEDARS_BATCH_QUEUE_SMALL`, `CEDARS_BATCH_QUEUE_LARGE`, `CEDARS_BATCH_JOB_DEFINITION` | blank | The Batch queues and the job definition a release names none of |
 | `CALCULATIONS_SMALL_RUN_RECORDS`, `CALCULATIONS_MAX_RECORDS` | 10,000; 2,000,000 | The small-runs lane's size; the largest job accepted |
-| `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots |
+| `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots (the image makes `/app/var` writable by its user) |
 | `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | The front page's stale claims rows are reread on a thread after the response |
 | `IMPACT_PROFILES_INLINE_JOBS`, `DATA_DOWNLOAD_INLINE_JOBS` | off (on in dev) | Run queued jobs in the request instead of a worker |
 | `CEDARS_SUPPORT_EMAIL`, `CEDARS_FEEDBACK_URL` | blank | The support address the sign-in pages and Help give (blank: none shown), and a feedback form or survey Help links to (blank: an email to the support address) |

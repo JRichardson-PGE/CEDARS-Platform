@@ -29,8 +29,10 @@ COPY cedars ./cedars
 COPY data ./data
 RUN uv sync --locked --no-dev --inexact \
  && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput \
- && pip uninstall --yes uv
+ && pip uninstall --yes uv \
+ && mkdir -p /app/var && chown cedars:cedars /app/var
 # uv only builds the image; nothing runs it after this, so it is not left in (CI's image scan, .github/workflows/ci.yml)
+# /app/var holds the local caches (results, publication snapshots, storage when not on S3): the only part of /app the app writes
 
 USER cedars
 EXPOSE 8000
