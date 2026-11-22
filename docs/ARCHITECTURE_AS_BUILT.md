@@ -1301,7 +1301,8 @@ them have already ended (`jobs.notify_if_ended`). A correction of a few records 
 newest version naming its rule set), example files and the impact test (each the release of the version they check under) wait too,
 and a check that could not be had (no worker runs the release, it did not finish in time, the job failed) is a rejecting finding that
 says so (`CLM-RULES`, `BUD-RULES`), never a pass. A check whose inputs have not changed takes the findings of the last job with the
-same key. The rules run in the website's copy of the engine when `RULES_RUN_IN_WORKER` is off (tests), without Calculations, or for a
+same key, or waits on it while it runs. A job the dispatcher could not hand to a worker (AWS Batch refused it) is failed at once, and a
+queued job no backend took is never reused, so the next check with those inputs makes a new job instead of waiting on one nobody runs. The rules run in the website's copy of the engine when `RULES_RUN_IN_WORKER` is off (tests), without Calculations, or for a
 release older than 0.1.95, whose worker cannot run checks (the check's notes then say which release ran them). Check jobs are kept for
 the `check_job` retention period (30 days).
 

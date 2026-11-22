@@ -299,8 +299,10 @@ def prepare(run: EngineRun, rs, table: str, df, *, filing_year=None, skip=(), co
 
 
 def _reusable(key: str, release: str) -> CheckJob | None:
-    """A job with the same inputs that has not failed: still to run, or succeeded with its findings still stored."""
-    for job in jobs().filter(key=key, engine_release=release).exclude(status__in=[CheckJob.Status.FAILED, CheckJob.Status.REFUSED]):
+    """A job with the same inputs that has not failed: still to run, or succeeded with its findings still stored. A queued job no
+    backend took (its hand-over failed, or the process stopped before it) is never reused: nothing would ever run it."""
+    found = jobs().filter(key=key, engine_release=release).exclude(status__in=[CheckJob.Status.FAILED, CheckJob.Status.REFUSED])
+    for job in found.exclude(status=CheckJob.Status.QUEUED, backend=""):
         if job.status != CheckJob.Status.SUCCEEDED or storage.store(AREA).exists(job.storage_prefix + "out/findings.json"):
             return job
     return None
@@ -340,7 +342,12 @@ def submit(run: EngineRun, rs, table: str, part: Part) -> CheckJob:
         caller=run.caller,
         storage_prefix=prefix,
     )
-    _dispatchers[0].submit(job)
+    try:
+        _dispatchers[0].submit(job)
+    except Exception as e:
+        # the job is failed, so that a later check with the same inputs makes a new one instead of waiting on a job nobody runs
+        finish(job, exit_code=None, error=f"The check job could not be handed to a worker: {e}")
+        raise
     return jobs().get(pk=job.pk)
 
 
