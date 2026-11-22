@@ -25,5 +25,20 @@ def upload(q, files) -> dict:
     return {"level": level, "text": text, "version": v.pk}
 
 
+def finish(q, files) -> dict:
+    v = submissions.finish_queued(q, service.finish_with)
+    if v is None:
+        return {
+            "level": "info",
+            "text": "The check had been replaced by a newer one, so there was nothing to finish.",
+            "version": q.version_id,
+        }
+    level, text = filing_parts.checked_message(v, NEXT)
+    return {"level": level, "text": text, "version": v.pk}
+
+
 def register() -> None:
     submissions_queued.register_queued_check("budgets.upload", upload, label="budget filing upload", errors=(jobfile.JobError,))
+    submissions_queued.register_queued_check(
+        "budgets.finish", finish, label="final check with the rules' findings", errors=(jobfile.JobError,)
+    )

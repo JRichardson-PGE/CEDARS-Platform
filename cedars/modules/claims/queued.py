@@ -3,6 +3,7 @@ checked by a worker with these functions, exactly as the request would have chec
 
 from cedars.services.submissions import filing_parts
 from cedars.services.submissions import queued as submissions_queued
+from cedars.services.submissions import service as submissions
 from cedars.services.vault.service import PIIError
 
 from . import service, spec
@@ -26,6 +27,17 @@ def check(q, files) -> dict:
     return _said(service.check(q.created_by, q.version))
 
 
+def finish(q, files) -> dict:
+    v = submissions.finish_queued(q, service.finish_with)
+    if v is None:
+        return {
+            "level": "info",
+            "text": "The check had been replaced by a newer one, so there was nothing to finish.",
+            "version": q.version_id,
+        }
+    return _said(v)
+
+
 def pii(q, files) -> dict:
     name, content = files[0]
     up = service.upload_pii(q.created_by, q.version, content, name, q.assurance or None)
@@ -43,3 +55,4 @@ def register() -> None:
     submissions_queued.register_queued_check("claims.upload", upload, label="claims upload", errors=errors)
     submissions_queued.register_queued_check("claims.check", check, label="check of the year to date", errors=errors)
     submissions_queued.register_queued_check("claims.pii", pii, label="PII upload", errors=errors)
+    submissions_queued.register_queued_check("claims.finish", finish, label="final check with the rules' findings", errors=errors)

@@ -674,20 +674,17 @@ def _store_and_check(
 
 def finish_check(job) -> None:
     """A check job a budget filing version's check submitted has ended (rules.jobs finisher): once every job of the version's check has
-    ended, check the version's file again with them, so it takes their findings. A job of a check since replaced is ignored."""
-    pk = (job.caller or {}).get("version")
-    if not submissions.finish_ready(pk, job):  # not the last job to end: nothing to do, and no waiting on a long re-check's lock
-        return
-    with transaction.atomic():
-        v = submissions.lock_for_finish(pk)
-        now = submissions.checking(v)
-        if now is None or str(job.pk) not in (now.get("jobs") or []):
-            return
-        done = rules.jobs.all_ended(now["jobs"])
-        f = job_file(v) if done is not None else None
-        if f is not None:
-            tables, data = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
-            _store_and_check(None, v, tables, data, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")}, checked=done)
+    ended, check the version's file again with them, so it takes their findings (submissions.finish_check; a large one as a queued
+    check). A job of a check since replaced is ignored."""
+    submissions.finish_check(job, kind="budgets.finish", finish=finish_with)
+
+
+def finish_with(v: SubmissionVersion, done) -> None:
+    """Check the version's file again with its check's ended jobs (`done`), taking their findings."""
+    f = job_file(v)
+    if f is not None:
+        tables, data = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
+        _store_and_check(None, v, tables, data, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")}, checked=done)
 
 
 # --- correcting records in place

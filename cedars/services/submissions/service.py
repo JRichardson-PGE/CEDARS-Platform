@@ -1018,6 +1018,52 @@ def lock_for_finish(pk) -> SubmissionVersion | None:
     return SubmissionVersion.objects.select_for_update(no_key=True).filter(pk=pk).first()
 
 
+def finish_check(job, *, kind: str, finish: Callable[[SubmissionVersion, list], None]) -> None:
+    """A module's finisher (rules.jobs): when `job` is the last of its version's check to end, `finish(version, jobs)` checks the
+    version again with the ended jobs, taking their findings. A check whose jobs read more records than the queued_check_records
+    limit is not finished here, in whichever process saw the job end (the Batch sync loop, a worker), but queued as a queued check of
+    `kind` (`finish_queued`), so a re-check of a million records runs in a worker of its own like a large upload."""
+    from cedars.services.rules import jobs
+
+    from . import queued
+    from .models import QueuedCheck
+
+    pk = (job.caller or {}).get("version")
+    if not finish_ready(pk, job):  # not the last job to end: nothing to do, and no waiting on a long re-check's lock
+        return
+    with transaction.atomic():
+        v = lock_for_finish(pk)
+        now = checking(v)
+        if now is None or str(job.pk) not in (now.get("jobs") or []):
+            return
+        done = jobs.all_ended(now["jobs"])
+        if done is None:
+            return
+        rows = sum(j.rows or 0 for j in done)
+        if rows > queued.records_limit():
+            waiting = [QueuedCheck.Status.QUEUED, QueuedCheck.Status.RUNNING]
+            if not QueuedCheck.objects.filter(kind=kind, version=v, status__in=waiting).exists():
+                s = v.submission
+                queued.enqueue(None, kind, deadline=s.deadline, organisation=s.organisation, version=v, records=rows)
+            return
+        finish(v, done)
+
+
+def finish_queued(q, finish: Callable[[SubmissionVersion, list], None]) -> SubmissionVersion | None:
+    """A queued finish (`finish_check`) run by a queued-check worker: the version checked again with its ended jobs, under its lock;
+    None when it no longer waits for them (a new upload or Check again replaced the check meanwhile)."""
+    from cedars.services.rules import jobs
+
+    with transaction.atomic():
+        v = lock_for_finish(q.version_id)
+        now = checking(v)
+        done = jobs.all_ended(now["jobs"]) if now else None
+        if done is None:
+            return None
+        finish(v, done)
+    return v
+
+
 def checking_state(v: SubmissionVersion) -> dict:
     """Where a version's check stands, for its filing page ({ended, text}): ended once the version records the whole check, or when
     every job ended without the version taking its findings (the page then offers Check again)."""
