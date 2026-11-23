@@ -749,11 +749,13 @@ page lists the layouts under each specification, and an imported version's page 
 **Legacy correction versions** (`specifications/legacy_corrections.py`). A correction of a recent year imported from legacy CEDARS is a
 version filed on the platform, so it is checked against a published version made for it ahead of time. Each covers the legacy years it
 corrects (`legacy_first_year`..`legacy_last_year`) and names the calculation that prices it (`calculation`): the CET replica of the
-release legacy CEDARS priced those years with, in the current engine release (claims 2024-2025 on CET 24.3, 2026-2027 on CET 25.1). It
-holds the claim, measure, program cost and withdrawal tables of the starting claims version, a field the year's legacy download did not
-hold made optional. The documents are generated (`legacy_corrections.documents`), stored as `legacy_corrections/<name>.json`
-(`manage.py specification_legacy_corrections --write`, and without `--write` a check; a test holds them to the generator) and loaded
-published by migration 0010. Such a version is never a specification's current or coming version, never a choice when a filing set is
+release legacy CEDARS priced those years with, in the current engine release (claims 2024-2025 on CET 24.3, 2026-2027 on CET 25.1).
+A claims version holds the claim, measure, program cost and withdrawal tables of the starting claims version, a field the year's legacy
+download did not hold made optional. Budget filings have versions too, by the filing's first program year and on the same replica as
+that year's claims (2024-2025 on CET 24.3, 2026-2035 on CET 25.1), with the measure and program cost tables of the starting budget filing
+version, a field any of the legacy filing layouts did not hold made optional. The documents are generated (`legacy_corrections.documents`),
+stored as `legacy_corrections/<name>.json` (`manage.py specification_legacy_corrections --write`, and without `--write` a check; a test
+holds them to the generator) and loaded published by migrations 0010 (claims) and 0011 (budget filings). Such a version is never a specification's current or coming version, never a choice when a filing set is
 set up or moved (`current`, `coming`, `moving.choices` and `readable_versions` leave it out); `for_legacy(module, year)` finds the one
 for a year, `calculation_of(version)` gives the calculation that prices a filing on a version ("recet" for every other version), and the
 specifications page lists them apart. A draft copied from one keeps its years and calculation.
@@ -1410,13 +1412,17 @@ stateDiagram-v2
   (`ReopenRequest.legacy`) always waits for a CPUC approver or delegate, whatever `reopen_after_due` says; the ordinary reopen refuses an
   imported filing and points to it. Approval starts version n+1 filed on the platform with the imported version's files, pins the
   deadline to the correction version (audit `deadline.specification_set`), so the draft is checked and priced against it, and hands it
-  to the module's starter. From then on `is_imported` is false: the submission is corrected like any other, and `import_version`
+  to the module's starter, adding any files the starter stored for the draft. From then on `is_imported` is false: the submission is corrected like any other, and `import_version`
   refuses to load a later legacy download over it. The imported filing's outcome card offers the request (`{% legacy_correction v %}`,
   `/filings/submissions/<id>/legacy-correction/`) and the approvers' page marks it a legacy correction with the version it is checked
   against. Claims registers it (`claims/legacy_corrections.py`): an imported claim year's correction is compiled over the imported
   records, read back from its Parquet files as claim tables (a repeated ClaimID suffixed "#2" as on its claim record), with one
   ProgramCost row per program summing the weighted program costs, so the program administrator uploads only what changes and a filed
-  program cost row replaces the program's row.
+  program cost row replaces the program's row. Budgets registers it (`budgets/legacy_corrections.py`): a budget filing's version is the
+  whole filing, so the starter stores the draft's job rebuilt from the imported records (Measure, and one ProgramCost row per program and
+  program year summing the weighted program costs), checked when first opened for correction like a reopened version; the program
+  administrator corrects records in place or uploads the filing again. A legacy budget filing's year is its first program year
+  (`LegacyFiling.program_year`).
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
   Correct records opens on the version's records with findings (`with_findings`, rejected first; findings about a whole table said
@@ -2882,8 +2888,10 @@ summarize. A pull request that builds part of a service or module updates its su
 - Legacy corrections: a request (`ReopenRequest.legacy`, migration submissions 0013) a CPUC approver decides, starting a version filed
   on the platform from the imported files on the year's correction version (`request_legacy_correction`, `register_legacy_corrections`).
   Claims registers it: a claim year's correction compiles over the imported records and program costs
-  (`claims/legacy_corrections.py`) and is priced whole on the year's CET replica; budget filings do not yet. The imported records are priced
-  once on the same replica and compared with what legacy CEDARS published (`LegacyReproduction`, migration claims 0006).
+  (`claims/legacy_corrections.py`) and is priced whole on the year's CET replica; the imported records are priced once on the same
+  replica and compared with what legacy CEDARS published (`LegacyReproduction`, migration claims 0006). Budget filings register it too
+  (`budgets/legacy_corrections.py`: the draft's job rebuilt from the imported records, priced on the claims replica of the filing's
+  first program year; migration specifications 0011); their import is not yet reproduced on the replica.
 - `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
   layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
 - `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and

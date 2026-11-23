@@ -63,6 +63,11 @@ class LegacyFiling:
     sources: tuple[tuple[str, str], ...]  # (dataset, year) of the all-PA files, as the manifest names them
 
     @property
+    def program_year(self) -> int:
+        """The first program year the filing budgets (its key's year: 2026 for the 2026-2027 letters of the 2024-2027 cycle)."""
+        return int(self.key[:4])
+
+    @property
     def label(self) -> str:
         return f"{self.kind}, {self.first_year}-{self.first_year + self.years - 1}" if self.years > 1 else f"{self.kind}, {self.first_year}"
 
