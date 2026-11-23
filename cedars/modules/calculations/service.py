@@ -1349,6 +1349,7 @@ def _record_for_submission(run: Run) -> None:
         "job_sha256": job_input(run)["sha256"],
         "job_key": job_input(run)["key"],
         "release": run.engine_release,
+        "calculation": run.calculation,
         "acc": run.acc_version,
         "allocation_version": {"id": run.allocation_version_id, "label": run.allocation_version.label} if run.allocation_version else None,
         "allocation_sha256": (run.inputs.get("sw_factors") or {}).get("sha256"),

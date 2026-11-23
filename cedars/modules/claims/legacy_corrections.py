@@ -140,6 +140,7 @@ COMPARED = (
 )  # fmt: skip
 TOLERANCE = (1e-6, 0.01)  # relative, absolute: CEDARS' published outputs are rounded
 EXAMPLES = 200
+SHOWN = 20  # the differing values the correction's page lists; the rest are in the comparison kept on the reproduction
 
 
 def reproduction(imported: SubmissionVersion, calculation: str) -> LegacyReproduction | None:

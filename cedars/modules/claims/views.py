@@ -28,7 +28,7 @@ from cedars.services.submissions.models import Deadline, ReopenRequest, Submissi
 from cedars.services.vault import service as vault
 from cedars.services.vault.service import PIIError
 
-from . import forms, restatements, service, spec
+from . import forms, legacy_corrections, restatements, service, spec
 from . import queued as queued_checks
 from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
@@ -718,11 +718,29 @@ def version(request, pk):
             "restatements": list(restatements.visible(request.user, v)),
             "restatable": not restatements.restatable(v),
             "true_ups": _true_ups(v, t),
+            "legacy_correction": _legacy_correction(v),
             "differing": differing,
             "tolerance": f"{service.SAVINGS_TOLERANCE:.0%}",
             **filing_parts.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
         },
     )
+
+
+def _legacy_correction(v) -> dict | None:
+    """A correction of an imported legacy year: the import it corrects, the replica it is priced on and the import's reproduction on
+    that replica (legacy_corrections.compare: running, failed or done, with the records that differ)."""
+    previous = service.corrected_version(v)
+    if previous is None or previous.origin != SubmissionVersion.Origin.IMPORTED:
+        return None
+    spec_v = specifications.of_filing(v.submission.deadline)
+    calculation = specifications.calculation_of(spec_v)
+    rep = legacy_corrections.reproduction(previous, calculation) if calculation != "recet" else None
+    return {
+        "imported": previous,
+        "replica": spec_v.calculation_label if spec_v is not None else "ReCET",
+        "reproduction": legacy_corrections.compare(rep) if rep is not None else None,
+        "shown": legacy_corrections.SHOWN,
+    }
 
 
 def _true_ups(v, t) -> dict | None:

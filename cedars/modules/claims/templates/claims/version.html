@@ -8,7 +8,7 @@
   <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ status_words }}</span>{% if v.confirmed_at %} confirmed {{ v.confirmed_at|date_words }}{% endif %}{% if v.late %} (late){% endif %}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
   {% else %}<dt>Year to date</dt><dd>{% if s.base_label %}This version's records over {{ s.base_label }}{% else %}This version's records (the year's first confirmation){% endif %}</dd>
-  {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, {% if calc.calculation and calc.calculation != "recet" %}the CET {{ calc.calculation|cut:"cet-" }} replica in ReCET {{ calc.release }}{% else %}ReCET {{ calc.release }}{% endif %}</dd>
   {% if walk_href %}<dt>Walk through a measure</dt><dd><a href="{{ walk_href }}">Follow any of its measures step by step</a>, from its savings to its cost-test ratios</dd>{% endif %}
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>
   {% if calc.cost_tests %}<dt>Cost tests</dt><dd>{{ calc.cost_tests.id }} {{ calc.cost_tests.version }}</dd>{% endif %}{% endif %}{% endif %}
@@ -24,6 +24,26 @@
 </section>
 {% endif %}
 {% if legacy %}{% include "legacy/_imported.html" %}{% endif %}
+{% if legacy_correction %}{% with lc=legacy_correction rep=legacy_correction.reproduction %}
+<section class="card" aria-labelledby="legacy-correction-h">
+  <h2 id="legacy-correction-h">Correcting a legacy CEDARS year</h2>
+  <p>This version corrects <a href="{% url 'claims:version' lc.imported.pk %}">version {{ lc.imported.number }}</a>, the year as legacy CEDARS published it. Its records are the import's with the uploaded rows over them, and the whole year is priced on the {{ lc.replica }}, the release legacy CEDARS priced the year with.</p>
+  <h3>The import priced again on the replica</h3>
+  {% if not rep %}<p>Not run yet: the imported records alone are priced on the same replica when this version is priced, to show how closely the replica reproduces what legacy CEDARS published.</p>
+  {% elif rep.state == "running" %}<p><span class="status info">Running</span> The imported records alone are being priced on the replica. Reload this page to see the comparison when the run ends.</p>
+  {% elif rep.state == "failed" %}<p><span class="status bad">Failed</span> The run that prices the imported records on the replica did not finish: {{ rep.error }}</p>
+  {% else %}<p>{% if rep.differ %}<span class="status warn">{{ rep.differ|floatformat:"0g" }} of {{ rep.records|floatformat:"0g" }} records differ</span>{% else %}<span class="status ok">Every record matches</span>{% endif %} The imported records priced alone on the replica, compared with legacy CEDARS' published outputs record by record ({{ rep.fields|length }} outputs, within rounding). A record that differs here was priced differently by legacy CEDARS than by the replica, before any correction.</p>
+  {% if rep.examples %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="reproduction-caption">
+  <table class="list data">
+    <caption id="reproduction-caption">Values that differ{% if rep.examples|length > lc.shown %} (the first {{ lc.shown }} of {{ rep.examples|length }}){% endif %}</caption>
+    <thead><tr><th scope="col">Claim</th><th scope="col">Output</th><th scope="col">Legacy CEDARS</th><th scope="col">Replica</th></tr></thead>
+    <tbody>{% for e in rep.examples|slice:lc.shown %}<tr><th scope="row">{{ e.claim_id }}</th><td>{{ e.field }}</td><td class="num">{{ e.imported|floatformat:"2g" }}</td><td class="num">{% if e.replica is None %}Not priced{% else %}{{ e.replica|floatformat:"2g" }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% endif %}{% endif %}
+</section>
+{% endwith %}{% endif %}
 {% if not t.priced %}<p>Not priced yet: the table shows what was filed only.</p>{% endif %}
 
 {% if t.pas|length > 1 %}

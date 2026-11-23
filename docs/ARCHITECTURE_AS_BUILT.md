@@ -1634,7 +1634,9 @@ split among the funding PAs by the weighted factors (section 8.1).
   (`legacy_corrections.reproduce`, through `submissions.reproduce_legacy` and the restater with its `calculation`; an analysis run for
   the filing's organization, checked against the filer's submit permission rather than Calculations: submit). `compare` reads the run's
   measure-level outputs against the imported Outputs.parquet, record by record within a rounding tolerance, and keeps the counts and up
-  to 200 differing values on the `LegacyReproduction`.
+  to 200 differing values on the `LegacyReproduction`. The correction's version page shows it ("Correcting a legacy CEDARS year": the
+  import it corrects, the replica, and the first 20 differing values), and every version page names the replica a run priced it on
+  (the run's `calculation` is kept with the version's pricing details).
 - The **claims API** (`/api/v1/claims/`) reads claim years, versions, findings, results and change letters, and uploads, checks,
   prices and confirms through the same service functions.
 
