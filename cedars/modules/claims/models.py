@@ -209,3 +209,23 @@ class RestatementLine(models.Model):
 
     def __str__(self):
         return f"{self.role} {self.prg_id} {self.pa}"
+
+
+class LegacyReproduction(models.Model):
+    """An imported claim year priced again on the CET replica that prices its corrections (legacy_corrections.reproduce): an analysis
+    run of the imported records, never linked to a filing, whose outputs are compared record by record with the ones legacy CEDARS
+    published. One per imported version and replica."""
+
+    imported = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="legacy_reproductions")
+    calculation = models.CharField(max_length=20, help_text="The CET replica, e.g. cet-24.3")
+    run_id = models.CharField(max_length=64, help_text="The analysis run (Calculations)")
+    compared = models.JSONField(
+        default=dict, help_text="Once the run has finished: records compared, records that differ and the first differences"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["imported", "calculation"], name="claims_one_reproduction_per_replica")]
+
+    def __str__(self):
+        return f"{self.imported} on {self.calculation}"
