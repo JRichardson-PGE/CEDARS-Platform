@@ -1137,6 +1137,7 @@ table.filing-status thead th { white-space: normal; text-transform: none; letter
 table.filing-status td { min-width: 0; }
 table.filing-status tbody tr.own > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
 table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary); }
+table.filing-status tbody tr.row-group > th { font-weight: 700; padding-top: .9rem; border-bottom: 1px solid var(--line); background: transparent; }
 
 /* ---------- Your work (core/_your_work.html; UI review 3, U5): the person's own work, one card per part ---------- */
 .your-work { margin: 1.25rem 0 1.75rem; }

@@ -174,6 +174,9 @@ core/section_filings:
       correction under way beside it. CPUC staff see every PA's filings; a PA's members see their own, and for the others only whether
       each filing is published.
     - >-
+      The PAs are grouped by type: investor-owned utilities, regional energy networks, then community choice aggregators. When you act
+      for a PA, its type's group comes first and your own PA first within it.
+    - >-
       Not every PA files every filing: a filing's set-up lists the PAs who file it. A PA not on a filing shown has nothing to file
       there, and a PA on none of them is not listed.
   how:
@@ -188,7 +191,7 @@ core/section_filings:
       optional: true
     - target: "#filing-status"
       title: Where each PA's filings stand
-      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it. Your own row is marked.
+      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it, grouped by PA type. Your group and your own row come first, and your row is marked.
     - target: main .section-pages
       title: The filing pages
       text: Each page under Filings, with what it is for.
