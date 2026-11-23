@@ -7,6 +7,8 @@ five statewide confirmations (SW_PERIODS), each due before the PAs' confirmation
 quarter, a month before the annual claim), compiled and confirmed in order as the PAs' own are. They are priced with the statewide
 allocation, so each record's results are credited to the funding PAs; a PA's own claims hold no statewide program. Each PA sees the shares
 of the statewide claims credited to it (`statewide_share`) before it files, and its year's totals (the 13th-month report) count them.
+A PA's first confirmation of a period waits until every lead PA has confirmed its statewide claim for that period (`statewide_waiting`,
+Jake 2026-11-23); a correction does not: a statewide correction reopens only the statewide filing, and the funding PAs' totals follow it.
 
     upload (.zip or .xlsx: the records new or changed since the last confirmed quarter)
     -> compiled year to date (the earlier quarters' confirmed records, this upload's over them by primary key) -> checks -> validated
@@ -37,6 +39,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models import Q
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
@@ -2055,6 +2058,10 @@ def confirm(actor, v: SubmissionVersion) -> SubmissionVersion:
     if stale(v):
         raise AccessDenied("An earlier confirmation has changed since this version was compiled on it. Check it again, then price it.")
     _require_in_order(v.submission.organisation, v.submission.deadline)
+    if first_confirmation(v):
+        waiting = statewide_waiting(v.submission.deadline)
+        if waiting:
+            raise AccessDenied(statewide_wait_message(v.submission.deadline, waiting))
     if not priced(v):
         raise AccessDenied("Price this version first: confirming needs a finished run on exactly these records.")
     return submissions.confirm(actor, v, v.calculation["input_hash"])
@@ -2719,7 +2726,8 @@ def statewide_share(organisation, year: int) -> list[dict]:
 
 
 def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
-    """Where each statewide confirmation of the year stands for the lead PAs: [{"deadline", "confirmed": [codes], "open": [codes]}],
+    """Where each statewide confirmation of the year stands for the lead PAs: [{"deadline", "confirmed": [codes], "open": [codes],
+    "not_started": [codes]}] (open: started, not confirmed; not started: leads of the year's statewide programs with no filing yet),
     in filing order; with `deadline` (a PA's confirmation), only the statewide one it comes after."""
     sw = [counterpart(deadline)] if deadline is not None else periods(year, statewide=True)
     out = []
@@ -2729,8 +2737,54 @@ def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
         confirmed, started = [], []
         for sub in Submission.objects.filter(deadline=d).select_related("organisation").order_by("organisation__code"):
             (confirmed if standing(sub.organisation, d) is not None else started).append(sub.organisation.code)
-        out.append({"deadline": d, "confirmed": confirmed, "open": started})
+        leads = leads_in_force(d.period.year).values()
+        not_started = sorted(set(leads) - set(confirmed) - set(started))
+        out.append({"deadline": d, "confirmed": confirmed, "open": started, "not_started": not_started})
     return out
+
+
+def leads_in_force(year: int) -> dict[int, str]:
+    """The PAs that lead a statewide program in force in the claim year, by pk: their codes."""
+    first, last = date(year, 1, 1), date(year, 12, 31)
+    rows = (
+        Program.objects.filter(statewide=True, lead__isnull=False)
+        .filter(Q(versions__valid_from__lte=last) & (Q(versions__valid_to__isnull=True) | Q(versions__valid_to__gte=first)))
+        .values_list("lead_id", "lead__code")
+        .distinct()
+    )
+    return dict(rows)
+
+
+def statewide_waiting(deadline: Deadline) -> list[str]:
+    """The lead PAs whose statewide claim for this period is not confirmed yet (no published version), by code: a PA's first
+    confirmation of the period waits for them, so each funding PA confirms only once it sees everything credited to it. None for a
+    statewide confirmation, or for a year without statewide due dates. A lead correcting a confirmed statewide claim still counts as
+    confirmed: its published version stands until the correction replaces it."""
+    if is_statewide(deadline):
+        return []
+    sw = counterpart(deadline)
+    if sw is None:
+        return []
+    leads = leads_in_force(deadline.period.year)
+    done = set(
+        SubmissionVersion.objects.filter(
+            submission__deadline=sw, submission__organisation__in=leads, status=SubmissionVersion.Status.PUBLISHED
+        ).values_list("submission__organisation_id", flat=True)
+    )
+    return sorted(code for pk, code in leads.items() if pk not in done)
+
+
+def first_confirmation(v: SubmissionVersion) -> bool:
+    """Whether confirming this version is the filing's first confirmation for its period (version 1), not a correction."""
+    return v.number == 1
+
+
+def statewide_wait_message(deadline: Deadline, waiting: list[str]) -> str:
+    sw = counterpart(deadline)
+    return (
+        f"Wait for the {label(sw)}: {', '.join(waiting)} {'has' if len(waiting) == 1 else 'have'} not confirmed it yet. Statewide claims "
+        "are confirmed first, so each funding PA sees what is credited to it before it confirms its own."
+    )
 
 
 def deadline_page(deadline) -> str:

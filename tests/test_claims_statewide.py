@@ -260,3 +260,77 @@ def test_leads_load_from_cedars_statewide_programs_download(tmp_path, cpuc_admin
     assert "would change 2 leads; skipped 1" in out.getvalue() and Program.objects.get(prg_id="SW_A").lead is None
     call_command("import_statewide_leads", str(f), "--reason", "CEDARS list", "--apply", stdout=out)
     assert Program.objects.get(prg_id="SW_A").lead == pge and Program.objects.get(prg_id="SW_B").lead == programs
+
+
+# --- a PA's first confirmation waits for the statewide claims (Jake, 2026-11-23)
+
+
+def own_upload(cid="PGE-2028-201") -> bytes:
+    return claims_zip(
+        tables(claim(cid, prg="PGE_Res"), ProgramCost=[row("ProgramCost", PrgID="PGE_Res")], Site=[row("Site", SiteID="PGE-S1")])
+    )
+
+
+def priced_own(filer, pge, deadline=None):  # noqa: F811
+    v = service.upload_claims(filer, deadline or own_deadline(), pge, own_upload(), "own.zip")
+    assert v.status == SubmissionVersion.Status.VALIDATED, service.findings(v)
+    run = Run.objects.get(pk=service.price(filer, v))
+    finish_allocated(run)
+    v.refresh_from_db()
+    return v
+
+
+def test_a_first_confirmation_waits_for_every_lead(client, filer, year, pge, programs, sw_x, release, cpuc_admin):  # noqa: F811
+    sce = programs
+    sw_y = registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="Y")
+    registry.set_lead(cpuc_admin, sw_y, sce, "SCE leads SW_Y")
+    assert service.statewide_waiting(own_deadline()) == ["PGE", "SCE"]
+    assert service.statewide_waiting(sw_deadline()) == []  # the statewide filing itself never waits
+    status = service.statewide_status(2028, own_deadline())[0]
+    assert status["not_started"] == ["PGE", "SCE"] and status["confirmed"] == []
+    v = priced_own(filer, pge)
+    with pytest.raises(AccessDenied, match="Wait for the 2028 Q1 statewide claim: PGE, SCE have not confirmed it yet"):
+        service.confirm(filer, v)
+    confirmed_sw(filer, pge)
+    assert service.statewide_waiting(own_deadline()) == ["SCE"]
+    sign_in(client, filer)
+    page = client.get(reverse("claims:period", args=[own_deadline().pk])).content.decode()
+    assert 'id="confirm-wait"' in page and "SCE has not confirmed it yet" in page and 'class="primary">Confirm and publish<' not in page
+    assert "Not started yet by SCE" in page and "Waiting for SCE" in page
+    with pytest.raises(AccessDenied, match="SCE has not confirmed"):
+        service.confirm(filer, v)
+    registry.set_lead(cpuc_admin, sw_y, pge, "PG&E leads SW_Y now")  # PG&E has confirmed: nobody left to wait for
+    assert service.statewide_waiting(own_deadline()) == []
+    assert service.confirm(filer, v).status == SubmissionVersion.Status.PUBLISHED
+    page = client.get(reverse("claims:period", args=[own_deadline().pk])).content.decode()
+    assert 'id="confirm-wait"' not in page and "Published" in page
+
+
+def test_only_leads_of_programs_in_force_that_year_are_waited_for(year, pge, programs, sw_x, cpuc_admin):  # noqa: F811
+    old = registry.create_program(cpuc_admin, prg_id="SW_OLD", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="O")
+    old.versions.update(valid_to=date(2024, 12, 31))
+    registry.set_lead(cpuc_admin, old, programs, "SCE led SW_OLD")
+    assert service.statewide_waiting(own_deadline()) == ["PGE"]
+
+
+def test_a_year_without_statewide_due_dates_does_not_wait(year, pge, sw_x):
+    Deadline.objects.filter(kind__in=service.SW_KINDS).delete()
+    assert service.statewide_waiting(own_deadline()) == []
+
+
+def test_corrections_do_not_wait_for_the_statewide_claims(filer, year, pge, programs, sw_x, release):  # noqa: F811
+    sw = confirmed_sw(filer, pge)
+    own = service.confirm(filer, priced_own(filer, pge))
+    assert own.status == SubmissionVersion.Status.PUBLISHED
+    # the lead un-confirms its statewide claim to correct it: the PA's confirmed claim stays as it is, nothing to reopen
+    submissions.unconfirm(filer, sw, "Correct SW_X")
+    assert service.statewide_waiting(own_deadline()) == ["PGE"]
+    own.refresh_from_db()
+    assert own.status == SubmissionVersion.Status.PUBLISHED and not service.stale(own)
+    # a correction of the PA's own claim (a later version) does not wait either
+    v2 = SubmissionVersion.objects.create(submission=own.submission, number=2, reason="Correct a record", created_by=filer)
+    assert not service.first_confirmation(v2)
+    # a lead correcting a confirmed statewide claim after its due date still counts as confirmed: its published version stands
+    v_sw2 = SubmissionVersion.objects.create(submission=sw.submission, number=2, reason="Correct SW_X", created_by=filer)
+    SubmissionVersion.objects.filter(pk=sw.pk).update(status=SubmissionVersion.Status.PUBLISHED)
+    assert v_sw2.status == SubmissionVersion.Status.DRAFT and service.statewide_waiting(own_deadline()) == []

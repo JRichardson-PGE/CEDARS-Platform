@@ -1563,6 +1563,14 @@ due before its PAs' counterpart: by default 14 days before a quarter and one mon
   funding PAs (`ClaimResult.pa` is the credited PA).
 - Before filing its own quarter, each funding PA sees its share of the confirmed statewide claims (`statewide_share`, page
   `/claims/years/<year>/statewide/` and its CSV). Only confirmed statewide versions count.
+- A PA's **first** confirmation of a period (version 1) waits until every lead PA has confirmed its statewide claim for that period
+  (`statewide_waiting`, checked in `claims.confirm`; the filing page shows why in place of the Confirm button, and its statewide
+  card names the leads not started yet). The leads waited for are those of statewide programs in force in the claim year
+  (`leads_in_force`); a year without statewide deadlines does not wait. Uploading, checking and pricing do not wait.
+- Corrections do not wait. A lead corrects its statewide claim by reopening only the statewide filing: the two runs of confirmations
+  are compiled apart, so no PA's claim goes stale or is reopened, and each funding PA's `statewide_share` and `year_totals` follow
+  the lead's corrected version once it is confirmed. While the correction is open, the lead's published version still counts as
+  confirmed. A PA's own correction (version 2 or later) confirms without waiting.
 - `year_totals` (the PA's confirmed claims, read by Monthly reports' 13th-month report through `submissions.claims_totals`) adds each
   statewide program's credited share, so the lead never counts the whole program and no funder counts its share twice.
 - Publication snapshots keep a lead's statewide claims in a slot of their own beside its own claims.
@@ -1584,7 +1592,9 @@ sequenceDiagram
   F->>CL: open the statewide shares page
   CL-->>F: its share of each statewide program (statewide_share)
   Note over F,CL: Q1 claim, PA's own programs only
-  F->>CL: upload, check, price, confirm its own claims
+  F->>CL: upload, check, price its own claims
+  CL-->>F: confirm waits until every lead has confirmed (statewide_waiting)
+  F->>CL: confirm its own claims
   CL->>D: year_totals = own claims + statewide shares
 ```
 

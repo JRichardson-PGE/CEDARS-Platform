@@ -57,12 +57,14 @@
 </details>
 {% elif sw_status %}
 <details class="section" id="statewide-first">
-  <summary><h2 id="sw-h">Statewide claims credited to {% if org %}{{ org.code }}{% else %}each PA{% endif %}</h2><span class="count">{% if sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}{% elif sw_status.open %}Not confirmed yet{% else %}No lead PA has filed yet{% endif %}</span></summary>
+  <summary><h2 id="sw-h">Statewide claims credited to {% if org %}{{ org.code }}{% else %}each PA{% endif %}</h2><span class="count">{% if sw_status.open or sw_status.not_started %}Waiting for {% if sw_status.open %}{{ sw_status.open|join:", " }}{% if sw_status.not_started %}, {% endif %}{% endif %}{{ sw_status.not_started|join:", " }}{% elif sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}{% else %}No lead PA has filed yet{% endif %}</span></summary>
   <div class="section-body">
   <p>Statewide programs are claimed by their lead PA in the <a href="{% url 'claims:period' sw_status.deadline.pk %}">{{ sw_status.deadline.kind }}</a>, due {{ sw_status.deadline.due_at|date_words }}, before this one. Don't include them here.
   {% if sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}.{% endif %}
-  {% if sw_status.open %}Not confirmed yet by {{ sw_status.open|join:", " }}.{% endif %}
-  {% if not sw_status.confirmed and not sw_status.open %}No lead PA has filed it yet.{% endif %}</p>
+  {% if sw_status.open %}Started, not confirmed yet, by {{ sw_status.open|join:", " }}.{% endif %}
+  {% if sw_status.not_started %}Not started yet by {{ sw_status.not_started|join:", " }}.{% endif %}
+  {% if not sw_status.confirmed and not sw_status.open and not sw_status.not_started %}No lead PA has filed it yet.{% endif %}</p>
+  <p>A PA's first confirmation of this period waits until every lead PA has confirmed its statewide claim, so the shares credited to it are known. A correction does not wait: when a lead corrects its statewide claim, only the statewide filing is reopened, and each funding PA's totals follow the corrected version.</p>
   <p><a href="{% url 'claims:statewide' cy.year %}{% if org %}?org={{ org.code }}{% endif %}">What the statewide claims credit to {% if org %}{{ org.code }}{% else %}a PA{% endif %} in {{ cy.year }}</a></p>
   </div>
 </details>
