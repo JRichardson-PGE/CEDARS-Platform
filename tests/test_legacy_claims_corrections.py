@@ -156,3 +156,25 @@ def test_a_failed_reproduction_says_so(tmp_path, filer, approver, replica_releas
     rep = legacy_corrections.reproduce(filer, _corrected(filer, approver, v1), v1)
     monkeypatch.setattr(submissions, "restated_run", lambda run_id: {"ended": True, "succeeded": False, "error": "boom", "results": {}})
     assert legacy_corrections.compare(rep) == {"state": "failed", "error": "boom"}
+
+
+def test_the_corrections_page_shows_the_replica_and_the_reproduction(
+    tmp_path, filer, approver, replica_release, monkeypatch, client, signed_in
+):
+    v1 = _loaded(tmp_path)
+    v2 = _corrected(filer, approver, v1)
+    signed_in(filer)
+    r = client.get(f"/claims/versions/{v2.pk}/")
+    assert r.status_code == 200, r.status_code
+    page = r.content.decode()
+    assert "Correcting a legacy CEDARS year" in page and "CET 24.3 replica" in page
+    assert "Not run yet" in page
+    rep = legacy_corrections.reproduce(filer, v2, v1)
+    imported = legacy_corrections._read(v1, "Outputs.parquet").to_pylist()
+    ids = legacy_corrections._keyed([r["ClaimID"] for r in imported])
+    rows = [{"CEInputID": cid, "ElecBen": r["ElecBen"], "GasBen": r["GasBen"]} for cid, r in zip(ids, imported, strict=True)]
+    rows[2]["ElecBen"] = (rows[2]["ElecBen"] or 0) + 100
+    _finished(monkeypatch, rows)
+    page = client.get(f"/claims/versions/{v2.pk}/").content.decode()
+    assert "1 of 3 records differ" in page and "PGE-2025-0002" in page and "Values that differ" in page
+    assert rep.pk

@@ -219,6 +219,8 @@ claims/version:
     - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
     - Column definitions explains each column.
     - True-ups priced against their parents' profiles, when the version has NMEC true-ups, shows what each revised 8,760 profile changes.
+    - Correcting a legacy CEDARS year, on a correction of an imported year, names the replica it is priced on and compares the imported
+      records priced again on that replica with what legacy CEDARS published.
     - Restate these claims prices the confirmed version again on today's engine, as an analysis that never changes it.
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: claims
@@ -235,6 +237,10 @@ claims/version:
       title: Filed savings that differ
       text: Programs whose filed first-year savings differ from what their records priced to are marked "Differs" in the Filed columns.
       optional: true
+    - target: "#legacy-correction-h"
+      title: Correcting a legacy CEDARS year
+      text: The imported year this version corrects, the CET replica it is priced on, and how closely that replica reproduces the import.
+      optional: true  # a correction of an imported legacy year only
     - target: "#programs-h"
       title: By program
       text: Each program's year-to-date results, with downloads and the column definitions.

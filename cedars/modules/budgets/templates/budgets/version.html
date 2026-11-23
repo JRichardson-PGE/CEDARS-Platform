@@ -11,7 +11,7 @@
   <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ status_words }}</span>{% if v.confirmed_at %} confirmed {{ v.confirmed_at|date_words }}{% endif %}{% if v.late %} (late){% endif %}</dd>
   {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'budgets:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date_words }}){% endif %}</dd>{% endif %}
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
-  {% elif calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  {% elif calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, {% if calc.calculation and calc.calculation != "recet" %}the CET {{ calc.calculation|cut:"cet-" }} replica in ReCET {{ calc.release }}{% else %}ReCET {{ calc.release }}{% endif %}</dd>
   {% if walk_href %}<dt>Walk through a measure</dt><dd><a href="{{ walk_href }}">Follow any of its measures step by step</a>, from its savings to its cost-test ratios</dd>{% endif %}
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>
   {% if calc.cost_tests %}<dt>Cost tests</dt><dd>{{ calc.cost_tests.id }} {{ calc.cost_tests.version }}</dd>{% endif %}{% endif %}
