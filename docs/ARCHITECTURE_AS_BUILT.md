@@ -565,6 +565,7 @@ erDiagram
   SubmissionVersion ||--o{ ClaimRecord : "claims, per claim"
   SubmissionVersion ||--o{ Restatement : "claims, analysis"
   Restatement ||--o{ RestatementLine : lines
+  SubmissionVersion ||--o{ LegacyReproduction : "claims, imported year on its replica"
   SubmissionVersion ||--o{ ReportLine : "monthly"
   SubmissionVersion ||--o{ MonthlyResult : "monthly, priced"
   SubmissionVersion ||--o| Snapshot : "published results"
@@ -1141,7 +1142,7 @@ erDiagram
 | monthly | `YearSetup`, `ReportLine`, `MonthlyResult`, `ChangeLetter` |
 | calculations | `EngineRelease`, `InputDraft`, `Run`, `OutputTemplate`, `OutputTemplateDefault`, `ResultView`, `Worker` |
 | budgets | `FilingSetup`, `BudgetLine`, `BudgetResult`, `FundShift`, `FundShiftLine`, `FundShiftAcknowledgement`, `ChangeLetter` |
-| claims | `ClaimYear`, `ClaimProgramLine`, `ClaimResult`, `ChangeLetter`, `ClaimRecord`, `Restatement`, `RestatementLine` |
+| claims | `ClaimYear`, `ClaimProgramLine`, `ClaimResult`, `ChangeLetter`, `ClaimRecord`, `Restatement`, `RestatementLine`, `LegacyReproduction` |
 | documents | `AttributeList`, `AttributeOption`, `Document`, `DocumentVersion`, `CommentPeriod`, `ResponseRequest`, `Comment`, `CommentResponse`, `DocumentFile`, `WorkOrder`, `LegacyLink`, `Task`, `Study`, `StudyProgram`, `FileText`, `DocumentSubscription`, `KeyDate` |
 | data | `DownloadJob`, `SavedView`, `RecordColumnDefault` |
 
@@ -1629,6 +1630,11 @@ split among the funding PAs by the weighted factors (section 8.1).
   audited). PII tables in a claims upload are refused.
 - **Restatements** price a published version's job again as an analysis run (optionally per-record ACCs, with a bridge run) without
   touching the filing (`Restatement`, `RestatementLine`).
+- **Legacy reproductions**: when a legacy correction is priced, the imported records alone are priced once on the same CET replica
+  (`legacy_corrections.reproduce`, through `submissions.reproduce_legacy` and the restater with its `calculation`; an analysis run for
+  the filing's organization, checked against the filer's submit permission rather than Calculations: submit). `compare` reads the run's
+  measure-level outputs against the imported Outputs.parquet, record by record within a rounding tolerance, and keeps the counts and up
+  to 200 differing values on the `LegacyReproduction`.
 - The **claims API** (`/api/v1/claims/`) reads claim years, versions, findings, results and change letters, and uploads, checks,
   prices and confirms through the same service functions.
 
@@ -2882,10 +2888,10 @@ summarize. A pull request that builds part of a service or module updates its su
 - Legacy corrections: a request (`ReopenRequest.legacy`, migration submissions 0013) a CPUC approver decides, starting a version filed
   on the platform from the imported files on the year's correction version (`request_legacy_correction`, `register_legacy_corrections`).
   Claims registers it: a claim year's correction compiles over the imported records and program costs
-  (`claims/legacy_corrections.py`) and is priced whole on the year's CET replica. Budget filings register it too
+  (`claims/legacy_corrections.py`) and is priced whole on the year's CET replica; the imported records are priced once on the same
+  replica and compared with what legacy CEDARS published (`LegacyReproduction`, migration claims 0006). Budget filings register it too
   (`budgets/legacy_corrections.py`: the draft's job rebuilt from the imported records, priced on the claims replica of the filing's
-  first program year; migration specifications 0011). Not yet built: a run reproducing the import on the replica, with the records
-  that differ listed.
+  first program year; migration specifications 0011); their import is not yet reproduced on the replica.
 - `manage.py stage_legacy_sources MANIFEST FOLDER` (each download checked against the manifest's size and SHA-256 and the published
   layouts, copied to the uploads area under `legacy/cedars/`, re-runs skip what is staged; `LegacySource`).
 - `legacy.record_import` (a loaded year becomes a published imported version and a `LegacyImport` with its sources, counts and

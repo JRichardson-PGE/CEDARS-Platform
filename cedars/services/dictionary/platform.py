@@ -198,6 +198,7 @@ NOT_DESCRIBED: dict[str, str] = {
     "impact_profiles.EtrmSyncRun": "machinery (eTRM synchronization runs)",
     "impact_profiles.ProcessingJob": "machinery (background jobs)",
     "calculations.InputDraft": "a person's working copy of a job's inputs",
+    "claims.LegacyReproduction": "a check of the CET replica against what legacy CEDARS published for an imported claim year",
     "refdata.CostTestBuild": "a person's working copy of a cost-test set (the set it becomes is a pack, described above)",
     "calculations.OutputTemplateDefault": "a person's own settings",
     "calculations.ResultView": "a person's own settings (saved Results columns)",

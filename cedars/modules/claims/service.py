@@ -1997,6 +1997,10 @@ def price(actor, v: SubmissionVersion) -> str:
     key = (v.findings or {}).get("job_key")
     if not key:
         raise AccessDenied("There are no measures to price yet.")
+    previous = corrected_version(v)
+    if previous is not None and previous.origin == SubmissionVersion.Origin.IMPORTED:
+        # a legacy year corrected: the imported records are also priced alone on the replica, once, and compared with their outputs
+        legacy_corrections.reproduce(actor, v, previous)
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "job.zip"
         path.write_bytes(storage.store("uploads").get_bytes(key))
