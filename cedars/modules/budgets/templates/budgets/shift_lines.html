@@ -1,14 +1,38 @@
 {% extends "core/base.html" %}
 {% load static %}
-{% block title %}Amounts: {{ s.title }}{% endblock %}
+{% load budget_money %}
+{% block title %}{% if mine.statewide_lines %}Cover {{ pa }}'s portion{% else %}Amounts{% endif %}: {{ s.title }}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
-<div class="page-title"><h1>Amounts: {{ s.title }}</h1>{% page_help "budgets/shift_lines" %}</div>
-<p>One line per program and year: a negative amount moves money out, a positive one moves it in. {{ s.organisation.code }}'s lines
-must net to zero, a statewide line counting by {{ s.organisation.code }}'s allocation factor; the (?) help explains statewide lines.</p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
+<div class="page-title"><h1>{% if mine.statewide_lines %}Cover {{ pa }}'s portion{% else %}Amounts{% endif %}: {{ s.title }}</h1>{% page_help "budgets/shift_lines" %}</div>
+{% include "budgets/_shift_steps.html" %}
+{% if mine.statewide_lines %}
+<div class="card outcome" id="to-cover">
+  <p><strong>{{ mine.words }}.</strong>
+  {% if mine.portion > 0 %}Its portion of the statewide changes goes up by {{ mine.portion|money:2 }}, so its lines below must take {{ mine.portion|money:2 }} out of its own programs (they add up to {{ owed|money:2 }}).
+  {% elif mine.portion < 0 %}Its portion of the statewide changes goes down by {{ owed|money:2 }}, so its lines below must put {{ owed|money:2 }} into its own programs.
+  {% else %}Its portions of the statewide changes add up to zero, so it needs no lines here. Any lines it does enter must add up to zero.{% endif %}</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ pa }}'s portions">
+  <table class="list">
+    <caption class="sr-only">Each statewide change, {{ pa }}'s allocation factor and its portion</caption>
+    <thead><tr><th scope="col">Statewide program-year</th><th scope="col">Change to the whole program</th><th scope="col">{{ pa }}'s factor</th><th scope="col">{{ pa }}'s portion</th></tr></thead>
+    <tbody>{% for p in mine.portions %}<tr><th scope="row">{{ p.item }}</th><td class="num">{{ p.amount|money:2 }}</td><td class="num">{{ p.factor }}</td><td class="num">{{ p.portion|money:2 }}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><th scope="row" colspan="3">{{ pa }}'s portion in all</th><td class="num">{{ mine.portion|money:2 }}</td></tr></tfoot>
+  </table>
+  </div>
+  <p class="small"><a href="{% url 'budgets:shift_statewide' s.pk %}">Change the statewide program changes</a></p>
+</div>
+<p>One line per program and year, in {{ pa }}'s own programs only: a negative amount moves money out, a positive one moves it in. No
+line may take a program's operating budget below zero.</p>
+{% else %}
+<p>One line per program and year, in {{ pa }}'s own programs: a negative amount moves money out, a positive one moves it in. The lines
+must add up to zero, and none may take a program's operating budget below zero.</p>
+{% if leads %}<p>To change the budget of a statewide program {{ pa }} leads, <a href="{% url 'budgets:shift_statewide' s.pk %}">enter a statewide program change</a> first.</p>
+{% else %}<p class="small" id="statewide-note">Statewide programs are not offered here: a statewide program's budget is changed by its lead PA on its SW_ PrgID, and {{ pa }}'s own ID of one follows that change.</p>{% endif %}
+{% endif %}
 <form method="post" class="stack">{% csrf_token %}
   {% include "budgets/_shift_lines_table.html" %}
-  <div class="actions"><button type="submit" class="primary">Save</button> <button type="submit" name="more" value="1">Save and add more lines</button></div>
+  <div class="actions"><button type="submit" class="primary">Save and review</button> <button type="submit" name="more" value="1">Save and add more lines</button></div>
 </form>
 {% endblock %}
 {% block scripts %}<script src="{% static 'budgets/shift_lines.js' %}" defer></script>{% endblock %}

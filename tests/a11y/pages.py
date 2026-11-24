@@ -3,7 +3,7 @@
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {application}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting},
-{shift_draft},
+{shift_draft}, {shift_sw_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
@@ -499,6 +499,10 @@ PAGES = [
     ("fund-shift-new", "/budgets/shifts/new/", "analyst"),
     ("fund-shift-lines", "/budgets/shifts/{shift_draft}/lines/", "analyst"),
     ("fund-shift-draft", "/budgets/shifts/{shift_draft}/", "analyst"),
+    # a statewide change by its lead PA, its own portion partly covered: the statewide step, the cover step and the review
+    ("fund-shift-statewide", "/budgets/shifts/{shift_sw_draft}/statewide/", "analyst"),
+    ("fund-shift-cover-own", "/budgets/shifts/{shift_sw_draft}/lines/", "analyst"),
+    ("fund-shift-statewide-draft", "/budgets/shifts/{shift_sw_draft}/", "analyst"),
     ("fund-shift-waiting", "/budgets/shifts/{shift_waiting}/", "analyst"),
     ("fund-shift-waiting-cofunder", "/budgets/shifts/{shift_waiting}/", "sce_user"),
     ("fund-shift-acknowledge", "/budgets/shifts/{shift_waiting}/acknowledge/", "sce_user"),

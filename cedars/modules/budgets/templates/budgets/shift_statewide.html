@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% load budget_money %}
+{% block title %}Statewide program changes: {{ s.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
+<div class="page-title"><h1>Statewide program changes: {{ s.title }}</h1>{% page_help "budgets/shift_statewide" %}</div>
+{% include "budgets/_shift_steps.html" %}
+<p>Enter the change to the <strong>whole</strong> budget of each statewide program {{ pa }} leads, one line per program and year: a
+positive amount adds to the program, a negative one takes from it. Every funding PA's portion changes by its allocation factor, and
+each covers its portion from its own programs: {{ pa }} in the next step, the others once the shift is submitted.</p>
+<form method="post" class="stack">{% csrf_token %}
+  {% include "budgets/_shift_lines_table.html" %}
+  <section aria-labelledby="split-h" id="split">
+    <h2 id="split-h">What each funding PA would cover</h2>
+    <p class="small">Each funder's portions of the changes above, added up. A funder whose portions add up to zero has nothing to cover.</p>
+    <div class="hscroll" tabindex="0" role="region" aria-labelledby="split-h">
+    <table class="list" data-split>
+      <caption class="sr-only">Each funding PA's portion of the statewide changes and what it does about it</caption>
+      <thead><tr><th scope="col">Funding PA</th><th scope="col">Its portion changes by</th><th scope="col">What it does</th></tr></thead>
+      <tbody>{% for p in split %}<tr><th scope="row">{{ p.pa }}</th><td class="num">{{ p.portion|money:2 }}</td><td>{{ p.words }}{% if p.pa == pa %}, in the next step{% endif %}</td></tr>{% empty %}<tr data-split-none><td colspan="3" class="muted">{% if problems %}Save the lines to see each funder's portion.{% else %}No statewide change yet.{% endif %}</td></tr>{% endfor %}</tbody>
+    </table>
+    </div>
+  </section>
+  <div class="actions"><button type="submit" class="primary">Save and continue</button> <button type="submit" name="more" value="1">Save and add more lines</button></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'budgets/shift_lines.js' %}" defer></script>{% endblock %}

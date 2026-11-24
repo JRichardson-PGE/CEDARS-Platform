@@ -2,7 +2,6 @@
 it and the running net, near matches for a PrgID that cannot be used, pasted lines, and a new shift opening on the current cycle."""
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 from django.urls import reverse
@@ -44,26 +43,32 @@ def test_the_amounts_page(client, filer, pge, cycle, standing, statewide):  # no
     s = shifts.create(filer, pge, cycle, title="Into HVAC", reason="demand")
     url = reverse("budgets:shift_lines", args=[s.pk])
     html = client.get(url).content.decode()
-    assert 'list="programs"' in html and '<option value="SW_X">SW X · statewide</option>' in html
+    # a PA's own programs only: the statewide program it leads is entered on its own page, linked from here
+    assert 'list="programs"' in html and '<option value="PGE_Res_HVAC">' in html and '<option value="SW_X">' not in html
+    assert reverse("budgets:shift_statewide", args=[s.pk]) in html
     assert 'id="shift-budget"' in html and "PGE's operating budget now" in html and "Paste lines" in html
-    assert "data-add-line" in html and "budgets/shift_lines.js" in html
+    assert "After this shift" in html and "data-add-line" in html and "budgets/shift_lines.js" in html
     held = shifts.entry_budget(pge, s)
-    hvac = held["PGE_Res_HVAC 2028"]
-    assert hvac["factor"] is None and Decimal(held["SW_X 2028"]["factor"]) == Decimal("0.6")
+    assert held["PGE_Res_HVAC 2028"] == {"held": "2400.00"}
     # a PrgID that is not the PA's: the near matches are named
     r = client.post(url, {"prg_id": ["PGE_Res_HVA", "PGE_Com_Ltg"], "year": ["2028", "2028"], "amount": ["10", "-10"]})
     assert "PrgID PGE_Res_HVA is not in the program registry. Did you mean PGE_Res_HVAC" in r.content.decode()
-    # a saved line shows what its program-year holds, and the net counts a statewide line by the PA's factor
-    r = client.post(url, {"prg_id": ["SW_X", "PGE_Com_Ltg"], "year": ["2028", "2028"], "amount": ["20", "-12"]})
+    # with a statewide change the lines cover the PA's portion: a saved line shows what its program-year holds now and after
+    shifts.set_lines(filer, s, [shifts.LineIn("SW_X", "2028", "20")], shifts.STATEWIDE)
+    r = client.post(url, {"prg_id": ["PGE_Com_Ltg"], "year": ["2028"], "amount": ["-10"]})
     assert r.status_code == 302
     html = client.get(url).content.decode()
-    assert "$0.00</td>" in html  # 20 x 0.6 - 12
-    # pasted lines are added to the typed ones
+    assert 'data-portion="12.00"' in html and '<td class="num" data-line-after>$390.00</td>' in html
+    assert '<td class="num" data-total>-$10.00</td>' in html and '<td class="num" data-left>$2.00</td>' in html  # 20 x 0.6 - 10
+    client.post(url, {"prg_id": ["PGE_Com_Ltg"], "year": ["2028"], "amount": ["-12"]})
+    assert '<td class="num" data-left>$0.00 (covered)</td>' in client.get(url).content.decode()
+    # pasted lines are added to the typed ones, and the statewide change stays
     r = client.post(url, {"prg_id": ["PGE_Res_HVAC", ""], "year": ["2028", ""], "amount": ["5", ""], "paste": "PGE_Com_Ltg\t2028\t-5"})
     assert r.status_code == 302
     assert sorted((ln.prg_id, int(ln.amount)) for ln in FundShift.objects.get(pk=s.pk).lines.all()) == [
         ("PGE_Com_Ltg", -5),
         ("PGE_Res_HVAC", 5),
+        ("SW_X", 20),
     ]
 
 

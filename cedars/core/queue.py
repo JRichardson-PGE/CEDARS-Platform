@@ -1,10 +1,10 @@
 """My queue (assignment queues): the work waiting on the signed-in user, across every module, on one page (/queue/). Each kind of
 work is a provider a service or module registers in its AppConfig.ready (core never imports a module): provider(user) -> [Item], the items
 waiting on that user now. Nothing is stored: the queue is read live from each module's own records, so an item leaves it the moment the
-work is done (a request decided, a version confirmed, a shift acknowledged, a draft published).
+work is done (a request decided, a version confirmed, a shift's portion covered, a draft published).
 
 Registered today: correction requests to decide, confirmations, comments waiting for a reply (submissions); program change requests to
-decide (registry); access requests to decide (accounts); fund shifts to acknowledge (Budgets); document drafts to publish, responses to
+decide (registry); access requests to decide (accounts); fund shift portions to cover (Budgets); document drafts to publish, responses to
 recommendations and unanswered questions (Documents); held publications (snapshots); filers' comments on proposed filing
 specification versions not yet answered (specifications); test scripts assigned to the user with tests still to do (testing); the
 user's requests the CPUC asked a question about, and for administrators the requests waiting on the CPUC (feedback)."""

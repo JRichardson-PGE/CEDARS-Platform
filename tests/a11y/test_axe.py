@@ -1266,7 +1266,8 @@ def _follows(pge_admin, community, pge, hvac):
 
 
 def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
-    """A shift in effect, a statewide one waiting for its co-funder (SCE, by a confirmed allocation version) and an unbalanced draft."""
+    """A shift in effect, a statewide one waiting for its co-funder (SCE, by a confirmed allocation version), an unbalanced draft and a
+    statewide draft whose lead PA has covered part of its portion."""
     from cedars.modules.budgets import shifts
 
     from ..test_fund_shifts import FACTORS, L
@@ -1292,6 +1293,7 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
         ("shift_effective", "Into residential HVAC", L(("PGE_Res_HVAC", 2029, 100), ("PGE_Com_Ltg", 2028, -100)), True),
         ("shift_waiting", "Into SW X", L(("SW_X", 2028, 50), ("PGE_Com_Ltg", 2028, -30)), True),
         ("shift_draft", "Not balanced yet", L(("PGE_Res_HVAC", 2028, 10), ("PGE_Com_Ltg", 2028, -5000)), False),
+        ("shift_sw_draft", "More for SW X", L(("SW_X", 2028, 40), ("PGE_Com_Ltg", 2028, -10)), False),
     ]:
         s = shifts.create(analyst, pge, cycle, title=title, reason="the scene's shift")
         shifts.set_lines(analyst, s, lines)

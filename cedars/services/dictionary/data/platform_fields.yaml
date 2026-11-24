@@ -56,7 +56,7 @@ submissions.SubmissionVersion:
     late: "Whether the version was confirmed after the deadline's due date."
 budgets.FundShift:
   fields:
-    effective_at: "When the fund shift took effect (every co-funder had acknowledged it, or there was none); blank until then."
+    effective_at: "When the fund shift took effect (every co-funder had covered its portion, or there was none); blank until then."
 budgets.FundShiftLine:
   fields:
     amount: "The dollars moved, for that program and program year in that PA's portfolio. Negative moves dollars out of it, positive into it."

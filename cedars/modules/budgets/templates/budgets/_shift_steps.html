@@ -1,0 +1,5 @@
+{% comment %}A fund shift's steps (shifts.steps): done ones with a check and "(done)" for screen readers, the current one marked and
+named with aria-current, so the state is never shown by color alone. A draft's steps link to their pages.{% endcomment %}
+{% if steps %}<ol class="steps shift-steps" aria-label="Fund shift steps">
+  {% for st in steps %}<li class="{% if st.done %}done{% endif %}{% if st.current %} current{% endif %}"{% if st.current %} aria-current="step"{% endif %}><span class="step-mark" aria-hidden="true">{% if st.done %}&#10003;{% else %}{{ forloop.counter }}{% endif %}</span>{% if st.url and not st.current %}<a class="step-name" href="{{ st.url }}">{{ st.name }}</a>{% else %}<span class="step-name">{{ st.name }}</span>{% endif %}{% if st.done %}<span class="sr-only"> (done)</span>{% elif st.current %}<span class="sr-only"> (now)</span>{% endif %}</li>{% endfor %}
+</ol>{% endif %}

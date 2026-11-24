@@ -1,28 +1,32 @@
 {% extends "core/base.html" %}
 {% load static %}
 {% load budget_money %}
-{% block title %}Acknowledge for {{ org.code }}: {{ s.title }}{% endblock %}
+{% block title %}Cover {{ org.code }}'s portion: {{ s.title }}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
-<div class="page-title"><h1>Acknowledge for {{ org.code }}: {{ s.title }}</h1>{% page_help "budgets/shift_acknowledge" %}</div>
-<p>{{ s.organisation.code }}'s shift changes {{ org.code }}'s portion of these statewide programs, by {{ org.code }}'s weighted allocation
-factors:</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Your portions">
-<table class="list">
-  <caption class="sr-only">Each statewide line, its whole amount, your factor and your portion</caption>
-  <thead><tr><th scope="col">Statewide program-year</th><th scope="col">Whole change</th><th scope="col">{{ org.code }}'s factor</th><th scope="col">{{ org.code }}'s portion</th></tr></thead>
-  <tbody>{% for p in part.portions %}<tr><th scope="row">{{ p.item }}</th><td class="num">{{ p.amount|money:2 }}</td><td class="num">{{ p.factor }}</td><td class="num">{{ p.portion|money:2 }}</td></tr>{% endfor %}</tbody>
-  <tfoot><tr><th scope="row">Net</th><td></td><td></td><td class="num">{{ portion|money:2 }}</td></tr></tfoot>
-</table>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
+<div class="page-title"><h1>Cover {{ org.code }}'s portion: {{ s.title }}</h1>{% page_help "budgets/shift_acknowledge" %}</div>
+{% include "budgets/_shift_steps.html" %}
+<div class="card outcome" id="to-cover">
+  <p><strong>{{ part.words }}.</strong>
+  {{ s.organisation.code }}, the lead PA, changed the budget of {% if part.portions|length == 1 %}a statewide program{% else %}statewide programs{% endif %} {{ org.code }} funds.
+  {% if part.portion > 0 %}{{ org.code }}'s portion goes up by {{ part.portion|money:2 }}, so its lines below must take {{ part.portion|money:2 }} out of its own programs (they add up to {{ owed|money:2 }}).
+  {% else %}{{ org.code }}'s portion goes down by {{ owed|money:2 }}, so its lines below must put {{ owed|money:2 }} into its own programs.{% endif %}</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ org.code }}'s portions">
+  <table class="list">
+    <caption class="sr-only">Each statewide change, {{ org.code }}'s allocation factor and its portion</caption>
+    <thead><tr><th scope="col">Statewide program-year</th><th scope="col">Change to the whole program</th><th scope="col">{{ org.code }}'s factor</th><th scope="col">{{ org.code }}'s portion</th></tr></thead>
+    <tbody>{% for p in part.portions %}<tr><th scope="row">{{ p.item }}</th><td class="num">{{ p.amount|money:2 }}</td><td class="num">{{ p.factor }}</td><td class="num">{{ p.portion|money:2 }}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><th scope="row" colspan="3">{{ org.code }}'s portion in all</th><td class="num">{{ part.portion|money:2 }}</td></tr></tfoot>
+  </table>
+  </div>
 </div>
-<p><strong>{{ org.code }}'s portion changes by {{ portion|money:2 }} net.</strong>
-Choose where it {% if portion > 0 %}comes from{% else %}goes{% endif %} among {{ org.code }}'s own programs: its lines must
-add up to {{ owed|money:2 }} (a negative amount moves money out of a program, a positive one into it). No line may take a program's
-operating budget below zero. The shift takes effect once every co-funder has acknowledged it.</p>
+<p>One line per program and year, in {{ org.code }}'s own programs only: a negative amount moves money out, a positive one moves it in.
+No line may take a program's operating budget below zero. The shift takes effect once every funding PA with an amount to cover has
+covered it.</p>
 <form method="post" class="stack">{% csrf_token %}
   {% include "budgets/_shift_lines_table.html" %}
   <div class="field form-narrow"><label for="ack-note">Note (optional)</label><textarea id="ack-note" name="note" rows="2">{{ note }}</textarea></div>
-  <div class="actions"><button type="submit" class="primary">Place {{ org.code }}'s portion and acknowledge</button></div>
+  <div class="actions"><button type="submit" class="primary">Cover {{ org.code }}'s portion and confirm</button></div>
 </form>
 {% endblock %}
 {% block scripts %}<script src="{% static 'budgets/shift_lines.js' %}" defer></script>{% endblock %}

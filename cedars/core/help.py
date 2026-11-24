@@ -455,8 +455,8 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             Step(
                 "queue",
                 "My queue",
-                "The work waiting on you now, across every module: requests to decide, filings ready to confirm, fund shifts to "
-                "acknowledge, comments waiting for your reply, documents to publish and questions to answer. The count beside it is "
+                "The work waiting on you now, across every module: requests to decide, filings ready to confirm, fund shift "
+                "portions to cover, comments waiting for your reply, documents to publish and questions to answer. The count beside it is "
                 "how many items wait. Each item leaves it once done.",
                 "/queue/",
                 "Open your queue",

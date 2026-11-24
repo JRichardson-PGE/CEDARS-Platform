@@ -13,7 +13,7 @@
   },
   "guide:budgets": {
     "release": "0.2.0",
-    "sha256": "c83c7ac3a622d9261349acaa7421d84e2a15e127c5c75d13756e4ade4ef794d8"
+    "sha256": "813f58fb507b4bd225e8ed6a3a198bb1573762fb8bcbc5a0776f38756cfe972a"
   },
   "guide:calculations": {
     "release": "0.2.0",
@@ -69,7 +69,7 @@
   },
   "guide:reviewing": {
     "release": "0.2.0",
-    "sha256": "d3b8fb7de04c92a17977fc2bbc626de2cf3414391dabd600afd863275530c5f6"
+    "sha256": "155513703f2c390f0442e2cc460b14a0bd88779c3b07111c36a99cc8149acc4a"
   },
   "guide:rules-and-lists": {
     "release": "0.2.0",

@@ -30,13 +30,19 @@ def _shift(request, pk) -> FundShift:
 @login_required
 def shift_list(request):
     org = request.filing_organisation  # the CPUC has no operating budget of its own: it sees every PA's (regulator wording)
+    confirms = org is not None and shifts.access.has_permission(request.user, org, "budgets.confirm")
     return render(
         request,
         "budgets/shifts.html",
         {
             "org": org,
-            "shifts": shifts.readable(request.user).order_by("-created_at")[:200],
-            "waiting": shifts.waiting_for(org) if org and shifts.access.has_permission(request.user, org, "budgets.confirm") else [],
+            "shifts": [(s, _waiting_on(s)) for s in shifts.readable(request.user).order_by("-created_at")[:200]],
+            # each shift waiting for the acting PA, with what it has to cover
+            "waiting": [
+                (s, shifts.portion(s, org.code), shifts.cover_words(org.code, shifts.portion(s, org.code))) for s in shifts.waiting_for(org)
+            ]
+            if confirms
+            else [],
             "can_submit": shifts.can_submit(request.user, org),
             "cycles": shifts.cycles(),
             # Only offered to those who may read the acting PA's operating budget (UAT 2, U03), or every PA's (CPUC staff).
@@ -46,13 +52,28 @@ def shift_list(request):
     )
 
 
+def _amounts(pairs) -> str:
+    """PAs each with its amount to cover: "SCE ($35,000.00), SCG ($10,000.00)"."""
+    return ", ".join(f"{code} ({shifts.service_money(abs(amount))})" for code, amount in pairs)
+
+
+def _waiting_on(s) -> str:
+    """The co-funders a waiting shift still waits for, each with its amount."""
+    if s.status != FundShift.Status.WAITING:
+        return ""
+    return _amounts((code, s.net_of(code)) for code in shifts.outstanding(s))
+
+
 @login_required
 def shift_new(request):
     org = request.organisation
     if not shifts.can_submit(request.user, org):
         raise Http404
     cycles = shifts.cycles()
-    form = forms.ShiftForm(request.POST or None, cycles=cycles, initial={"cycle": shifts.current_cycle(cycles)})
+    leads = shifts.leads_statewide(org)
+    form = forms.ShiftForm(
+        request.POST or None, cycles=cycles, pa=org.code, leads=leads, initial={"cycle": shifts.current_cycle(cycles), "moves": shifts.OWN}
+    )
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
@@ -60,9 +81,46 @@ def shift_new(request):
         except (AccessDenied, shifts.ShiftInvalid) as e:
             messages.error(request, str(e))
         else:
+            if leads and d.get("moves") == shifts.STATEWIDE:
+                messages.success(request, "Fund shift started. Enter the change to the statewide program's budget.")
+                return redirect("budgets:shift_statewide", s.pk)
             messages.success(request, "Fund shift started. Enter the amounts it moves.")
             return redirect("budgets:shift_lines", s.pk)
-    return render(request, "budgets/shift_new.html", {"form": form, "org": org})
+    return render(request, "budgets/shift_new.html", {"form": form, "org": org, "leads": leads})
+
+
+def _editable(request, s) -> bool:
+    return s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and request.organisation == s.organisation
+
+
+def _covers(s, parts, acks) -> list[dict]:
+    """The review table's rows, one per funding PA of the shift's statewide changes: its portions, what it covers, how much its own
+    programs' lines cover so far, what is left, and where that stands (`state`, which the page puts into words)."""
+    out = []
+    for p in parts:
+        if not p.portions:
+            continue
+        own, ack = p.pa == s.organisation.code, acks.get(p.pa)
+        if p.portion == 0 and p.net == 0:
+            state = "nothing"
+        elif own:
+            state = "covered" if p.net == 0 else "left"
+        elif ack is not None:
+            state = "covered"
+        else:
+            state = {"draft": "on_submit", "waiting": "waiting"}.get(s.status, "never")
+        out.append({"part": p, "own": own, "ack": ack, "state": state})
+    return out
+
+
+def _statewide_lines(s, mine, entry) -> list[dict]:
+    """The shift's statewide program changes; for a draft, with the whole program's operating budget now and after."""
+    out = []
+    for ln in mine.statewide_lines:
+        e = entry.get(f"{ln.prg_id} {ln.year}")
+        whole = Decimal(e["whole"]) if e else None
+        out.append({"line": ln, "whole": whole, "after": whole + ln.amount if whole is not None else None})
+    return out
 
 
 @login_required
@@ -70,29 +128,37 @@ def shift(request, pk):
     s = _shift(request, pk)
     org = request.organisation
     acks = {a.organisation.code: a for a in s.acknowledgements.select_related("organisation", "acknowledged_by")}
-    editable = s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and org == s.organisation
-    shares = shifts.frozen_shares(s)
+    editable = _editable(request, s)
+    draft = s.status == FundShift.Status.DRAFT
     parts = shifts.parts(s)
+    mine = parts[0]
+    can_acknowledge = shifts.can_acknowledge(request.user, s, org)
+    others = [(p.pa, p.portion) for p in parts[1:] if p.portion != 0]  # a draft: who is asked to cover a portion once it is submitted
     return render(
         request,
         "budgets/shift.html",
         {
             "s": s,
+            "steps": shifts.steps(s),
             "parts": parts,
+            "mine": mine,
             "has_lines": any(p.lines for p in parts),
-            "problems": shifts.problems(s) if s.status == FundShift.Status.DRAFT else [],
+            "own_lines": [ln for p in parts for ln in p.own_lines],
+            "statewide_lines": _statewide_lines(s, mine, shifts.statewide_entry(s) if draft and mine.statewide_lines else {}),
+            "covers": _covers(s, parts, acks),
+            "amounts": sorted(shifts.frozen(s).amounts.items(), key=lambda kv: shifts._key(kv[0])),
+            "problems": shifts.problems(s) if draft else [],
             "editable": editable,
+            "leads": editable and shifts.leads_statewide(s.organisation),
             "can_read_operating": shifts.can_read_operating(request.user, s.organisation),
             "can_withdraw": s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING)
             and shifts.can_submit(request.user, s.organisation)
             and org == s.organisation,
-            "can_acknowledge": shifts.can_acknowledge(request.user, s, org),
-            "shares": [
-                (p.pa, p.portions, p.portion, acks.get(p.pa), p.pa == s.organisation.code, p.pa in s.informed)
-                for p in parts
-                if p.pa in shares
-            ],
-            "amounts": sorted(shifts.frozen(s).amounts.items(), key=lambda kv: shifts._key(kv[0])),
+            "can_acknowledge": can_acknowledge,
+            "my_cover": next((p for p in parts if org is not None and p.pa == org.code), None) if can_acknowledge else None,
+            "waiting_on": _waiting_on(s),
+            "waiting_for_others": _amounts(others),
+            "waiting_for_others_many": len(others) > 1,
             "org": org,
         },
     )
@@ -107,8 +173,16 @@ def _entered(request) -> list:
     return [ln for ln in typed if not ln.blank()] + shifts.paste_lines(request.POST.get("paste", ""))
 
 
+def _amount(text: str) -> Decimal | None:
+    try:
+        return Decimal(text.replace(",", "").replace("$", "").strip()).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        return None
+
+
 def _rows(request, entered, saved, budget=None) -> list[dict]:
-    """The table's rows, each with what its program-year holds (`shifts.entry_budget`), then blank ones to fill."""
+    """The table's rows, each with what its program-year holds now and after its line (`budget`: by "PrgID year", a figure under
+    "held" or "whole"), then blank ones to fill."""
     rows = (
         [{"prg_id": ln.prg_id, "year": ln.year, "amount": ln.amount} for ln in entered if not ln.blank()]
         if entered is not None
@@ -116,37 +190,43 @@ def _rows(request, entered, saved, budget=None) -> list[dict]:
     )
     for r in rows:
         b = (budget or {}).get(f"{r['prg_id'].strip()} {r['year'].strip()}")
-        r["held"] = Decimal(b["held"]) if b else None
+        r["held"] = Decimal(b.get("held") or b.get("whole")) if b else None
+        amount = _amount(r["amount"]) if r["amount"].strip() else None
+        r["after"] = r["held"] + amount if r["held"] is not None and amount is not None else None
     extra = BLANK_ROWS + (int(request.GET.get("more", 0)) if str(request.GET.get("more", "")).isdigit() else 0)
-    return rows + [{"prg_id": "", "year": "", "amount": "", "held": None}] * extra
+    return rows + [{"prg_id": "", "year": "", "amount": "", "held": None, "after": None}] * extra
 
 
-def _net(rows, budget) -> Decimal | None:
-    """The lines' net for the PA: each line's amount, a statewide line's by the PA's factor. None while a line's amount is not a figure."""
+def _total(rows) -> Decimal | None:
+    """What the lines add up to. None while a line's amount is not a figure."""
     total = Decimal(0)
     for r in rows:
         if not r["amount"].strip():
             continue
-        try:
-            amount = Decimal(r["amount"].replace(",", "").replace("$", "").strip())
-        except InvalidOperation:
+        amount = _amount(r["amount"])
+        if amount is None:
             return None
-        b = budget.get(f"{r['prg_id'].strip()} {r['year'].strip()}") or {}
-        total += amount * Decimal(b["factor"]) if b.get("factor") else amount
-    return total.quantize(Decimal("0.01"))
+        total += amount
+    return total
 
 
-def _table(request, s, organisation, entered, saved) -> dict:
-    """What `budgets/_shift_lines_table.html` needs: the rows, years, the PA's programs for the picker, what each program-year holds
-    and the running net."""
-    budget = shifts.entry_budget(organisation, s)
+def _table(request, s, organisation, entered, saved, step, portion=Decimal(0)) -> dict:
+    """What `budgets/_shift_lines_table.html` needs: the kind of lines (`mode`), the rows, years, the programs for the picker, what
+    each program-year holds, what the lines add up to and, for a PA's own programs, what is left of its portion to cover."""
+    budget = shifts.statewide_entry(s) if step == shifts.STATEWIDE else shifts.entry_budget(organisation, s)
     rows = _rows(request, entered, saved, budget)
+    total = _total(rows)
     return {
+        "mode": step,
         "rows": rows,
         "years": _years(s),
-        "programs": shifts.program_choices(s, organisation if organisation != s.organisation else None),
+        "programs": shifts.program_choices(s, organisation, step),
         "budget": budget,
-        "net": _net(rows, budget),
+        "total": total,
+        "portion": portion,
+        # the PA's own IDs of statewide programs, which no line may name: the page says why as one is typed
+        "parts": {} if step == shifts.STATEWIDE else {k.lower(): v.prg_id for k, v in registry.statewide_parts(organisation).items()},
+        "left": (portion + total if portion >= 0 else -(portion + total)) if total is not None else None,
         "pa": organisation.code,
     }
 
@@ -155,38 +235,89 @@ def _years(s) -> list[str]:
     return [str(y) for y in range(s.cycle.first_year, s.cycle.last_year + 1)]
 
 
+def _save(request, s, step, then: str):
+    """Save the lines posted for one step of a draft: the problems and the lines as entered when anything is wrong, else where to go
+    next (`then`, or the same page with more blank lines for "Save and add more lines")."""
+    entered = _entered(request)
+    try:
+        shifts.set_lines(request.user, s, entered, step)
+    except shifts.ShiftInvalid as e:
+        return e.problems, entered, None
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return [], entered, redirect("budgets:shift", s.pk)
+    if "more" in request.POST:
+        return [], entered, redirect(f"{request.path}?more={int(request.GET.get('more', 0) or 0) + BLANK_ROWS}")
+    return [], entered, redirect(then, s.pk)
+
+
+@login_required
+def shift_statewide(request, pk):
+    """The change to the whole budget of each statewide program the shift's PA leads, and what every funding PA would cover."""
+    s = _shift(request, pk)
+    if not _editable(request, s):
+        raise Http404
+    if not shifts.leads_statewide(s.organisation):
+        messages.info(
+            request,
+            f"{s.organisation.code} leads no statewide program. A statewide program's budget is changed by its lead PA, and "
+            f"{s.organisation.code} is then asked to cover its portion.",
+        )
+        return redirect("budgets:shift", pk)
+    problems, entered = [], None
+    if request.method == "POST":
+        problems, entered, done = _save(request, s, shifts.STATEWIDE, "budgets:shift_lines")
+        if done is not None:
+            if "more" not in request.POST and not problems:
+                messages.success(request, "Statewide changes saved.")
+            return done
+    parts = shifts.parts(s)
+    return render(
+        request,
+        "budgets/shift_statewide.html",
+        {
+            "s": s,
+            "steps": shifts.steps(s, on=shifts.STATEWIDE),
+            "problems": problems,
+            "split": [] if problems else [p for p in parts if p.portions],
+            **_table(request, s, s.organisation, entered, parts[0].statewide_lines, shifts.STATEWIDE),
+        },
+    )
+
+
 @login_required
 def shift_lines(request, pk):
+    """The shift's PA's lines in its own programs: with a statewide change they cover its portion, without one they add up to zero."""
     s = _shift(request, pk)
-    if not (
-        s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and request.organisation == s.organisation
-    ):
+    if not _editable(request, s):
         raise Http404
     problems, entered = [], None
     if request.method == "POST":
-        entered = _entered(request)
-        try:
-            shifts.set_lines(request.user, s, entered)
-        except shifts.ShiftInvalid as e:
-            problems = e.problems
-        except AccessDenied as e:
-            messages.error(request, str(e))
-            return redirect("budgets:shift", pk)
-        else:
-            if "more" in request.POST:
-                return redirect(f"{request.path}?more={int(request.GET.get('more', 0) or 0) + BLANK_ROWS}")
-            messages.success(request, "Lines saved.")
-            return redirect("budgets:shift", pk)
+        problems, entered, done = _save(request, s, shifts.OWN, "budgets:shift")
+        if done is not None:
+            if "more" not in request.POST and not problems:
+                messages.success(request, "Lines saved.")
+            return done
+    parts = shifts.parts(s)
+    mine = parts[0]
     return render(
         request,
         "budgets/shift_lines.html",
-        {"s": s, "problems": problems, **_table(request, s, s.organisation, entered, s.lines.filter(pa=s.organisation.code))},
+        {
+            "s": s,
+            "steps": shifts.steps(s, on=shifts.OWN),
+            "problems": problems,
+            "mine": mine,
+            "owed": -mine.portion,
+            "leads": shifts.leads_statewide(s.organisation),
+            **_table(request, s, s.organisation, entered, mine.own_lines, shifts.OWN, mine.portion),
+        },
     )
 
 
 @login_required
 def shift_acknowledge(request, pk):
-    """A co-funder places its portion among its own programs and acknowledges the shift."""
+    """A co-funder covers its portion from its own programs and confirms the shift for its part."""
     s = _shift(request, pk)
     org = request.organisation
     if not shifts.can_acknowledge(request.user, s, org):
@@ -203,7 +334,8 @@ def shift_acknowledge(request, pk):
             return redirect("budgets:shift", pk)
         else:
             s.refresh_from_db()
-            messages.success(request, "Acknowledged." + (" The shift is now in effect." if s.status == FundShift.Status.EFFECTIVE else ""))
+            done = " The shift is now in effect." if s.status == FundShift.Status.EFFECTIVE else ""
+            messages.success(request, f"{org.code}'s portion is covered.{done}")
             return redirect("budgets:shift", pk)
     part = next(p for p in shifts.parts(s) if p.pa == org.code)
     return render(
@@ -212,11 +344,11 @@ def shift_acknowledge(request, pk):
         {
             "s": s,
             "org": org,
+            "steps": shifts.steps(s, on="cover"),
             "part": part,
-            "portion": shifts.portion(s, org.code),
-            "owed": -shifts.portion(s, org.code),
+            "owed": -part.portion,
             "problems": problems,
-            **_table(request, s, org, entered, []),
+            **_table(request, s, org, entered, [], shifts.OWN, part.portion),
             "note": request.POST.get("note", ""),
         },
     )
@@ -240,7 +372,7 @@ def shift_submit(request, pk):
     def do(s):
         s = shifts.submit(request.user, s)
         if s.status == FundShift.Status.WAITING:
-            messages.info(request, f"Waiting for {', '.join(s.cofunders)} to acknowledge it.")
+            messages.info(request, f"Waiting for {_waiting_on(s)} to cover {'its portion' if len(s.cofunders) == 1 else 'their portions'}.")
 
     return _act(request, pk, do, "Fund shift submitted.")
 
