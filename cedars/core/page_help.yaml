@@ -316,11 +316,11 @@ core/queue:
     - The work waiting on you across CEDARS, for every organization you act for, read live from each module, so an item leaves the queue the
       moment the work is done. Nothing here is assigned by hand.
     - "It holds: correction requests and program changes to decide (CPUC approvers and their delegates), data steward and access decisions,
-      filings priced and ready to confirm (those who may confirm them), fund shifts to acknowledge for a co-funding PA, comments on filings
+      filings priced and ready to confirm (those who may confirm them), a statewide fund shift's portion to cover for a co-funding PA or to confirm for another lead PA, comments on filings
       waiting for your side's reply, documents filed but not published, responses to recommendations and unanswered questions."
   how:
     - Each row's link opens the page where the work is done. Items with a due date come first, overdue ones marked Overdue.
-    - A fund shift is acknowledged while acting for the PA the row names; switch with Acting for at the top of the page.
+    - A fund shift's portion is covered while acting for the PA the row names; switch with Acting for at the top of the page.
   tour:
     - target: ul.queue-summary
       title: What is waiting

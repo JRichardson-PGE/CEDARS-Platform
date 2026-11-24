@@ -5,7 +5,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from cedars.modules.budgets import service, shifts
+from cedars.modules.budgets import queue, service, shifts
 from cedars.modules.budgets.models import FundShift
 from cedars.modules.calculations.models import Run
 from cedars.services.accounts import service as access
@@ -79,7 +79,7 @@ def test_an_unbalanced_shift_is_rejected_and_stays_a_draft(filer, pge, cycle, pr
     s = shifts.create(filer, pge, cycle, title="Move marketing", reason="HVAC demand")
     shifts.set_lines(filer, s, L(("PGE_Res_HVAC", 2028, "1,000"), ("PGE_Com_Ltg", 2028, "-$400")))
     with pytest.raises(
-        shifts.ShiftInvalid, match=r"PGE's part does not balance: \$1,000.00 into its programs and \$400.00 out, \$600.00 net"
+        shifts.ShiftInvalid, match=r"PGE's lines do not balance: \$1,000.00 into its programs and \$400.00 out, \$600.00 net"
     ):
         shifts.submit(filer, s)
     s.refresh_from_db()
@@ -186,15 +186,20 @@ def test_a_statewide_shift_changes_every_funders_portion(
     s = shifts.create(filer, pge, cycle, title="Into SW X", reason="r")
     shifts.set_lines(filer, s, L((statewide, 2028, 500), ("PGE_Com_Ltg", 2028, -500)))
     # PGE funds 60% of SW X: its portion goes up by $300, so its own lines must move $300 out, not $500
-    with pytest.raises(shifts.ShiftInvalid, match=r"\$500.00 out, with its \$300.00 portion of the statewide lines, -\$200.00 net"):
+    with pytest.raises(shifts.ShiftInvalid) as e:
         shifts.submit(filer, s)
+    assert e.value.problems[0] == (
+        "PGE has $300.00 to cover from its own programs: its lines there must add up to -$300.00, and they add up to -$500.00 "
+        "($200.00 more than its portion)."
+    )
     shifts.set_lines(filer, s, L((statewide, 2028, 500), ("PGE_Com_Ltg", 2028, -300)))
     s = shifts.submit(filer, s)
     assert s.status == FundShift.Status.WAITING and s.cofunders == ["SCE"]
     assert s.shares == {"PGE": {"SW_X 2028": "300.00"}, "SCE": {"SW_X 2028": "200.00"}}
     assert s.factors == {"PGE": {"SW_X 2028": "0.6000"}, "SCE": {"SW_X 2028": "0.4000"}}
     note = Notification.objects.get(user=sce_confirmer)
-    assert "waiting for SCE" in note.title and "by $200.00 net" in note.body and note.link == reverse("budgets:shift", args=[s.pk])
+    assert note.title == "PGE fund shift waiting for SCE: $200.00 to cover" and note.link == reverse("budgets:shift", args=[s.pk])
+    assert "changes SCE's portion by $200.00. SCE covers $200.00 from its own programs" in note.body
     assert shifts.operating_budget(pge, cycle).total().shifted == 0  # not in effect yet
     assert shifts.can_read(sce_confirmer, s) and list(shifts.readable(sce_confirmer)) == [s]
     assert [x.pk for x in shifts.waiting_for(sce)] == [s.pk] and shifts.waiting_for(pge) == []
@@ -202,7 +207,7 @@ def test_a_statewide_shift_changes_every_funders_portion(
         shifts.acknowledge(filer, s, sce, L(("SCE_Ind", 2028, -200)))  # not a member of SCE
     with pytest.raises(AccessDenied):
         shifts.acknowledge(filer, s, pge, L(("PGE_Com_Ltg", 2028, -200)))  # PGE is the shift's PA
-    with pytest.raises(shifts.ShiftInvalid, match=r"must add up to -\$200.00 \(they add up to -\$150.00\)"):
+    with pytest.raises(shifts.ShiftInvalid, match=r"must add up to -\$200.00, and they add up to -\$150.00 \(\$50.00 still to cover\)"):
         shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -150)))
     with pytest.raises(shifts.ShiftInvalid) as e:
         shifts.acknowledge(sce_confirmer, s, sce, L(("PGE_Res_HVAC", 2028, -100), (statewide, 2028, -100)))
@@ -225,7 +230,8 @@ def test_a_statewide_shift_changes_every_funders_portion(
 
 
 def test_a_statewide_line_needs_allocation_factors(filer, pge, cycle, programs, cpuc_admin):  # noqa: F811
-    registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW Y")
+    p = registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW Y")
+    registry.set_lead(cpuc_admin, p, pge, "PG&E leads it")
     s = shifts.create(filer, pge, cycle, title="t", reason="r")
     shifts.set_lines(filer, s, L(("SW_Y", 2028, 10), ("PGE_Com_Ltg", 2028, -10)))
     assert "SW_Y 2028 has no allocation factors in any confirmed allocation version" in shifts.problems(s)[0]
@@ -251,38 +257,58 @@ def test_a_draft_is_private_and_a_waiting_shift_can_be_withdrawn(filer, pge, cyc
 def test_the_pages(client, filer, pge, cycle, standing, statewide, sce_confirmer, sce_standing, programs):  # noqa: F811
     sign_in(client, filer)
     assert b"New fund shift" in client.get(reverse("budgets:shifts")).content
-    r = client.post(reverse("budgets:shift_new"), {"cycle": cycle.pk, "title": "Into HVAC", "reason": "demand"})
+    # PGE leads SW_X, so it is asked what the shift changes; its own programs: straight to the amounts
+    assert b"The budget of a statewide program PGE leads" in client.get(reverse("budgets:shift_new")).content
+    r = client.post(reverse("budgets:shift_new"), {"cycle": cycle.pk, "title": "Into HVAC", "reason": "demand", "moves": "own"})
     s = FundShift.objects.get()
     assert r.status_code == 302 and r.url == reverse("budgets:shift_lines", args=[s.pk])
     page = client.get(r.url)
-    assert page.status_code == 200 and page.content.count(b'name="prg_id"') == 4 and b'<option value="SW_X">' in page.content
+    assert page.status_code == 200 and page.content.count(b'name="prg_id"') == 4
+    assert b'<option value="SW_X">' not in page.content and b"Amounts in PGE&#x27;s programs" in page.content
     bad = client.post(r.url, {"prg_id": ["PGE_Res_HVAC", "NOPE"], "year": ["2028", "2028"], "amount": ["10", "-10"]})
     assert bad.status_code == 200 and b"NOPE is not in the program registry" in bad.content and not s.lines.exists()
     more = client.post(r.url, {"prg_id": ["PGE_Res_HVAC", ""], "year": ["2028", ""], "amount": ["10", ""], "more": "1"})
     assert more.status_code == 302 and client.get(more.url).content.count(b'name="prg_id"') == 1 + 4 + 4
     client.post(r.url, {"prg_id": ["PGE_Res_HVAC", "PGE_Com_Ltg"], "year": ["2028", "2028"], "amount": ["10", "-20"]})
     page = client.get(reverse("budgets:shift", args=[s.pk]))
-    assert b"does not balance" in page.content and b"-$20.00" in page.content
+    assert b"lines do not balance" in page.content and b"-$20.00" in page.content
+    assert reverse("budgets:shift_submit", args=[s.pk]).encode() not in page.content  # nothing to submit until it balances
     client.post(reverse("budgets:shift_submit", args=[s.pk]))
     s.refresh_from_db()
     assert s.status == "draft"
-    client.post(
-        reverse("budgets:shift_lines", args=[s.pk]), {"prg_id": ["SW_X", "PGE_Com_Ltg"], "year": ["2028"] * 2, "amount": ["20", "-12"]}
-    )
+    # the statewide change on its own page, then PGE's own portion
+    sw_url = reverse("budgets:shift_statewide", args=[s.pk])
+    page = client.get(sw_url)
+    assert b'<option value="SW_X">' in page.content and b'<option value="PGE_Com_Ltg">' not in page.content
+    r = client.post(sw_url, {"prg_id": ["SW_X"], "year": ["2028"], "amount": ["20"]})
+    assert r.status_code == 302 and r.url == reverse("budgets:shift_lines", args=[s.pk])
+    page = client.get(r.url).content.decode()
+    assert "PGE covers $12.00 from its own programs." in page and "Still to cover" in page and "Cover PGE&#x27;s portion" in page
+    assert sorted(s.lines.values_list("prg_id", flat=True)) == ["PGE_Com_Ltg", "PGE_Res_HVAC", "SW_X"]  # the own lines were kept
+    client.post(reverse("budgets:shift_lines", args=[s.pk]), {"prg_id": ["PGE_Com_Ltg"], "year": ["2028"], "amount": ["-12"]})
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "Ready to submit." in page and "SCE ($8.00) is asked to cover its portion" in page
+    assert "What each funding PA covers" in page and "Asked to cover it once the shift is submitted" in page
     client.post(reverse("budgets:shift_submit", args=[s.pk]))
     s.refresh_from_db()
     assert s.status == "waiting"
     assert client.get(reverse("budgets:shift_lines", args=[s.pk])).status_code == 404
+    assert client.get(sw_url).status_code == 404
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "Waiting for SCE ($8.00)</strong> to cover its portion" in page and "<strong>Waiting for SCE</strong>" in page
+    assert "SCE ($8.00) to cover" in client.get(reverse("budgets:shifts")).content.decode()
     client.logout()
     sign_in(client, sce_confirmer)
-    assert b"Waiting for SCE to acknowledge" in client.get(reverse("budgets:shifts")).content
-    assert b"Place SCE's portion and acknowledge" in client.get(reverse("budgets:shift", args=[s.pk])).content
+    page = client.get(reverse("budgets:shifts")).content.decode()
+    assert 'id="waiting-h">Waiting for SCE</h2>' in page and "SCE covers $8.00 from its own programs" in page
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "SCE covers $8.00 from its own programs.</strong>" in page and "Cover SCE's portion</a>" in page
     page = client.get(reverse("budgets:shift_acknowledge", args=[s.pk]))
-    assert b"portion changes by $8.00 net" in page.content and b'<option value="SCE_Ind">' in page.content
+    assert b"SCE covers $8.00 from its own programs." in page.content and b'<option value="SCE_Ind">' in page.content
     assert b'<td class="num">0.4000</td>' in page.content and b"$20.00" in page.content  # the factor and the whole change
     assert b'<option value="SW_X">' not in page.content
     bad = client.post(reverse("budgets:shift_acknowledge", args=[s.pk]), {"prg_id": ["SCE_Ind"], "year": ["2028"], "amount": ["-5"]})
-    assert bad.status_code == 200 and b"must add up to -$8.00" in bad.content
+    assert bad.status_code == 200 and b"must add up to -$8.00" in bad.content and b"$3.00 still to cover" in bad.content
     client.post(
         reverse("budgets:shift_acknowledge", args=[s.pk]), {"prg_id": ["SCE_Ind"], "year": ["2028"], "amount": ["-8"], "note": "ok"}
     )
@@ -350,8 +376,8 @@ def test_moving_between_statewide_programs_leaves_each_funder_its_net_gap(
     ]
     # nobody has filed SW_X, so PGE's portion of it cannot go down by $600
     assert shifts.problems(s) == [
-        "PGE's part does not balance: $0.00 into its programs and $0.00 out, with its -$300.00 portion of the statewide lines, "
-        "-$300.00 net. Its lines must add up to zero.",
+        "PGE gets $300.00 back to put into its own programs: its lines there must add up to $300.00, and they add up to $0.00 "
+        "($300.00 still to place).",
         "PGE SW_X 2028: moves $600.00 out of an operating budget of $0.00, which would leave it at -$600.00. No fund shift may take a "
         "program's operating budget below zero.",
         "SCE SW_X 2028: moves $400.00 out of an operating budget of $0.00, which would leave it at -$400.00. No fund shift may take a "
@@ -373,7 +399,7 @@ def test_moving_between_statewide_programs_leaves_each_funder_its_net_gap(
     assert shifts.problems(s) == []
     s = shifts.submit(filer, s)
     assert s.status == FundShift.Status.WAITING and s.cofunders == ["SCE"] and s.informed == []
-    assert "by $300.00 net" in Notification.objects.get(user=sce_confirmer).body
+    assert "SCE covers $300.00 from its own programs" in Notification.objects.get(user=sce_confirmer).body
     with pytest.raises(shifts.ShiftInvalid, match=r"must add up to -\$300.00"):
         shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -200)))
     s = shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -300)))
@@ -414,7 +440,7 @@ def test_a_funder_whose_portions_cancel_out_is_informed_not_asked(
     s = shifts.submit(filer, s)
     assert s.status == FundShift.Status.EFFECTIVE and s.cofunders == [] and s.informed == ["SCE"] and s.funders == ["PGE", "SCE"]
     note = Notification.objects.get(user=sce_confirmer)
-    assert "no change to SCE's total" in note.title and "nothing to place or acknowledge" in note.body
+    assert "no change to SCE's total" in note.title and "nothing to cover or confirm" in note.body
     assert shifts.waiting_for(programs) == [] and shifts.can_read(sce_confirmer, s)
     assert {(r.prg_id, r.year): r.operating for r in shifts.operating_budget(programs, cycle).rows} == {
         ("SW_X", 2028): 760,
@@ -462,3 +488,319 @@ def test_a_co_funder_cannot_place_its_net_below_zero_either(
     t = shifts.create(filer, pge, cycle, title="u", reason="r")
     shifts.set_lines(filer, t, L(("PGE_Com_Ltg", 2028, -1), ("PGE_Res_HVAC", 2028, 1)))
     assert "PGE PGE_Com_Ltg 2028: moves $1.00 out of an operating budget of $0.00" in shifts.problems(t)[0]
+
+
+# --- statewide programs change only as a whole, on their own PrgID, in a shift a lead PA makes
+
+
+@pytest.fixture
+def own_ids(cpuc_admin, pge, programs, statewide):  # noqa: F811
+    """PGE's and SCE's own IDs of SW_X: PGE's follows it, SCE's is not linked yet."""
+    sce = programs
+    registry.create_program(cpuc_admin, prg_id="PGE_SW_X", administrator=pge, valid_from=date(2024, 1, 1), name="X", follow=True)
+    registry.create_program(cpuc_admin, prg_id="SCE_SW_X", administrator=sce, valid_from=date(2024, 1, 1), name="X")
+    registry.create_program(cpuc_admin, prg_id="PGE_SW_X_PA", administrator=pge, valid_from=date(2024, 1, 1), name="X, PG&E's own costs")
+
+
+def test_a_pas_own_id_of_a_statewide_program_is_never_on_a_line(
+    filer,  # noqa: F811
+    pge,
+    cycle,
+    standing,
+    statewide,
+    own_ids,
+    sce_confirmer,
+    sce_standing,
+    programs,  # noqa: F811
+):
+    sce = programs
+    assert {k: v.prg_id for k, v in registry.statewide_parts(pge).items()} == {"PGE_SW_X": "SW_X"}
+    assert {k: v.prg_id for k, v in registry.statewide_parts(sce).items()} == {"SCE_SW_X": "SW_X"}  # by its PrgID, not linked yet
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    for step in (None, shifts.OWN):
+        with pytest.raises(shifts.ShiftInvalid) as e:
+            shifts.set_lines(filer, s, L(("PGE_SW_X", 2028, -300), ("PGE_Com_Ltg", 2028, 300)), step)
+        assert e.value.problems == [
+            "Line 1: PGE_SW_X is PGE's part of the statewide program SW_X, whose budget changes only as a whole. Enter the change on "
+            "SW_X: every funding PA's portion follows by its allocation factor."
+        ]
+    assert not s.lines.exists()
+    # neither picker offers it; the PA's own costs of the program (PGE_SW_X_PA) are its own program
+    own = {c.value for c in shifts.program_choices(s, pge, shifts.OWN)}
+    assert own == {"PGE_Res_HVAC", "PGE_Com_Ltg", "PGE_SW_X_PA"}
+    assert [c.value for c in shifts.program_choices(s, pge, shifts.STATEWIDE)] == ["SW_X"]
+    assert {c.value for c in shifts.program_choices(s, sce, shifts.OWN)} == {"SCE_Ind"}
+    # a funder covering its portion cannot name its own ID either
+    shifts.set_lines(filer, s, L(("SW_X", 2028, 500)), shifts.STATEWIDE)
+    shifts.set_lines(filer, s, L(("PGE_SW_X_PA", 2028, 100), ("PGE_Com_Ltg", 2028, -400)), shifts.OWN)
+    s = shifts.submit(filer, s)
+    with pytest.raises(shifts.ShiftInvalid) as e:
+        shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_SW_X", 2028, -200)))
+    assert e.value.problems == [
+        "Line 1: SCE_SW_X is SCE's part of the statewide program SW_X, whose budget changes only as a whole. Its lead PA, PGE, "
+        "changes it with a fund shift on SW_X; SCE then covers its portion."
+    ]
+
+
+def test_a_draft_that_names_a_pas_own_statewide_id_cannot_be_submitted(filer, pge, cycle, standing, statewide, own_ids):  # noqa: F811
+    """A draft saved before the rule: its line is reported when it is checked."""
+    from cedars.modules.budgets.models import FundShiftLine
+
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, -100), ("PGE_Res_HVAC", 2028, 100)))
+    FundShiftLine.objects.filter(shift=s, prg_id="PGE_Res_HVAC").update(prg_id="PGE_SW_X")
+    assert shifts.problems(s)[0].startswith("PGE_SW_X is PGE's part of the statewide program SW_X")
+    with pytest.raises(shifts.ShiftInvalid):
+        shifts.submit(filer, s)
+
+
+def test_a_statewide_shift_is_made_by_the_lead_pa_of_one_of_its_programs(
+    filer,  # noqa: F811
+    pge,
+    cycle,
+    standing,
+    statewide,
+    sce_confirmer,
+    sce_standing,
+    programs,  # noqa: F811
+    cpuc_admin,
+):
+    sce = programs
+    s = shifts.create(sce_confirmer, sce, cycle, title="t", reason="r")
+    with pytest.raises(shifts.ShiftInvalid) as e:
+        shifts.set_lines(sce_confirmer, s, L(("SW_X", 2028, 100)), shifts.STATEWIDE)
+    assert e.value.problems == [
+        "SW_X is led by PGE, and SCE leads no statewide program on this shift. A fund shift that changes statewide programs' budgets "
+        "is made by the lead PA of one of them: PGE makes this one, and SCE is then asked to cover its portion."
+    ]
+    assert not shifts.leads_statewide(sce) and shifts.leads_statewide(pge)
+    assert [(c.value, c.label) for c in shifts.program_choices(s, sce, shifts.STATEWIDE)] == [("SW_X", "SW X, led by PGE")]
+    nobody = registry.create_program(cpuc_admin, prg_id="SW_N", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="N")
+    with pytest.raises(shifts.ShiftInvalid, match="SW_N has no lead PA recorded, so nobody can change its budget yet"):
+        shifts.set_lines(sce_confirmer, s, L((nobody.prg_id, 2028, 100)))
+    # the lead changes after a draft was saved: the draft is held at submission
+    t = shifts.create(filer, pge, cycle, title="t", reason="r")
+    shifts.set_lines(filer, t, L(("SW_X", 2028, 500)), shifts.STATEWIDE)
+    shifts.set_lines(filer, t, L(("PGE_Com_Ltg", 2028, -300)), shifts.OWN)
+    assert shifts.problems(t) == []
+    registry.set_lead(cpuc_admin, _program("SW_X"), sce, "handed over")
+    assert shifts.problems(t)[0].startswith("SW_X is led by SCE, and PGE leads no statewide program on this shift.")
+
+
+def test_one_shift_moves_money_between_statewide_programs_with_different_leads(
+    client,
+    filer,  # noqa: F811
+    pge,
+    cycle,
+    standing,
+    statewide_pair,
+    sce_confirmer,
+    sce_standing,
+    programs,  # noqa: F811
+    cpuc_admin,  # noqa: F811
+):
+    """Jake, 2026-11-23: a lead PA starts the shift and names both statewide programs; the other program's lead confirms."""
+    sce = programs
+    registry.set_lead(cpuc_admin, _program("SW_Y"), sce, "SCE files it")
+    file_statewide(cpuc_admin, filer, pge, "SW_X|2028|2028Q1|PGE|2000|0|0|0|0|0|0|0|0|0|0")
+    s = shifts.create(filer, pge, cycle, title="X to Y", reason="r")
+    # PGE leads SW_X only: SW_Y alone is refused, SW_Y with SW_X is not
+    with pytest.raises(shifts.ShiftInvalid, match="SW_Y is led by SCE, and PGE leads no statewide program on this shift"):
+        shifts.set_lines(filer, s, L(("SW_Y", 2028, 1000)), shifts.STATEWIDE)
+    shifts.set_lines(filer, s, L(("SW_X", 2028, -1000), ("SW_Y", 2028, 1000)), shifts.STATEWIDE)
+    assert [(c.value, c.label) for c in shifts.program_choices(s, pge, shifts.STATEWIDE)] == [
+        ("SW_X", "SW_X"),
+        ("SW_Z", "SW_Z"),
+        ("SW_Y", "SW_Y, led by SCE"),
+    ]
+    assert shifts.statewide_entry(s)["SW_Y 2028"]["lead"] == "SCE" and shifts.confirming(s) == {"SCE": ["SW_Y"]}
+    shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, 300)), shifts.OWN)
+    [mine, theirs] = shifts.parts(s)
+    assert (mine.portion, mine.leads, theirs.portion, theirs.leads) == (-300, [], 300, ["SW_Y"])
+    assert theirs.words == "SCE covers $300.00 from its own programs, and confirms the change to SW_Y as its lead PA"
+    assert shifts.problems(s) == []
+    sign_in(client, filer)
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "SCE ($300.00) is asked to cover its portion" in page and "(lead PA of SW_Y)" in page
+    assert "Asked to cover it and confirm as lead once the shift is submitted" in page
+    assert "the lead PA of each other one (SCE) confirms it before it takes effect" in page
+    s = shifts.submit(filer, s)
+    assert s.status == FundShift.Status.WAITING and s.leads == {"PGE": ["SW_X"], "SCE": ["SW_Y"]} and s.cofunders == ["SCE"]
+    note = Notification.objects.get(user=sce_confirmer)
+    assert note.title == "PGE fund shift waiting for SCE: $300.00 to cover"
+    assert "PGE changed the budget of SW_Y, which SCE leads." in note.body and "confirms the change to SW_Y as its lead PA" in note.body
+    registry.set_lead(cpuc_admin, _program("SW_Y"), pge, "handed back")  # the leads are those recorded on submission
+    assert shifts.confirming(s) == {"SCE": ["SW_Y"]}
+    s = shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -300)))
+    assert s.status == FundShift.Status.EFFECTIVE
+    # SCE now leads neither program, so it cannot make a shift on them
+    t = shifts.create(sce_confirmer, sce, cycle, title="back", reason="r")
+    with pytest.raises(
+        shifts.ShiftInvalid, match="SCE leads none of the statewide programs on this shift: SW_X .led by PGE., SW_Y .led by PGE."
+    ):
+        shifts.set_lines(sce_confirmer, t, L(("SW_X", 2028, 10), ("SW_Y", 2028, -10)), shifts.STATEWIDE)
+
+
+def test_another_lead_confirms_even_with_nothing_to_cover(
+    client,
+    filer,  # noqa: F811
+    pge,
+    cycle,
+    standing,
+    statewide_pair,
+    sce_confirmer,
+    sce_standing,
+    programs,  # noqa: F811
+    cpuc_admin,  # noqa: F811
+):
+    """SW_X (led by PGE) and SW_Z (led by SCE) have the same rates, so nobody's total changes; SCE still confirms the change to SW_Z."""
+    sce = programs
+    registry.set_lead(cpuc_admin, _program("SW_Z"), sce, "SCE files it")
+    file_statewide(cpuc_admin, filer, pge, "SW_X|2028|2028Q1|PGE|2000|0|0|0|0|0|0|0|0|0|0")
+    s = shifts.create(filer, pge, cycle, title="X to Z", reason="r")
+    shifts.set_lines(filer, s, L(("SW_X", 2028, -100), ("SW_Z", 2028, 100)), shifts.STATEWIDE)
+    assert shifts.problems(s) == [] and [p.net for p in shifts.parts(s)] == [0, 0]
+    assert [st.name for st in shifts.steps(s)][-2] == "The other lead PA confirms"
+    sign_in(client, filer)
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "Once submitted, SCE (as a lead PA) is asked to confirm it, and the shift takes effect when it has." in page
+    assert "Asked to confirm as lead once the shift is submitted" in page
+    r = client.post(reverse("budgets:shift_submit", args=[s.pk]), follow=True)
+    assert "Waiting for SCE (as a lead PA) to confirm it." in r.content.decode()
+    s.refresh_from_db()
+    assert s.status == FundShift.Status.WAITING and s.cofunders == ["SCE"] and s.informed == [] and s.other_leads == ["SCE"]
+    note = Notification.objects.get(user=sce_confirmer)
+    assert note.title == "PGE fund shift waiting for SCE: confirm the change to SW_Z"
+    assert "SCE has nothing to cover, and confirms the change to SW_Z as its lead PA: confirm the shift." in note.body
+    assert shifts.waiting_for(sce) == [s] and shifts.can_acknowledge(sce_confirmer, s, sce)
+    [item] = queue.acknowledgements(sce_confirmer)
+    assert item.note.endswith("as its lead PA: acting for SCE, confirm the shift.")
+    client.logout()
+    sign_in(client, sce_confirmer)
+    page = client.get(reverse("budgets:shifts")).content.decode()
+    assert "Confirm the shift<span" in page and "SCE has nothing to cover, and confirms the change to SW_Z as its lead PA" in page
+    page = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "Confirm the shift</a>" in page and "<strong>Waiting for SCE</strong> to confirm as lead" in page
+    url = reverse("budgets:shift_acknowledge", args=[s.pk])
+    page = client.get(url).content.decode()
+    assert "<h1>Confirm the shift: X to Z</h1>" in page and "data-shift-lines" not in page and "SCE has no lines to enter." in page
+    r = client.post(url, {"note": "agreed"}, follow=True)
+    assert "SCE confirmed the shift. The shift is now in effect." in r.content.decode()
+    assert "Confirmed" in r.content.decode() and "agreed" in r.content.decode()
+    s.refresh_from_db()
+    assert s.status == FundShift.Status.EFFECTIVE
+
+
+def _program(prg_id):
+    from cedars.services.registry.models import Program
+
+    return Program.objects.get(prg_id=prg_id)
+
+
+def test_each_kind_of_line_is_saved_on_its_own_page(filer, pge, cycle, standing, statewide):  # noqa: F811
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, -300)), shifts.OWN)
+    shifts.set_lines(filer, s, L(("SW_X", 2028, 500)), shifts.STATEWIDE)
+    assert sorted((ln.prg_id, int(ln.amount)) for ln in s.lines.all()) == [("PGE_Com_Ltg", -300), ("SW_X", 500)]
+    with pytest.raises(shifts.ShiftInvalid, match="Line 1: SW_X is a statewide program; enter its change under Statewide program changes"):
+        shifts.set_lines(filer, s, L(("SW_X", 2028, 5)), shifts.OWN)
+    with pytest.raises(shifts.ShiftInvalid, match="Line 1: PGE_Com_Ltg is not a statewide program. PGE's own programs go in the next step"):
+        shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, 5)), shifts.STATEWIDE)
+    shifts.set_lines(filer, s, [], shifts.STATEWIDE)  # the statewide change taken out: the own lines stay
+    assert [(ln.prg_id, int(ln.amount)) for ln in s.lines.all()] == [("PGE_Com_Ltg", -300)]
+    [mine] = shifts.parts(s)
+    assert (mine.statewide_lines, [ln.prg_id for ln in mine.own_lines]) == ([], ["PGE_Com_Ltg"])
+
+
+def test_what_each_funder_covers(filer, pge, cycle, standing, statewide, sce_confirmer, sce_standing, programs):  # noqa: F811
+    sce = programs
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    shifts.set_lines(filer, s, L(("SW_X", 2028, 500)), shifts.STATEWIDE)
+    shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, -100)), shifts.OWN)
+    [mine, theirs] = shifts.parts(s)
+    assert (mine.portion, mine.covered, mine.left, mine.words) == (300, 100, 200, "PGE covers $300.00 from its own programs")
+    assert (theirs.portion, theirs.covered, theirs.left, theirs.words) == (200, 0, 200, "SCE covers $200.00 from its own programs")
+    assert shifts.problems(s) == [
+        "PGE has $300.00 to cover from its own programs: its lines there must add up to -$300.00, and they add up to -$100.00 "
+        "($200.00 still to cover)."
+    ]
+    assert shifts.cover_words("SCE", Decimal(-5)) == "SCE gets $5.00 back, to put into its own programs"
+    assert shifts.cover_words("SCE", Decimal(0)) == "SCE has nothing to cover"
+    # the whole program's budget and each funder's factor and holding, for the statewide changes page
+    entry = shifts.statewide_entry(s)
+    assert entry["SW_X 2028"] == {
+        "whole": "0",
+        "funders": [["PGE", "0.6000", "0"], ["SCE", "0.4000", "0"]],
+        "lead": "PGE",
+        "rounding": "PGE",
+    }
+    assert set(entry) == {"SW_X 2028"}  # the years with factors
+    assert shifts.statewide_entry(shifts.create(sce_confirmer, sce, cycle, title="u", reason="r")) == {}  # SCE leads nothing
+
+
+def test_the_steps(filer, pge, cycle, standing, statewide, sce_confirmer, sce_standing, programs):  # noqa: F811
+    def line(s, on=""):
+        return [(st.name, "done" if st.done else "", "now" if st.current else "") for st in shifts.steps(s, on)]
+
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    assert line(s) == [
+        ("Describe the shift", "done", ""),
+        ("Amounts in PGE's programs", "", "now"),
+        ("Review and submit", "", ""),
+        ("In effect", "", ""),
+    ]
+    assert [name for name, *_ in line(s, shifts.STATEWIDE)] == [
+        "Describe the shift",
+        "Statewide program changes",
+        "Cover PGE's portion",
+        "Review and submit",
+        "Other funders cover their portions",
+        "In effect",
+    ]
+    shifts.set_lines(filer, s, L(("SW_X", 2028, 500)), shifts.STATEWIDE)
+    assert [(name, now) for name, _, now in line(s) if now] == [("Cover PGE's portion", "now")]
+    assert [st.url for st in shifts.steps(s)] == [
+        "",
+        reverse("budgets:shift_statewide", args=[s.pk]),
+        reverse("budgets:shift_lines", args=[s.pk]),
+        reverse("budgets:shift", args=[s.pk]),
+        "",
+        "",
+    ]
+    shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, -300)), shifts.OWN)
+    assert [(name, now) for name, _, now in line(s) if now] == [("Review and submit", "now")]
+    s = shifts.submit(filer, s)
+    assert [(name, now) for name, _, now in line(s) if now] == [("Other funders cover their portions", "now")]
+    assert all(st.url == "" for st in shifts.steps(s))
+    s = shifts.acknowledge(sce_confirmer, s, programs, L(("SCE_Ind", 2028, -200)))
+    assert all(st.done and not st.current for st in shifts.steps(s))
+    t = shifts.create(filer, pge, cycle, title="t", reason="r")
+    assert shifts.steps(shifts.withdraw(filer, t, "not needed")) == []
+
+
+def test_the_statewide_changes_page(client, filer, pge, cycle, standing, statewide, sce_confirmer, sce_standing, programs):  # noqa: F811
+    sce = programs
+    sign_in(client, filer)
+    r = client.post(reverse("budgets:shift_new"), {"cycle": cycle.pk, "title": "Into SW X", "reason": "demand", "moves": "statewide"})
+    s = FundShift.objects.get()
+    assert r.status_code == 302 and r.url == reverse("budgets:shift_statewide", args=[s.pk])
+    html = client.get(r.url).content.decode()
+    assert "Change to the whole program ($)" in html and "What each funding PA would cover" in html and "No statewide change yet." in html
+    assert 'data-mode="statewide"' in html and '"rounding": "PGE"' in html
+    bad = client.post(r.url, {"prg_id": ["PGE_Com_Ltg"], "year": ["2028"], "amount": ["5"]}).content.decode()
+    assert "PGE_Com_Ltg is not a statewide program." in bad and "Save the lines to see each funder" in bad
+    client.post(r.url, {"prg_id": ["SW_X"], "year": ["2028"], "amount": ["500"]})
+    html = client.get(r.url).content.decode()
+    assert "PGE covers $300.00 from its own programs, in the next step" in html and "SCE covers $200.00 from its own programs" in html
+    # the review page's table: nothing covered yet
+    html = client.get(reverse("budgets:shift", args=[s.pk])).content.decode()
+    assert "Next: PGE covers $300.00 from its own programs.</strong> Nothing is covered yet." in html
+    assert "<strong>Not covered yet</strong>" in html
+    # a PA that leads no statewide program is not asked, and is sent back from the page
+    client.logout()
+    sign_in(client, sce_confirmer)
+    html = client.get(reverse("budgets:shift_new")).content.decode()
+    assert "SCE leads no statewide program" in html and 'name="moves"' not in html
+    t = shifts.create(sce_confirmer, sce, cycle, title="u", reason="r")
+    r = client.get(reverse("budgets:shift_statewide", args=[t.pk]))
+    assert r.status_code == 302 and r.url == reverse("budgets:shift", args=[t.pk])

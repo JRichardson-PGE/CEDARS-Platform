@@ -99,8 +99,8 @@ class BudgetsConfig(AppConfig):
 
         from . import queue
 
-        # each user's queue: fund shifts waiting for their PA's acknowledgment
-        my_queue.register("fund_shift", "Fund shifts to acknowledge", queue.acknowledgements, action="Acknowledge", order=60)
+        # each user's queue: fund shifts waiting for their PA to cover its portion
+        my_queue.register("fund_shift", "Fund shifts to cover or confirm", queue.acknowledgements, action="Cover or confirm", order=60)
 
         from cedars.services.submissions import corrections as record_corrections
 

@@ -1,5 +1,5 @@
-"""Budgets' work in each user's queue (cedars.core.queue): fund shifts waiting for a co-funder's acknowledgment, for the people
-who may acknowledge them (budgets.confirm in the co-funding PA)."""
+"""Budgets' work in each user's queue (cedars.core.queue): fund shifts waiting for a co-funder to cover its portion of a statewide
+change or for another statewide program's lead PA to confirm, for the people who may (budgets.confirm in the co-funding PA)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ def acknowledgements(user) -> list[Item]:
         if not access.has_permission(user, org, f"{shifts.MODULE}.confirm"):
             continue
         for s in shifts.waiting_for(org):
+            owed = shifts.portion(s, org.code)
+            does = "choose the programs and confirm" if owed else "confirm the shift"
             out.append(
                 Item(
                     f"Fund shift: {s.organisation.code} {s.title} ({s.cycle})",
@@ -26,7 +28,7 @@ def acknowledgements(user) -> list[Item]:
                     org.code,
                     s.submitted_at,
                     None,
-                    f"Acting for {org.code}, place its portion of the statewide lines among its own programs and acknowledge the shift.",
+                    f"{shifts.cover_words(org.code, owed, s.leads.get(org.code, ()))}: acting for {org.code}, {does}.",
                 )
             )
     return out

@@ -576,7 +576,7 @@ erDiagram
   Organisation ||--o{ FundShift : shifts
   FilingCycle ||--o{ FundShift : "within a cycle"
   FundShift ||--o{ FundShiftLine : lines
-  FundShift ||--o{ FundShiftAcknowledgement : "co-funders"
+  FundShift ||--o{ FundShiftAcknowledgement : "co-funders and other leads"
   AllocationVersion |o--o{ FilingSetup : "pinned"
   AllocationVersion |o--o{ ClaimYear : "pinned"
   AllocationVersion |o--o{ YearSetup : "pinned"
@@ -1603,8 +1603,11 @@ sequenceDiagram
   CL->>D: year_totals = own claims + statewide shares
 ```
 
-Budget filings apply the same `filing_problem` rule (only a statewide program's lead files its budget), and a statewide fund shift is
-split among the funding PAs by the weighted factors (section 8.1).
+Budget filings apply the same `filing_problem` rule (only a statewide program's lead files its budget). Fund shifts follow it too: a
+statewide program's budget changes on the statewide PrgID, in a shift made by the lead PA of one of the statewide programs it changes,
+and the lead PA of each other one confirms it before it takes effect. The change is split among the funding PAs by the weighted
+factors, each of which covers its portion from its own programs (section 8.1). A PA's own ID of a statewide program
+(`registry.statewide_parts`) is never on a fund shift line.
 
 ## 8. The filing modules
 
@@ -1616,12 +1619,28 @@ split among the funding PAs by the weighted factors (section 8.1).
   the measures' rebates and incentives, per program and year), runs its `BUD-*` checks and CEDARS' budget filing rules year by year,
   prices through the submissions service, and keeps the run's group sums as `BudgetResult`s by program, year and credited PA.
 - Confirming publishes the inputs, job spec and receipt and makes the appendix workbook; a corrected version writes a `ChangeLetter`.
-- **Fund shifts** (`shifts.py`): a PA moves dollars among its programs and statewide programs within a cycle, with no calculation; a
-  statewide line is split among the funding PAs by the weighted factors, each co-funder places and acknowledges its portion
-  (`FundShiftAcknowledgement`), and the shift takes effect with the last one. No shift may take a program-year's operating budget below
-  zero. The amounts page picks programs with core's program picker (the PA's own and, for the shift's PA, the statewide ones), shows
-  what each program-year holds (`shifts.held`, `entry_budget`) and the running net, takes lines pasted from a spreadsheet
-  (`paste_lines`), and its script checks each line as it is typed; the save still runs the same checks on the server.
+- **Fund shifts** (`shifts.py`): a PA moves dollars among its own programs within a cycle, with no calculation. A statewide
+  program's budget changes only as a whole, on its own PrgID, in a shift made by a lead PA: the shift's PA must lead at least one of
+  the statewide programs it changes (`lead_problem`), so one shift moves money between statewide programs with different leads. The
+  lead PA of each other one (`confirming`; recorded on submission in `FundShift.leads`) confirms the shift before it takes effect,
+  with or without an amount to cover. A PA's own ID of a
+  statewide program is never on a line (`registry.statewide_parts`), for the shift's PA or a funder. The change is split among the
+  funding PAs by the weighted factors (`compute_shares`); that portion is what each funder covers from its own programs (`Part`:
+  portion, covered, left). The shift's PA covers its own before it submits; each co-funder covers and confirms its portion, and another
+  lead with nothing to cover confirms without lines (`FundShiftAcknowledgement`, `FundShift.cofunders`); the shift takes effect
+  with the last one. No shift may take a program-year's operating budget
+  below zero.
+- The shift's pages follow its steps (`shifts.steps`, drawn by `_shift_steps.html`): describe the shift; the statewide program
+  changes (`shift_statewide`, offered to a PA that leads a statewide program: the whole program's operating budget now and after,
+  what each funding PA would cover and which other lead PA would confirm, from `statewide_entry`); the PA's own programs (`shift_lines`: with a statewide change, the
+  amount to cover and what is left of it; without one, lines that add up to zero); review and submit (`shift`: what each funding PA
+  covers, how much its lines cover so far, what is left and where that stands); the other funders cover theirs
+  and other leads confirm (`shift_acknowledge`). Each kind of line is saved on its own page (`set_lines(step=)`). The entry pages pick programs with a native
+  list (the statewide programs with a lead PA, those of another lead named with it, or its own programs without its own IDs of
+  statewide programs), show what each
+  program-year holds now and after (`shifts.held`, `entry_budget`), take lines pasted from a spreadsheet (`paste_lines`), and their
+  script checks each line and keeps the totals and every funder's amount current as it is typed; the save still runs the same checks
+  on the server. The fund shifts list shows, for each shift waiting for the acting PA, the amount it covers or that it confirms as a lead.
 - **Operating budget**: the standing filing's lines plus the shifts in effect since it was confirmed, by program and year; other modules
   read it through `registry.operating_budget` (`register_operating_budget`).
 
@@ -2737,7 +2756,7 @@ summarize. A pull request that builds part of a service or module updates its su
   delegates; `comments.tell_reviewers`, a direct message, one per user with a subscriber's by `notice_key`).
 - My queue (`/queue/`, `cedars.core.queue`): the work waiting on the signed-in user, read live from providers each service or module
   registers (correction requests and program changes to decide, data steward and access decisions, versions priced and ready to confirm,
-  fund shifts to acknowledge, comments whose reply is the user's side's, documents to publish, responses to recommendations, unanswered
+  fund shifts to cover or confirm, comments whose reply is the user's side's, documents to publish, responses to recommendations, unanswered
   questions).
 - Records corrected in place (`corrections.py`, the architecture's "a cell corrected in place: that row re-validated"): on an open draft
   only (never a confirmed version), a submitter finds a record by key or any value (also the records filed before the version that a
@@ -3198,13 +3217,15 @@ summarize. A pull request that builds part of a service or module updates its su
 - Any two versions compare by program.
 - Programs excluded from the budget or from C/E are filtered, never zeroed, with a reconciliation of every line.
 - A confirmed version publishes its inputs, job spec and receipt, and generates the appendix workbook.
-- Fund shifts built (`budgets/shifts.py`): a PA moves dollars between its own and statewide programs across the cycle's years, with no
-  calculation run.
-- A statewide line changes every funding PA's portion of that program by its weighted allocation factor (the standing filing's pinned
+- Fund shifts built (`budgets/shifts.py`): a PA moves dollars between its own programs across the cycle's years, with no
+  calculation run; a statewide program's budget is changed on the statewide PrgID, in a shift made by the lead PA of one of the statewide
+  programs it changes and confirmed by the lead PA of each other one, and no line names a PA's own ID of a statewide program.
+- A statewide change moves every funding PA's portion of that program by its weighted allocation factor (the standing filing's pinned
   allocation version, else the most recent), recorded on submission.
-- Each PA's own lines plus its portion must add up to zero, and an unbalanced shift is rejected and stays a draft.
-- Each other funding PA is notified, places its portion among its own programs and acknowledges, and the shift takes effect with the last
-  one.
+- Each PA's own lines must cover its portion exactly (add up to zero with no statewide change), and an unbalanced shift is rejected and
+  stays a draft.
+- Each other funding PA is notified with the amount it covers, covers it from its own programs and confirms; another statewide
+  program's lead PA confirms even with nothing to cover; the shift takes effect with the last one. The pages follow the shift's steps and show every funder's amount to cover, covered and left.
 - One in effect is undone by another shift, never withdrawn.
 - Operating budget: the standing filing's lines plus the PA's part of the shifts in effect since it was confirmed (its own lines, and its
   portion on each statewide program's row), by program and year, page and CSV.
@@ -3662,10 +3683,12 @@ summarize. A pull request that builds part of a service or module updates its su
   so the same ID would price no difference. The version comes from the parent's standing confirmed version (its run's pinned library),
   and its 8,760s go to the engine as a supplied file under a versioned name, so a later run or a restatement prices the same shapes.
   The engine prices the difference with the true-up's own quantities on both profiles (the effect of the shape alone; ReCET C21).
-- A statewide fund shift changes every funding PA's operating budget: the shift's PA enters the change to the
-  whole statewide budget, Budgets splits it by the weighted allocation factors of the version the PA's standing filing pins (else the
-  newest confirmed one), rounding's cents going to the shift's PA, and each co-funder decides where its net gap comes from in its own
-  portfolio. Two statewide lines move money between statewide programs; with different rates each funder's portions
+- A statewide fund shift changes every funding PA's operating budget: a lead PA enters the change to the
+  whole statewide budget on the statewide PrgID (its shift names at least one statewide program it leads; the lead PA of each other one
+  confirms it before it takes effect, so one shift moves money between statewide programs with different leads; a PA's own ID of the
+  program is never on a line), Budgets
+  splits it by the weighted allocation factors of the version the PA's standing filing pins (else the newest confirmed one), rounding's
+  cents going to the shift's PA, and each funder covers its portion from its own portfolio. Two statewide lines move money between statewide programs; with different rates each funder's portions
   net to its gap, and a funder whose portions cancel out is informed and does not hold the shift. No fund shift may take a
   program-year's operating budget below zero: `shifts.shortfalls` rejects a line or portion that would, at
   submission for every PA's part and again when a co-funder places its lines, counting the lines of shifts still waiting as spent. A

@@ -4,6 +4,9 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li></ol></nav>
 <div class="page-title"><h1>New fund shift for {{ org.code }}</h1>{% page_help "budgets/shift_new" %}</div>
 <p>Name the shift and say why the money moves; the amounts come next.</p>
+{% if not leads %}<p id="not-lead">{{ org.code }} leads no statewide program, so this shift moves money between {{ org.code }}'s own programs. A statewide
+program's budget is changed on the program's own PrgID (it starts SW_), in a shift made by the lead PA of a statewide program; when it
+is, {{ org.code }} is asked to cover its portion, and that shift appears under Fund shifts.</p>{% endif %}
 <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% for field in form %}{{ field.as_field_group }}{% endfor %}

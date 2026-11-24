@@ -334,6 +334,23 @@ def allocated_ids(sw: Program):
     return sorted(out, key=lambda p: p.prg_id)
 
 
+def statewide_parts(organisation: Organisation) -> dict[str, Program]:
+    """{PrgID: the statewide program} for each of the PA's IDs that is its part of a statewide program: an ID that follows one, or one
+    whose PrgID is one of the PA's codes in front of a statewide PrgID (`statewide_part_of`), linked yet or not. A statewide program's
+    budget changes only as a whole, so a fund shift never names one of these."""
+    sw = {p.prg_id: p for p in Program.objects.filter(statewide=True).select_related("lead")}
+    prefixes = [f"{code}_" for code in _codes(organisation)]
+    out = {}
+    for p in Program.objects.filter(administrator=organisation, statewide=False, portfolio_cost=False):
+        if p.follows_id:
+            out[p.prg_id] = next((s for s in sw.values() if s.pk == p.follows_id), None) or p.follows
+            continue
+        for prefix in prefixes:
+            if p.prg_id.startswith(prefix) and p.prg_id[len(prefix) :] in sw:
+                out[p.prg_id] = sw[p.prg_id[len(prefix) :]]
+    return out
+
+
 def lead_id(sw: Program) -> Program | None:
     """The statewide program's lead PA's own ID of it (PGE_SW_FS when PG&E leads SW_FS), or None."""
     lead = lead_of(sw)
