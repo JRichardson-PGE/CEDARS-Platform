@@ -123,6 +123,8 @@ claims/period:
     - Statewide programs are claimed only by their lead PA, in the statewide confirmation due before the PAs' own. A statewide
       confirmation holds only the statewide programs its PA leads. It's priced with the statewide allocation, so once it's confirmed each
       funding PA sees its share before filing.
+    - A PA's first confirmation of a quarter or year waits until every lead PA has confirmed its statewide claim for it. You can
+      upload, check and price before then. Corrections don't wait, and a lead corrects its statewide claim without reopening yours.
   how:
     - To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload, with the reason.
     - Download every finding (CSV) names each line, record, field and rule and says how to fix it.

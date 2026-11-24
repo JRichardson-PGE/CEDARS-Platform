@@ -1,7 +1,7 @@
 {% comment %}A filing's outcome and its one next action, first on the filing page (UI review 3, U1). The next action is the page's only
 primary button; un-confirming and asking to reopen are secondary. Context: v, stage, status_words, tiles, can_submit, can_confirm,
 can_correct, records_url, pricing_run, pending_reopen, past_due, later_locked (Claims), legacy, and out: the module's addresses and
-words (price_url, price_label, price_help, confirm_url, confirm_help, check_url, unconfirm_url, reopen_url, results_url,
+words (price_url, price_label, price_help, confirm_url, confirm_help, confirm_wait: why confirming must wait, check_url, unconfirm_url, reopen_url, results_url,
 results_heading, results_link, results_about, what: "these claims", "this filing", "this report").{% endcomment %}{% load legacy_correction %}
 <section class="card outcome" aria-labelledby="now-h" id="outcome">
   <h2 id="now-h">Version {{ v.number }}: {{ status_words }}</h2>
@@ -40,7 +40,8 @@ results_heading, results_link, results_about, what: "these claims", "this filing
   {% if can_correct and stage.key != "fix" %}<p class="small"><a href="{{ records_url }}">Correct records</a>: change, add or delete single records without uploading the whole file again; the version is then checked{% if stage.key != "upload" %} and priced{% endif %} again.</p>{% endif %}
 
   {% if stage.key == "confirm" %}
-  {% if can_confirm %}<form method="post" action="{{ out.confirm_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">{{ out.confirm_help }}</span></form>
+  {% if out.confirm_wait %}<p class="hold-notice" id="confirm-wait"><strong>Not ready to confirm.</strong> {{ out.confirm_wait }}</p>
+  {% elif can_confirm %}<form method="post" action="{{ out.confirm_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">{{ out.confirm_help }}</span></form>
   {% else %}<p>Priced and ready for someone who may confirm {{ out.what }} for {{ v.submission.organisation.code }}.</p>{% endif %}
   {% elif stage.key == "confirmed" or stage.key == "published" %}
   <p>{% if v.status == "published" %}Published{% else %}Confirmed{% endif %}{% if v.confirmed_at %} {{ v.confirmed_at|date_words }}{% if v.confirmed_by %} by {{ v.confirmed_by|person_name }}{% endif %}{% endif %}{% if v.late %} (late){% endif %}.</p>

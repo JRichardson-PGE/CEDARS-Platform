@@ -426,6 +426,9 @@ def period(request, pk):
             "what": "these claims",
             "kept": "confirmed",
         }
+        waiting = service.statewide_waiting(deadline) if service.first_confirmation(v) and not v.locked else []
+        if waiting:  # a PA's first confirmation waits for every lead PA's statewide claim for the period
+            ctx["out"]["confirm_wait"] = service.statewide_wait_message(deadline, waiting)
     return render(request, "claims/period.html", ctx)
 
 
@@ -721,7 +724,12 @@ def version(request, pk):
             "legacy_correction": _legacy_correction(v),
             "differing": differing,
             "tolerance": f"{service.SAVINGS_TOLERANCE:.0%}",
-            **filing_parts.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
+            **filing_parts.version_page(
+                request,
+                v,
+                priced=service.priced(v),
+                ready=not service.stale(v) and not (service.first_confirmation(v) and service.statewide_waiting(v.submission.deadline)),
+            ),
         },
     )
 

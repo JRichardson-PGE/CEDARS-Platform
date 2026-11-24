@@ -21,7 +21,7 @@
   },
   "guide:claims": {
     "release": "0.2.0",
-    "sha256": "efcb3c50c2ad08634e470ee67d44e21f5d583456103b0d1dcd23593959e7d7f9"
+    "sha256": "e44cf97617bee78ea3a6aab0fd356a29ed01bff024079aa4a1c1bca31fdfdb4f"
   },
   "guide:correcting-records": {
     "release": "0.2.0",
