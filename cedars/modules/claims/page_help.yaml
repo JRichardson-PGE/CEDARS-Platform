@@ -124,7 +124,8 @@ claims/period:
       confirmation holds only the statewide programs its PA leads. It's priced with the statewide allocation, so once it's confirmed each
       funding PA sees its share before filing.
     - A PA's first confirmation of a quarter or year waits until every lead PA has confirmed its statewide claim for it. You can
-      upload, check and price before then. Corrections don't wait, and a lead corrects its statewide claim without reopening yours.
+      upload, check and price before then. If a lead PA is late, a CPUC system administrator can release the hold for it. Corrections
+      don't wait, and a lead corrects its statewide claim without reopening yours.
   how:
     - To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload, with the reason.
     - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
@@ -199,6 +200,8 @@ claims/statewide:
   how:
     - Choose a PA and Apply to see its share. Download as CSV gives the same rows.
     - Open a statewide confirmation to see its lead PAs' filings, or a program's confirmation to see the lead PA's version credited to the PA.
+    - CPUC system administrators can release the hold for a late lead PA, with a reason, so the PAs confirm that period without waiting
+      for it.
   see: claims
   tour:
     - target: main form.filters
@@ -210,6 +213,10 @@ claims/statewide:
     - target: "#share-h"
       title: Credited to the PA
       text: The PA's share of each statewide program, year to date, with the lead PA and the confirmation it comes from.
+      optional: true
+    - target: "#release-h"
+      title: Release the hold for a late lead PA
+      text: CPUC system administrators let the PAs confirm a period without waiting for a late lead PA's statewide claim, with a reason.
       optional: true
 
 claims/version:

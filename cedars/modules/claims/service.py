@@ -65,7 +65,16 @@ from cedars.services.submissions.models import Deadline, Submission, SubmissionV
 from cedars.services.vault import service as vault
 
 from . import legacy_corrections, spec, upload
-from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
+from .models import (
+    FILED_TOTALS,
+    PROGRAM_COST_FIELDS,
+    ChangeLetter,
+    ClaimProgramLine,
+    ClaimRecord,
+    ClaimResult,
+    ClaimYear,
+    StatewideHoldRelease,
+)
 
 MODULE = "claims"
 RULE_SET = "claims"
@@ -2727,7 +2736,9 @@ def statewide_share(organisation, year: int) -> list[dict]:
 
 def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
     """Where each statewide confirmation of the year stands for the lead PAs: [{"deadline", "confirmed": [codes], "open": [codes],
-    "not_started": [codes]}] (open: started, not confirmed; not started: leads of the year's statewide programs with no filing yet),
+    "not_started": [codes], "released": [StatewideHoldRelease], "waiting": [codes]}] (open: started, not confirmed; not started:
+    leads of the year's statewide programs with no filing yet; released: holds the CPUC released on the PAs' confirmation; waiting:
+    the leads the PAs' first confirmations still wait for),
     in filing order; with `deadline` (a PA's confirmation), only the statewide one it comes after."""
     sw = [counterpart(deadline)] if deadline is not None else periods(year, statewide=True)
     out = []
@@ -2739,7 +2750,12 @@ def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
             (confirmed if standing(sub.organisation, d) is not None else started).append(sub.organisation.code)
         leads = leads_in_force(d.period.year).values()
         not_started = sorted(set(leads) - set(confirmed) - set(started))
-        out.append({"deadline": d, "confirmed": confirmed, "open": started, "not_started": not_started})
+        pa = counterpart(d)
+        released = statewide_releases(pa) if pa is not None else []
+        waiting = statewide_waiting(pa) if pa is not None else []
+        out.append(
+            {"deadline": d, "confirmed": confirmed, "open": started, "not_started": not_started, "released": released, "waiting": waiting}
+        )
     return out
 
 
@@ -2759,19 +2775,51 @@ def statewide_waiting(deadline: Deadline) -> list[str]:
     """The lead PAs whose statewide claim for this period is not confirmed yet (no published version), by code: a PA's first
     confirmation of the period waits for them, so each funding PA confirms only once it sees everything credited to it. None for a
     statewide confirmation, or for a year without statewide due dates. A lead correcting a confirmed statewide claim still counts as
-    confirmed: its published version stands until the correction replaces it."""
+    confirmed: its published version stands until the correction replaces it. A lead the CPUC released the hold for on this period
+    (`release_statewide_hold`) is not waited for."""
     if is_statewide(deadline):
         return []
     sw = counterpart(deadline)
     if sw is None:
         return []
     leads = leads_in_force(deadline.period.year)
+    released = set(StatewideHoldRelease.objects.filter(deadline=deadline).values_list("lead_id", flat=True))
+    leads = {pk: code for pk, code in leads.items() if pk not in released}
     done = set(
         SubmissionVersion.objects.filter(
             submission__deadline=sw, submission__organisation__in=leads, status=SubmissionVersion.Status.PUBLISHED
         ).values_list("submission__organisation_id", flat=True)
     )
     return sorted(code for pk, code in leads.items() if pk not in done)
+
+
+def statewide_releases(deadline: Deadline) -> list[StatewideHoldRelease]:
+    """The holds the CPUC released on one of the PAs' confirmations, by lead."""
+    return list(StatewideHoldRelease.objects.filter(deadline=deadline).select_related("lead", "released_by"))
+
+
+def release_statewide_hold(actor, deadline: Deadline, lead, reason: str) -> StatewideHoldRelease:
+    """A CPUC system administrator lets the PAs confirm a period without waiting for a late lead PA's statewide claim, with a reason
+    (audited). Only a lead the period is still waiting for; once released, the lead's statewide claim credits the PAs when it is
+    confirmed, as always, and each PA's totals follow it."""
+    if not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator releases the statewide hold.")
+    if is_statewide(deadline) or deadline.module != MODULE or deadline.kind not in KINDS:
+        raise AccessDenied("The hold is released on one of the PAs' own confirmations.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for releasing the hold.")
+    if lead.code not in statewide_waiting(deadline):
+        raise AccessDenied(f"The {label(deadline)} is not waiting for {lead.code}.")
+    with transaction.atomic():
+        r = StatewideHoldRelease.objects.create(deadline=deadline, lead=lead, reason=reason.strip(), released_by=actor)
+        audit.record(
+            "claims.statewide_hold_released",
+            obj=r,
+            reason=r.reason,
+            after={"deadline": label(deadline), "lead": lead.code},
+            actor=actor,
+        )
+    return r
 
 
 def first_confirmation(v: SubmissionVersion) -> bool:
