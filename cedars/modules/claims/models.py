@@ -229,3 +229,21 @@ class LegacyReproduction(models.Model):
 
     def __str__(self):
         return f"{self.imported} on {self.calculation}"
+
+
+class StatewideHoldRelease(models.Model):
+    """A CPUC system administrator's release of the statewide hold for one late lead PA on one of the PAs' confirmations: the PAs'
+    first confirmations of that period stop waiting for that lead's statewide claim. With the reason; audited."""
+
+    deadline = models.ForeignKey("submissions.Deadline", on_delete=models.PROTECT, related_name="+", help_text="The PAs' confirmation")
+    lead = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The late lead PA")
+    reason = models.TextField()
+    released_by = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    released_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["deadline", "lead__code"]
+        constraints = [models.UniqueConstraint(fields=["deadline", "lead"], name="claims_one_hold_release")]
+
+    def __str__(self):
+        return f"statewide hold released for {self.lead.code} on {self.deadline}"

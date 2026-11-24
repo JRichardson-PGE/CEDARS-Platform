@@ -18,7 +18,7 @@ claim.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Statewide confirmations of {{ cy.year }}">
 <table class="list">
   <caption class="sr-only">Statewide confirmations of {{ cy.year }} claims and the lead PAs that have confirmed them</caption>
-  <thead><tr><th scope="col">Statewide confirmation</th><th scope="col">Due</th><th scope="col">Before</th><th scope="col">Confirmed by</th><th scope="col">Not confirmed yet</th></tr></thead>
+  <thead><tr><th scope="col">Statewide confirmation</th><th scope="col">Due</th><th scope="col">Before</th><th scope="col">Confirmed by</th><th scope="col">Not confirmed yet</th><th scope="col">Hold released for</th></tr></thead>
   <tbody>
   {% for st in status %}
   <tr>
@@ -26,7 +26,8 @@ claim.</p>
     <td>{{ st.deadline.due_at|date_words }}</td>
     <td>{% if st.pa_deadline %}{{ st.pa_deadline.kind }}, {{ st.pa_deadline.due_at|date_words }}{% endif %}</td>
     <td>{{ st.confirmed|join:", "|default:"None yet" }}</td>
-    <td>{{ st.open|join:", "|default:"None" }}</td>
+    <td>{% if st.open or st.not_started %}{% if st.open %}{{ st.open|join:", " }} (started){% if st.not_started %}, {% endif %}{% endif %}{% if st.not_started %}{{ st.not_started|join:", " }} (not started){% endif %}{% else %}None{% endif %}</td>
+    <td>{% for r in st.released %}{{ r.lead.code }}: {{ r.reason }} ({{ r.released_at|date_words }}){% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</td>
   </tr>
   {% endfor %}
   </tbody>
@@ -34,6 +35,20 @@ claim.</p>
 </div>
 {% else %}<p>{{ cy.year }} claims have no statewide confirmations on the filing calendar.</p>{% endif %}
 </section>
+
+{% if releasable %}
+<section aria-labelledby="release-h">
+<h2 id="release-h">Release the hold for a late lead PA</h2>
+<p>A PA's first confirmation of a period waits until every lead PA has confirmed its statewide claim for it. When a lead PA is late,
+release the hold so the PAs can confirm without it. Its statewide claim still credits them once it is confirmed, and their totals follow.</p>
+<form method="post" action="{% url 'claims:statewide_release' cy.year %}" class="stack form-narrow">{% csrf_token %}
+  <div class="field"><label for="release-which">Confirmation and lead PA</label>
+    <select id="release-which" name="which" required>{% for d, code in releasable %}<option value="{{ d.pk }}:{{ code }}">{{ d.kind }}: waiting for {{ code }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="release-reason">Reason</label><textarea id="release-reason" name="reason" rows="2" required></textarea></div>
+  <div class="actions"><button type="submit">Release the hold</button></div>
+</form>
+</section>
+{% endif %}
 
 {% if org %}
 <section aria-labelledby="share-h">
