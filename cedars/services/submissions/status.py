@@ -19,6 +19,13 @@ from .models import Deadline, Submission, SubmissionVersion
 MODULES = (("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports"))
 LAST, NEXT = "Last due", "Next due"
 NOT_ON = "Nothing to file"  # a PA not on a filing (its set-up lists who files), or not one of the module's filers
+# the board's PA groups, in their default order; a PA with no type (the statewide "SW" organization) comes last
+TYPE_GROUPS = (
+    (Organisation.PAType.IOU, "Investor-owned utilities (IOUs)"),
+    (Organisation.PAType.REN, "Regional energy networks (RENs)"),
+    (Organisation.PAType.CCA, "Community choice aggregators (CCAs)"),
+    ("", "Other program administrators"),
+)
 
 
 @dataclass
@@ -66,6 +73,18 @@ class Board:
         without a filing permission): no "Your filings" for them."""
         cells = [c for c in self.own.cells if c.status != NOT_ON] if self.own else []
         return bool(cells) and not any(c.readable for c in cells)
+
+    def row_groups(self) -> list[tuple[str, list[Row]]]:
+        """The rows by PA type, in the order `board` sorted them (the reader's own type first), each with its heading."""
+        labels = dict(TYPE_GROUPS)
+        out: list[tuple[str, list[Row]]] = []
+        for r in self.rows:
+            label = labels.get(r.organisation.pa_type, labels[""])
+            if out and out[-1][0] == label:
+                out[-1][1].append(r)
+            else:
+                out.append((label, [r]))
+        return out
 
     def groups(self) -> list[tuple[str, int]]:
         """(module label, number of columns) in order, for the table's grouped header."""
@@ -120,10 +139,25 @@ def _cell(readable: bool, org, col: Column, sub: Submission | None, versions: li
     return Cell(status, "; ".join(details), link)
 
 
+def order_rows(rows: list[Row], org=None) -> list[Row]:
+    """The board's rows grouped by PA type (IOUs, RENs, CCAs, then any without a type), by code within a group. For a reader acting for
+    a program administrator (Jake, 2026-11-23), its type's group comes first and its own row first within it."""
+    rank = {t: i for i, (t, _) in enumerate(TYPE_GROUPS)}
+    own_type = org.pa_type if org is not None and org.kind == Organisation.Kind.PA else None
+
+    def key(r: Row):
+        t = r.organisation.pa_type if r.organisation.pa_type in rank else ""
+        mine = own_type is not None and r.organisation.pk == org.pk
+        return (own_type is None or t != own_type, rank[t], not mine, r.organisation.code)
+
+    return sorted(rows, key=key)
+
+
 def board(user, now=None, org=None) -> Board:
     """Every active program administrator's status on each column's filing, by code. A filing's set-up may list who files
     (submissions.set_filers): a PA not on it has nothing to file there, and a PA on none of the filings shown is left out. `org`, the
-    organization the reader acts for, puts its row first as `own` too (UI review 3, U5: "Your filings" above the board)."""
+    organization the reader acts for, puts its row first as `own` too (UI review 3, U5: "Your filings" above the board), and its PA type's
+    group and its own row first on the board (`order_rows`)."""
     from cedars.services.accounts import service as access
 
     now = now or timezone.now()
@@ -155,6 +189,7 @@ def board(user, now=None, org=None) -> Board:
         # a PA its set-ups leave off every filing shown is not listed (Jake, 2026-11-09)
         if any(service.on_filing(c.deadline, o) or (c.deadline.pk, o.pk) in subs for c in cols):
             rows.append(Row(o, cells))
+    rows = order_rows(rows, org)
     own = next((r for r in rows if org is not None and r.organisation.pk == org.pk), None)
     if own is not None:
         # a filing's page opens on the reader's own organization's filing: no link in its heading when they may not read that one

@@ -190,10 +190,42 @@ def test_a_filings_heading_is_linked_only_when_the_reader_may_open_its_own_organ
     assert {(c.module, c.when): c.url for c in status.board(cpuc_admin).columns} == pages  # the CPUC chooses a PA on the page
 
 
+def _pa(cpuc_admin, code, pa_type):
+    return access.create_organisation(cpuc_admin, code=code, name=f"{code} program administrator", kind="pa", pa_type=pa_type)
+
+
+def test_the_board_groups_pas_by_type_and_puts_the_readers_own_group_and_row_first(make_user, cpuc_admin, pge, sce, deadlines):
+    bayren, ren = _pa(cpuc_admin, "BAYREN", "REN"), _pa(cpuc_admin, "3CREN", "REN")
+    mce = _pa(cpuc_admin, "MCE", "CCA")
+    codes = [r.organisation.code for r in status.board(cpuc_admin).rows]
+    assert codes == ["PGE", "SCE", "3CREN", "BAYREN", "MCE"]  # the CPUC: IOUs, RENs, CCAs, by code within each
+    assert [label for label, _ in status.board(cpuc_admin).row_groups()] == [
+        "Investor-owned utilities (IOUs)",
+        "Regional energy networks (RENs)",
+        "Community choice aggregators (CCAs)",
+    ]
+    reader = make_user("someone@bayren.example.org", "Some One")
+    b = status.board(reader, org=bayren)
+    assert [r.organisation.code for r in b.rows] == ["BAYREN", "3CREN", "PGE", "SCE", "MCE"]  # its group first, its own row first
+    assert b.own.organisation == bayren and b.row_groups()[0][0] == "Regional energy networks (RENs)"
+    b = status.board(reader, org=mce)
+    assert [r.organisation.code for r in b.rows] == ["MCE", "PGE", "SCE", "3CREN", "BAYREN"]
+    assert [r.organisation.code for r in status.board(reader, org=sce).rows][:2] == ["SCE", "PGE"]
+    assert ren.code in codes
+
+
+def test_a_pa_without_a_type_is_grouped_last(cpuc_admin, pge, deadlines):
+    other = _pa(cpuc_admin, "AAA", "")
+    rows = [(label, [r.organisation.code for r in group]) for label, group in status.board(cpuc_admin).row_groups()]
+    assert rows == [("Investor-owned utilities (IOUs)", ["PGE"]), ("Other program administrators", ["AAA"])]
+    assert [r.organisation.code for r in status.board(cpuc_admin, org=other).rows] == ["AAA", "PGE"]  # its group first, like any other
+
+
 def test_the_filings_page_shows_the_status_table(signed_in, cpuc_admin, pge, deadlines):
     html = page_only(signed_in(cpuc_admin).get("/filings/").content.decode())
     table = html.split('<table class="list filing-status">', 1)[1].split("</table>", 1)[0]
     assert '<th scope="colgroup" colspan="2">Claims</th>' in table and '<th scope="colgroup" colspan="1">Monthly reports</th>' in table
     assert '<th scope="row">PGE<br><span class="small muted">' in table
+    assert '<th scope="rowgroup" colspan="4">Investor-owned utilities (IOUs)</th>' in table
     assert "past due" in table.lower()
     assert "No deadlines are on the calendar yet for Budgets." in html
