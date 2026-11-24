@@ -294,12 +294,32 @@ def statewide(request, year):
     rows = _share_rows(org, year) if org else []
     totals = [(label, _fmt(kind, sum((r["values"].get(col) or 0) for r in rows))) for col, label, kind in SHARE_COLUMNS]
     status = [{**st, "pa_deadline": service.counterpart(st["deadline"])} for st in service.statewide_status(year)]
+    releasable = [(st["pa_deadline"], code) for st in status if st["pa_deadline"] for code in st["waiting"]]
     return render(
         request,
         "claims/statewide.html",
         {"cy": cy, "org": org, "pas": [p for p in pas if p.files], "rows": rows, "totals": totals, "status": status,
-         "columns": SHARE_COLUMNS},
+         "columns": SHARE_COLUMNS, "releasable": releasable if access.is_system_admin(request.user) else []},
     )  # fmt: skip
+
+
+@login_required
+@require_POST
+def statewide_release(request, year):
+    """A CPUC system administrator releases the statewide hold for a late lead PA on one of the PAs' confirmations, with a reason."""
+    get_object_or_404(ClaimYear, year=year)
+    if not access.is_system_admin(request.user):
+        raise Http404
+    pk, _, code = request.POST.get("which", "").partition(":")
+    deadline = get_object_or_404(Deadline, pk=pk if pk.isdigit() else 0, module=service.MODULE, period__year=year)
+    lead = get_object_or_404(Organisation, code=code)
+    try:
+        service.release_statewide_hold(request.user, deadline, lead, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, f"The {service.label(deadline)} no longer waits for {lead.code}'s statewide claim.")
+    return redirect(reverse("claims:statewide", args=[year]) + "#release-h")
 
 
 @login_required

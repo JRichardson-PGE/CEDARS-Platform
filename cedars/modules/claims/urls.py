@@ -10,6 +10,7 @@ urlpatterns = [
     path("years/<int:year>/setup/", views.setup, name="setup"),
     path("years/<int:year>/statewide/", views.statewide, name="statewide"),
     path("years/<int:year>/statewide.csv", views.statewide_csv, name="statewide_csv"),
+    path("years/<int:year>/statewide/release", views.statewide_release, name="statewide_release"),
     path("periods/<int:pk>/", views.period, name="period"),
     path("periods/<int:pk>/upload", views.upload, name="upload"),
     path("periods/<int:pk>/check", views.check, name="check"),

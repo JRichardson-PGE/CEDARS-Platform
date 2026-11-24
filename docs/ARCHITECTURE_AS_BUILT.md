@@ -566,6 +566,7 @@ erDiagram
   SubmissionVersion ||--o{ Restatement : "claims, analysis"
   Restatement ||--o{ RestatementLine : lines
   SubmissionVersion ||--o{ LegacyReproduction : "claims, imported year on its replica"
+  Deadline ||--o{ StatewideHoldRelease : "claims, hold released for a late lead PA"
   SubmissionVersion ||--o{ ReportLine : "monthly"
   SubmissionVersion ||--o{ MonthlyResult : "monthly, priced"
   SubmissionVersion ||--o| Snapshot : "published results"
@@ -1142,7 +1143,7 @@ erDiagram
 | monthly | `YearSetup`, `ReportLine`, `MonthlyResult`, `ChangeLetter` |
 | calculations | `EngineRelease`, `InputDraft`, `Run`, `OutputTemplate`, `OutputTemplateDefault`, `ResultView`, `Worker` |
 | budgets | `FilingSetup`, `BudgetLine`, `BudgetResult`, `FundShift`, `FundShiftLine`, `FundShiftAcknowledgement`, `ChangeLetter` |
-| claims | `ClaimYear`, `ClaimProgramLine`, `ClaimResult`, `ChangeLetter`, `ClaimRecord`, `Restatement`, `RestatementLine`, `LegacyReproduction` |
+| claims | `ClaimYear`, `ClaimProgramLine`, `ClaimResult`, `ChangeLetter`, `ClaimRecord`, `Restatement`, `RestatementLine`, `LegacyReproduction`, `StatewideHoldRelease` |
 | documents | `AttributeList`, `AttributeOption`, `Document`, `DocumentVersion`, `CommentPeriod`, `ResponseRequest`, `Comment`, `CommentResponse`, `DocumentFile`, `WorkOrder`, `LegacyLink`, `Task`, `Study`, `StudyProgram`, `FileText`, `DocumentSubscription`, `KeyDate` |
 | data | `DownloadJob`, `SavedView`, `RecordColumnDefault` |
 
@@ -1567,6 +1568,10 @@ due before its PAs' counterpart: by default 14 days before a quarter and one mon
   (`statewide_waiting`, checked in `claims.confirm`; the filing page shows why in place of the Confirm button, and its statewide
   card names the leads not started yet). The leads waited for are those of statewide programs in force in the claim year
   (`leads_in_force`); a year without statewide deadlines does not wait. Uploading, checking and pricing do not wait.
+- When a lead PA is late, a CPUC system administrator releases the hold for it on one of the PAs' confirmations, with a reason
+  (`release_statewide_hold`, a `StatewideHoldRelease` row, audit event `claims.statewide_hold_released`; form on the year's
+  statewide page). The PAs' first confirmations of that period then stop waiting for that lead; its statewide claim still credits
+  them once confirmed, and their totals follow.
 - Corrections do not wait. A lead corrects its statewide claim by reopening only the statewide filing: the two runs of confirmations
   are compiled apart, so no PA's claim goes stale or is reopened, and each funding PA's `statewide_share` and `year_totals` follow
   the lead's corrected version once it is confirmed. While the correction is open, the lead's published version still counts as

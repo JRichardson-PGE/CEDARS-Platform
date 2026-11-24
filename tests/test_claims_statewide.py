@@ -334,3 +334,48 @@ def test_corrections_do_not_wait_for_the_statewide_claims(filer, year, pge, prog
     v_sw2 = SubmissionVersion.objects.create(submission=sw.submission, number=2, reason="Correct SW_X", created_by=filer)
     SubmissionVersion.objects.filter(pk=sw.pk).update(status=SubmissionVersion.Status.PUBLISHED)
     assert v_sw2.status == SubmissionVersion.Status.DRAFT and service.statewide_waiting(own_deadline()) == []
+
+
+# --- the CPUC releases the hold for a late lead PA (Jake, 2026-11-24)
+
+
+def test_a_cpuc_administrator_releases_the_hold_for_a_late_lead(client, filer, year, pge, programs, sw_x, release, cpuc_admin, pge_admin):  # noqa: F811, E501
+    sce = programs
+    sw_y = registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="Y")
+    registry.set_lead(cpuc_admin, sw_y, sce, "SCE leads SW_Y")
+    confirmed_sw(filer, pge)
+    v = priced_own(filer, pge)
+    assert service.statewide_waiting(own_deadline()) == ["SCE"]
+    with pytest.raises(AccessDenied, match="Only a CPUC system administrator"):
+        service.release_statewide_hold(pge_admin, own_deadline(), sce, "late")
+    with pytest.raises(AccessDenied, match="reason"):
+        service.release_statewide_hold(cpuc_admin, own_deadline(), sce, " ")
+    with pytest.raises(AccessDenied, match="not waiting for PGE"):
+        service.release_statewide_hold(cpuc_admin, own_deadline(), pge, "PG&E is not late")
+    with pytest.raises(AccessDenied, match="PAs' own confirmations"):
+        service.release_statewide_hold(cpuc_admin, sw_deadline(), sce, "late")
+    sign_in(client, cpuc_admin)
+    url = reverse("claims:statewide", args=[2028])
+    page = client.get(url).content.decode()
+    assert 'id="release-h"' in page and f'value="{own_deadline().pk}:SCE"' in page
+    r = client.post(
+        reverse("claims:statewide_release", args=[2028]), {"which": f"{own_deadline().pk}:SCE", "reason": "SCE is two weeks late"}
+    )
+    assert r.status_code == 302
+    assert service.statewide_waiting(own_deadline()) == []
+    assert service.statewide_waiting(own_deadline("Q2 claim")) == ["PGE", "SCE"]  # only the period released
+    event = AuditEvent.objects.get(action="claims.statewide_hold_released")
+    assert event.after == {"deadline": "2028 Q1 claim", "lead": "SCE"} and event.reason == "SCE is two weeks late"
+    page = client.get(url).content.decode()
+    assert "SCE: SCE is two weeks late" in page and f'value="{own_deadline().pk}:SCE"' not in page
+    assert service.confirm(filer, v).status == SubmissionVersion.Status.PUBLISHED
+    sign_in(client, filer)
+    page = client.get(reverse("claims:period", args=[own_deadline().pk])).content.decode()
+    assert "The CPUC released the hold for SCE" in page
+    assert 'id="release-h"' not in client.get(url).content.decode()  # only CPUC system administrators see the form
+    assert (
+        client.post(
+            reverse("claims:statewide_release", args=[2028]), {"which": f"{own_deadline('Q2 claim').pk}:SCE", "reason": "x"}
+        ).status_code
+        == 404
+    )
