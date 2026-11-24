@@ -3,8 +3,8 @@
 // beside a line what is wrong with it before you save: a PrgID that cannot be named here, an amount that is not a figure, a line that
 // would take a program-year below zero, a program-year on two lines. On the statewide program changes page (data-mode="statewide") a
 // line is the change to the whole program: the page also shows what each funding PA would cover, split by the allocation factors the
-// way the server splits it (to the cent, half to even, the cents left over to the shift's PA). The page's own check on saving stays
-// the rule.
+// way the server splits it (to the cent, half to even, the cents left over to the shift's PA), which other lead PAs would confirm
+// the shift, and says when no line is on a program the shift's PA leads. The page's own check on saving stays the rule.
 (function () {
   "use strict";
   var table = document.querySelector("[data-shift-lines]");
@@ -48,15 +48,18 @@
     out[entry.rounding] += cents - placed;
     return out;
   };
-  var coverWords = function (code, cents) {
-    if (cents > 0) return code + " covers " + money(cents) + " from its own programs";
-    if (cents < 0) return code + " gets " + money(-cents) + " back, to put into its own programs";
-    return code + " has nothing to cover";
+  // What a PA does about the statewide changes; `leads`: the statewide programs on the lines it leads (another PA than the shift's).
+  var coverWords = function (code, cents, leads) {
+    var out = code + " has nothing to cover";
+    if (cents > 0) out = code + " covers " + money(cents) + " from its own programs";
+    if (cents < 0) out = code + " gets " + money(-cents) + " back, to put into its own programs";
+    if (leads && leads.length) out += ", and confirms the change to " + leads.join(" and ") + " as " + (leads.length === 1 ? "its" : "their") + " lead PA";
+    return out;
   };
   var announced = "";
 
   var check = function () {
-    var total = 0, figures = true, seen = {}, covers = {}, order = [];
+    var total = 0, figures = true, seen = {}, covers = {}, order = [], leads = {}, led = [], mine = false, first = null;
     Array.prototype.forEach.call(body.rows, function (row) {
       var prg = row.querySelector("[name=prg_id]"), year = row.querySelector("[name=year]"), amount = row.querySelector("[name=amount]");
       var problem = row.querySelector("[data-line-problem]"), heldCell = row.querySelector("[data-line-held]");
@@ -66,7 +69,7 @@
       var says = [];
       if (id && !canonical) {
         var whole = parts[id.toLowerCase()];
-        if (statewide) says.push(id + " is not a statewide program " + pa + " leads.");
+        if (statewide) says.push(id + " is not a statewide program with a lead PA.");
         else if (whole) says.push(id + " is " + pa + "'s part of the statewide program " + whole + ", whose budget changes only as a whole, on " + whole + ".");
         else says.push(id + " is not one of the programs " + pa + " can name here.");
       }
@@ -86,6 +89,14 @@
       }
       if (statewide && b && !isNaN(value) && value) {
         var portions = splitLine(b, value), below = held + value < 0;
+        first = first || { problem: problem, row: row, says: says };
+        if (b.lead === pa) mine = true;
+        else {
+          if (led.indexOf(canonical + " (led by " + b.lead + ")") < 0) led.push(canonical + " (led by " + b.lead + ")");
+          if (!(b.lead in covers)) { covers[b.lead] = 0; order.push(b.lead); }
+          leads[b.lead] = leads[b.lead] || [];
+          if (leads[b.lead].indexOf(canonical) < 0) leads[b.lead].push(canonical);
+        }
         if (below) says.push("Takes " + key + " below zero: the whole program holds " + money(held) + ".");
         b.funders.forEach(function (f) {
           var code = f[0], holds = Math.round(parseFloat(f[2]) * 100);
@@ -104,6 +115,12 @@
       row.classList.toggle("has-problem", says.length > 0);
       if (!isNaN(value)) total += value;
     });
+    // A shift's PA must lead one of the statewide programs it changes: said beside the first statewide line.
+    if (statewide && first && !mine) {
+      first.says.push(pa + " leads none of these statewide programs: " + led.join(", ") + ". Put a statewide program " + pa + " leads on a line too.");
+      first.problem.textContent = first.says.join(" ");
+      first.row.classList.add("has-problem");
+    }
     if (totalCell) totalCell.textContent = figures ? money(total) : "a line's amount is not a figure";
     var say = "";
     if (leftCell) {
@@ -120,7 +137,7 @@
         var does = document.createElement("td");
         th.scope = "row"; th.textContent = code;
         amount.className = "num"; amount.textContent = money(covers[code]);
-        does.textContent = coverWords(code, covers[code]) + (code === pa ? ", in the next step" : "");
+        does.textContent = coverWords(code, covers[code], leads[code]) + (code === pa && covers[code] ? ", in the next step" : "");
         tr.appendChild(th); tr.appendChild(amount); tr.appendChild(does); rows.appendChild(tr);
       });
       if (!order.length) {
@@ -128,7 +145,7 @@
         cell.colSpan = 3; cell.className = "muted"; cell.textContent = "No statewide change yet.";
         none.appendChild(cell); rows.appendChild(none);
       }
-      say = order.map(function (code) { return coverWords(code, covers[code]); }).join("; ");
+      say = order.map(function (code) { return coverWords(code, covers[code], leads[code]); }).join("; ");
     }
     return say;
   };

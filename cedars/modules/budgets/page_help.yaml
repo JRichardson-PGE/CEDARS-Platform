@@ -222,14 +222,15 @@ budgets/shifts:
   guide:
     - A fund shift moves dollars between programs within a cycle, across its program years if need be. It is not a budget filing; the
       standing filing plus the shifts in effect is the operating budget.
-    - A statewide program's budget changes only as a whole, on its own PrgID (it starts SW_), in a shift made by its lead PA. CEDARS
-      splits the change among the funding PAs by their allocation factors. Each funder covers its portion from its own programs, and
-      the shift takes effect once all have. A PA's own ID of a statewide program is never on a fund shift line. No shift may take a
-      program's operating budget below zero.
+    - A statewide program's budget changes only as a whole, on its own PrgID (it starts SW_), in a shift made by the lead PA of one
+      of the statewide programs it changes. One shift can move money between statewide programs with different leads; the lead PA
+      of each other program confirms it. CEDARS splits each change among the funding PAs by their allocation factors. Each funder
+      covers its portion from its own programs, and the shift takes effect once all have. A PA's own ID of a statewide program is
+      never on a fund shift line. No shift may take a program's operating budget below zero.
   how:
     - New fund shift starts one for the organization you act for.
-    - Under Waiting for your PA to cover its portion, each shift shows how much your PA covers; Cover its portion opens the page where
-      you choose the programs.
+    - Under Waiting for your PA, each shift shows how much your PA covers; Cover its portion opens the page where you choose the
+      programs. A shift that changes a statewide program your PA leads, with nothing for your PA to cover, has Confirm the shift.
     - The operating budget for each cycle is linked under the description, your PA's, or for CPUC staff every PA's to choose from.
   see: budgets
   tour:
@@ -239,21 +240,22 @@ budgets/shifts:
       optional: true
     - target: "#waiting-h"
       title: Waiting for you
-      text: Shifts by a statewide program's lead PA that change your portion of it, each with the amount you cover.
+      text: Shifts by another PA that change your portion of a statewide program, or a statewide program you lead, each with the amount you cover.
       optional: true
     - target: "#all-h"
       title: Shifts you can see
-      text: Every shift you can read, newest first, with its status and, for one that is waiting, who still has an amount to cover.
+      text: Every shift you can read, newest first, with its status and, for one that is waiting, who it still waits for.
 
 budgets/shift_new:
   title: Starting a fund shift
   guide:
     - Name the shift, choose its cycle (it starts on the current one) and say why the money moves. The amounts come next.
     - A PA that leads a statewide program is also asked what the shift changes, its own programs only, or the budget of a statewide
-      program it leads. Only the lead PA changes a statewide program's budget; the other funding PAs are then asked to cover their portions.
+      program it leads, alone or with another statewide program's. A shift that changes statewide programs is made by the lead PA of
+      one of them; the lead PA of each other one confirms it, and the other funding PAs are asked to cover their portions.
   how:
     - Name the shift, choose its cycle and say why, then Start the shift.
-    - For a statewide program you lead, choose the statewide option. The next page takes the change to the whole program, and the one
+    - For a statewide program you lead, choose the statewide option. The next page takes the changes to whole programs, and the one
       after it covers your own portion.
   see: budgets
   tour:
@@ -265,10 +267,12 @@ budgets/shift_statewide:
   title: A fund shift's statewide program changes
   guide:
     - One line per statewide program and year, each the change to the whole program's budget. A positive amount adds to the program
-      and a negative one takes from it. Only the statewide programs your PA leads are offered.
+      and a negative one takes from it. At least one line must be on a statewide program your PA leads.
     - The change moves every funding PA's portion of the program by its allocation factor. The table under the lines shows what each
       funding PA would cover from its own programs. Two lines move money between statewide programs; where their rates differ, each
       funder covers the difference.
+    - The other program may be one another PA leads. That lead PA is asked to confirm the shift, even with nothing to cover, and the
+      shift does not take effect until it has.
     - No change may take a funder's portion of a program below zero.
   how:
     - Type a statewide PrgID or part of the program's name and pick it from the list, then the year and the change. Beside each line
@@ -285,7 +289,7 @@ budgets/shift_statewide:
       text: Statewide program, year and the change to the whole program, with the whole program's operating budget now and after.
     - target: "#split-h"
       title: What each funding PA would cover
-      text: Every funder's portion of the changes, added up. Yours is covered in the next step, the others' once the shift is submitted.
+      text: Every funder's portion of the changes, added up, and any other lead PA that confirms. Yours is covered in the next step, the others' once the shift is submitted.
     - target: main form .actions
       title: Save
       text: Save and continue to your own portion, or Save and add more lines for another set of blank lines.
@@ -336,11 +340,11 @@ budgets/shift:
     - Statewide program changes lists each change to a whole statewide program. What each funding PA covers shows every funder's
       factor and portion, how much its own programs' lines cover so far, what is left and where that stands. The last table lists the
       lines in each PA's own programs.
-    - A draft can be changed and submitted. A submitted shift waits for each other funding PA with an amount to cover, then takes
-      effect. The PA that made it may withdraw it until it takes effect.
+    - A draft can be changed and submitted. A submitted shift waits for each other funding PA with an amount to cover and for the
+      lead PA of each other statewide program it changes, then takes effect. The PA that made it may withdraw it until it takes effect.
   how:
     - While the shift is a draft, follow the Next box, enter the statewide changes, cover your PA's portion, then Submit the shift.
-    - A funding PA opens Cover its portion from the box at the top.
+    - A funding PA opens Cover its portion from the box at the top. A lead PA with nothing to cover opens Confirm the shift there.
     - Withdraw the shift is folded at the foot of the page, with its reason.
   see: budgets
   tour:
@@ -354,7 +358,7 @@ budgets/shift:
       optional: true
     - target: "#statewide-h"
       title: Statewide program changes
-      text: Each change to a whole statewide program's budget.
+      text: Each change to a whole statewide program's budget, with the program's lead PA.
       optional: true
     - target: "#covers-h"
       title: What each funding PA covers
@@ -367,14 +371,17 @@ budgets/shift:
 budgets/shift_acknowledge:
   title: Covering your portion of a fund shift
   guide:
-    - A statewide program's lead PA changed its budget, which changes your PA's portion by your allocation factors. The box at the top
-      says how much your PA covers, and its table shows each statewide change, your factor and your portion.
+    - Another PA's fund shift changed a statewide program's budget, which changes your PA's portion by your allocation factors. The
+      box at the top says how much your PA covers, and its table shows each statewide change, your factor and your portion.
     - A larger portion is paid for by taking the same amount out of your own programs, and a smaller one gives the amount back to them.
       The lines must cover the portion exactly; Still to cover under the lines shows what is left. Statewide programs and your PA's own
       IDs of them cannot be named, and no line may take a program below zero.
-    - The shift takes effect once every funding PA with an amount to cover has covered it.
+    - When the shift changes a statewide program your PA leads, confirming also says your PA agrees to that change. With nothing to
+      cover (your portions add up to zero) there are no lines to enter, only Confirm the shift.
+    - The shift takes effect once every funding PA with an amount to cover has covered it and every other lead PA has confirmed.
   how:
     - Spread the amount over your own programs and years, then Cover your portion and confirm.
+    - With nothing to cover, add a note if you wish and Confirm the shift.
   see: budgets
   tour:
     - target: "#to-cover"
@@ -382,7 +389,7 @@ budgets/shift_acknowledge:
       text: The amount, and each statewide change with your factor and portion.
     - target: main form
       title: Your lines
-      text: The programs and years the amount comes from or goes to. Still to cover must reach $0.00.
+      text: The programs and years the amount comes from or goes to. Still to cover must reach $0.00. With nothing to cover, only the note and Confirm the shift.
 
 budgets/operating:
   title: The operating budget

@@ -129,7 +129,8 @@ class ShiftForm(forms.Form):
     moves = forms.ChoiceField(label="What the shift changes", widget=forms.RadioSelect, required=False)
 
     def __init__(self, *args, cycles=None, pa="", leads=False, **kw):
-        """`leads`: the PA leads a statewide program, so its shift may change one's budget; otherwise the question is not asked."""
+        """`leads`: the PA leads a statewide program, so its shift may change statewide programs' budgets; otherwise the question is
+        not asked."""
         super().__init__(*args, **kw)
         self.fields["cycle"].queryset = cycles if cycles is not None else FilingCycle.objects.none()
         if not leads:
@@ -137,9 +138,12 @@ class ShiftForm(forms.Form):
             return
         self.fields["moves"].choices = [
             ("own", f"Budgets of {pa}'s own programs only"),
-            ("statewide", f"The budget of a statewide program {pa} leads (a PrgID that starts SW_)"),
+            (
+                "statewide",
+                f"The budget of a statewide program {pa} leads, alone or with another statewide program's (PrgIDs that start SW_)",
+            ),
         ]
         self.fields["moves"].help_text = (
             "A statewide program's budget changes as a whole: every funding PA's portion changes by its allocation factor, and each "
-            "covers its portion from its own programs."
+            "covers its portion from its own programs. Another statewide program's lead PA confirms a shift that changes its budget."
         )

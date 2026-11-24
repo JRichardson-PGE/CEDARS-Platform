@@ -16,7 +16,9 @@ years the CPUC set it up for, usually four (2028-2031), sometimes more (an eight
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'budgets:shifts' %}">Fund shifts</a>: move budget between programs within the cycle. A statewide program's budget
-    changes only as a whole, on its own PrgID (it starts SW_), in a shift made by its lead PA. The change is split among the funding PAs by
+    changes only as a whole, on its own PrgID (it starts SW_), in a shift made by the lead PA of one of the statewide
+    programs it changes. One shift can move money between statewide programs with different leads: the lead PA of each other program
+    confirms it before it takes effect. The change is split among the funding PAs by
     their allocation factors, the pages show how much each one covers, and each covers its portion from its own programs. A PA's own ID of
     a statewide program is never on a fund shift line. No shift may take a program's operating budget below zero.</li>
   <li><a href="{% url 'budgets:compare' %}">Compare two versions</a> of a filing.</li>

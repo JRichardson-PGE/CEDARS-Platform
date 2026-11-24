@@ -10,9 +10,9 @@
 <p>A fund shift moves dollars between programs within a filing cycle, across its program years if need be. It is not part of a budget
 filing and has no cost-effectiveness run. Its amounts must add up to zero. The approved budget never changes; the operating budget
 does.</p>
-<p>A statewide program's budget changes only as a whole, on its own PrgID (it starts SW_), in a shift made by its lead PA. Every
-funding PA's portion changes by its allocation factor, and each covers its portion from its own programs; the shift takes effect once
-all have.</p>
+<p>A statewide program's budget changes only as a whole, on its own PrgID (it starts SW_), in a shift made by the lead PA of one of
+the statewide programs it changes; the lead PA of each other one confirms it. Every funding PA's portion changes by its allocation
+factor, and each covers its portion from its own programs; the shift takes effect once all have.</p>
 {% if can_read_operating and cycles %}
 <p>{{ org.code }}'s operating budget: {% for c in cycles %}<a href="{% url 'budgets:operating' c.slug %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% elif can_read_every_operating and cycles %}
@@ -21,17 +21,18 @@ all have.</p>
 
 {% if waiting %}
 <section aria-labelledby="waiting-h">
-<h2 id="waiting-h">Waiting for {{ org.code }} to cover its portion</h2>
-<p>Each of these changes the budget of a statewide program {{ org.code }} funds. Choose the programs {{ org.code }}'s portion comes
-from or goes to; the shift takes effect once every funding PA has.</p>
+<h2 id="waiting-h">Waiting for {{ org.code }}</h2>
+<p>Each of these changes the budget of a statewide program {{ org.code }} funds or leads. Choose the programs {{ org.code }}'s portion
+comes from or goes to, or with nothing to cover, confirm the change to the program {{ org.code }} leads; the shift takes effect once
+every PA it waits for has.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="waiting-h">
 <table class="list">
   <caption class="sr-only">Fund shifts waiting for {{ org.code }}, with what it has to cover</caption>
-  <thead><tr><th scope="col">Shift</th><th scope="col">Lead PA</th><th scope="col">Cycle</th><th scope="col">{{ org.code }}'s portion changes by</th><th scope="col">What {{ org.code }} does</th><th scope="col">Submitted</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+  <thead><tr><th scope="col">Shift</th><th scope="col">Made by</th><th scope="col">Cycle</th><th scope="col">{{ org.code }}'s portion changes by</th><th scope="col">What {{ org.code }} does</th><th scope="col">Submitted</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
   <tbody>{% for s, owed, words in waiting %}<tr>
     <th scope="row"><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></th>
     <td>{{ s.organisation.code }}</td><td>{{ s.cycle|cycle_label }}</td><td class="num">{{ owed|money:2 }}</td><td>{{ words }}</td><td class="nowrap">{{ s.submitted_at|date_words }}</td>
-    <td><a class="button" href="{% url 'budgets:shift_acknowledge' s.pk %}">Cover {{ org.code }}'s portion<span class="sr-only"> of {{ s.title }}</span></a></td>
+    <td><a class="button" href="{% url 'budgets:shift_acknowledge' s.pk %}">{% if owed %}Cover {{ org.code }}'s portion<span class="sr-only"> of {{ s.title }}</span>{% else %}Confirm the shift<span class="sr-only"> {{ s.title }}</span>{% endif %}</a></td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>
@@ -45,9 +46,9 @@ from or goes to; the shift takes effect once every funding PA has.</p>
 <table class="list">
   <caption class="sr-only">Fund shifts, newest first</caption>
   <thead><tr><th scope="col">Shift</th><th scope="col">PA</th><th scope="col">Cycle</th><th scope="col">Status</th><th scope="col">Started</th></tr></thead>
-  <tbody>{% for s, waiting_on in shifts %}<tr>
+  <tbody>{% for s, waiting_on, asked in shifts %}<tr>
     <th scope="row"><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></th>
-    <td>{{ s.organisation.code }}</td><td>{{ s.cycle|cycle_label }}</td><td><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if waiting_on %}<br><span class="small">{{ waiting_on }} to cover</span>{% endif %}</td><td class="nowrap">{{ s.created_at|date_words }}</td>
+    <td>{{ s.organisation.code }}</td><td>{{ s.cycle|cycle_label }}</td><td><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if waiting_on %}<br><span class="small">{{ waiting_on }} to {{ asked }}</span>{% endif %}</td><td class="nowrap">{{ s.created_at|date_words }}</td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>

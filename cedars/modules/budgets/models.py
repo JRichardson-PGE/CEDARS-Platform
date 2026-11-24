@@ -123,6 +123,11 @@ class FundShift(models.Model):
         blank=True,
         help_text="Set on submission: {funding PA: {'PrgID year': the weighted allocation factor its portion was split by}}",
     )
+    leads = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Set on submission: {lead PA: [the shift's statewide PrgIDs it leads then]}; the other leads confirm it",
+    )
     withdrawn_reason = models.TextField(blank=True)
 
     class Meta:
@@ -142,15 +147,25 @@ class FundShift(models.Model):
         return sum((Decimal(v) for v in (self.shares or {}).get(code, {}).values()), Decimal(0))
 
     @property
+    def other_leads(self) -> list[str]:
+        """The lead PAs of the shift's statewide programs other than its own PA, as recorded on submission, in code order. Each
+        confirms the shift before it takes effect, with or without an amount to cover."""
+        return sorted(c for c in (self.leads or {}) if c != self.organisation.code)
+
+    @property
     def cofunders(self) -> list[str]:
-        """The other funding PAs with a net gap to cover: those whose portions do not add up to zero. They acknowledge the shift. A
-        funder whose portions cancel out (money moved between statewide programs it funds at the same rate) is only informed."""
-        return [c for c in self.funders if c != self.organisation.code and self.net_of(c) != 0]
+        """The other PAs the shift waits for, in code order. Each acknowledges it: the funding PAs with a net gap to cover (those whose
+        portions do not add up to zero), and the other lead PAs of its statewide programs, which confirm the change to a program they
+        lead even with nothing to cover. A funder that is neither is only informed."""
+        own = self.organisation.code
+        return sorted({c for c in self.funders if c != own and self.net_of(c) != 0} | set(self.other_leads))
 
     @property
     def informed(self) -> list[str]:
-        """The other funding PAs whose portions cancel out: told of the shift, nothing to place or acknowledge."""
-        return [c for c in self.funders if c != self.organisation.code and self.net_of(c) == 0]
+        """The other funding PAs whose portions cancel out (money moved between statewide programs they fund at the same rate) and
+        that lead none of the shift's statewide programs: told of the shift, nothing to place or acknowledge."""
+        waits = set(self.cofunders)
+        return [c for c in self.funders if c != self.organisation.code and c not in waits]
 
 
 class FundShiftLine(models.Model):

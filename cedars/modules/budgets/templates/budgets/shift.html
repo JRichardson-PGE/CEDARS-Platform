@@ -19,17 +19,22 @@
   <ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
   <p class="actions"><a class="button primary" href="{% url 'budgets:shift_lines' s.pk %}">Change the amounts in {{ s.organisation.code }}'s programs</a>{% if mine.statewide_lines %} <a class="button" href="{% url 'budgets:shift_statewide' s.pk %}">Change the statewide program changes</a>{% endif %}</p>
   {% else %}
-  <p><strong>Ready to submit.</strong> {% if waiting_for_others %}{{ s.organisation.code }}'s part balances. Once submitted, {{ waiting_for_others }} {% if waiting_for_others_many %}are{% else %}is{% endif %} asked to cover {% if waiting_for_others_many %}their portions{% else %}its portion{% endif %}, and the shift takes effect when {% if waiting_for_others_many %}all have{% else %}it has{% endif %}.{% else %}It takes effect at once.{% endif %}</p>
+  <p><strong>Ready to submit.</strong> {% if waiting_for_others %}{{ s.organisation.code }}'s part balances. Once submitted, {{ waiting_for_others }} {% if waiting_for_others_many %}are{% else %}is{% endif %} asked to {{ waiting_for_others_asked }}, and the shift takes effect when {% if waiting_for_others_many %}all have{% else %}it has{% endif %}.{% else %}It takes effect at once.{% endif %}</p>
   <form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Submit the shift</button></form>
   {% endif %}
 </div>
 {% elif can_acknowledge %}
 <div class="card outcome" id="next">
+  {% if my_cover.portion %}
   <p><strong>{{ my_cover.words }}.</strong> {{ s.organisation.code }} changed the budget of a statewide program {{ org.code }} funds; choose the programs {{ org.code }}'s portion {% if my_cover.portion > 0 %}comes from{% else %}goes to{% endif %}.</p>
   <p class="actions"><a class="button primary" href="{% url 'budgets:shift_acknowledge' s.pk %}">Cover {{ org.code }}'s portion</a></p>
+  {% else %}
+  <p><strong>{{ my_cover.words }}.</strong> {{ s.organisation.code }} changed the budget of a statewide program {{ org.code }} leads; the shift takes effect only once {{ org.code }} has confirmed it.</p>
+  <p class="actions"><a class="button primary" href="{% url 'budgets:shift_acknowledge' s.pk %}">Confirm the shift</a></p>
+  {% endif %}
 </div>
 {% elif s.status == "waiting" and waiting_on %}
-<div class="card outcome" id="next"><p><strong>Waiting for {{ waiting_on }}</strong> to cover {% if "," in waiting_on %}their portions{% else %}its portion{% endif %}. The shift takes effect when {% if "," in waiting_on %}all have{% else %}it has{% endif %}.</p></div>
+<div class="card outcome" id="next"><p><strong>Waiting for {{ waiting_on }}</strong> to {{ waiting_asked }}. The shift takes effect when {% if waiting_many %}all have{% else %}it has{% endif %}.</p></div>
 {% endif %}
 
 <dl class="facts">
@@ -45,12 +50,12 @@
 {% if statewide_lines %}
 <section aria-labelledby="statewide-h">
 <h2 id="statewide-h">Statewide program changes</h2>
-<p class="small">Each is the change to the whole program's budget, made by {{ s.organisation.code }}, its lead PA.</p>
+<p class="small">Each is the change to the whole program's budget. {{ s.organisation.code }} makes the shift as the lead PA of one of its statewide programs{% if other_leads %}; the lead PA of each other one ({% for code in other_leads %}{{ code }}{% if not forloop.last %}, {% endif %}{% endfor %}) confirms it before it takes effect{% endif %}.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="statewide-h">
 <table class="list">
   <caption class="sr-only">Each statewide program-year's change to the whole program{% if s.status == "draft" %}, with the whole program's operating budget now and after{% endif %}</caption>
-  <thead><tr><th scope="col">Statewide program</th><th scope="col">Program year</th><th scope="col">Change to the whole program</th>{% if s.status == "draft" %}<th scope="col">Whole program's operating budget now</th><th scope="col">After this shift</th>{% endif %}</tr></thead>
-  <tbody>{% for r in statewide_lines %}<tr><th scope="row">{{ r.line.prg_id }}</th><td>{{ r.line.year }}</td><td class="num">{{ r.line.amount|money:2 }}</td>{% if s.status == "draft" %}<td class="num">{{ r.whole|money:2 }}</td><td class="num">{{ r.after|money:2 }}</td>{% endif %}</tr>{% endfor %}</tbody>
+  <thead><tr><th scope="col">Statewide program</th><th scope="col">Lead PA</th><th scope="col">Program year</th><th scope="col">Change to the whole program</th>{% if s.status == "draft" %}<th scope="col">Whole program's operating budget now</th><th scope="col">After this shift</th>{% endif %}</tr></thead>
+  <tbody>{% for r in statewide_lines %}<tr><th scope="row">{{ r.line.prg_id }}</th><td>{{ r.lead }}</td><td>{{ r.line.year }}</td><td class="num">{{ r.line.amount|money:2 }}</td>{% if s.status == "draft" %}<td class="num">{{ r.whole|money:2 }}</td><td class="num">{{ r.after|money:2 }}</td>{% endif %}</tr>{% endfor %}</tbody>
 </table>
 </div>
 {% if editable %}<p><a class="button" href="{% url 'budgets:shift_statewide' s.pk %}">Change the statewide program changes</a></p>{% endif %}
@@ -62,23 +67,24 @@
 <h2 id="covers-h">What each funding PA covers</h2>
 <p>A statewide change moves every funding PA's portion of the program by its allocation factor{% if s.status == "draft" %} (recorded when the shift is submitted){% endif %}.
 Each funder covers its portion from its own programs: a larger portion is paid for by taking the same amount out of them, a smaller one
-gives the amount back to them. A funder whose portions add up to zero has nothing to cover.</p>
+gives the amount back to them. A funder whose portions add up to zero has nothing to cover.{% if other_leads %} The lead PA of another
+statewide program on the shift confirms it too, even with nothing to cover.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="covers-h">
 <table class="list">
-  <caption class="sr-only">Each funding PA's portion of every statewide change, what it covers, how much its own programs' lines cover so far, what is left, and where that stands</caption>
+  <caption class="sr-only">Each funding PA's portion of every statewide change, what it covers, how much its own programs' lines cover so far, what is left, and where that stands; a lead PA of one of the statewide programs is named as its lead</caption>
   <thead><tr><th scope="col">Funding PA</th>{% for item, amount in amounts %}<th scope="col">Portion of {{ item }}<br><span class="small">{{ amount|money:2 }} in all</span></th>{% endfor %}<th scope="col">To cover</th><th scope="col">Covered so far</th><th scope="col">Left</th><th scope="col">Status</th></tr></thead>
   <tbody>{% for c in covers %}<tr>
-    <th scope="row">{{ c.part.pa }}{% if c.own %} <span class="small muted">(lead PA)</span>{% endif %}</th>
+    <th scope="row">{{ c.part.pa }}{% if c.own %} <span class="small muted">(makes the shift)</span>{% elif c.part.leads %} <span class="small muted">(lead PA of {{ c.part.leads|join:", " }})</span>{% endif %}</th>
     {% for item, amount in amounts %}<td class="num">{% for p in c.part.portions %}{% if p.item == item %}{{ p.portion|money:2 }}<br><span class="small">factor {{ p.factor }}</span>{% endif %}{% endfor %}</td>{% endfor %}
     <td class="num">{{ c.part.portion|money:2 }}{% if c.part.portion < 0 %}<br><span class="small">comes back</span>{% endif %}</td>
     <td class="num">{{ c.part.covered|money:2 }}</td>
     <td class="num">{{ c.part.left|money:2 }}</td>
     <td>{% if c.state == "nothing" %}Nothing to cover: its portions add up to zero
       {% elif c.state == "covered" and c.own %}Covered by its own lines
-      {% elif c.state == "covered" %}Covered {{ c.ack.acknowledged_at|date_words }} by {{ c.ack.acknowledged_by|person }}{% if c.ack.note %}: {{ c.ack.note }}{% endif %}
+      {% elif c.state == "covered" %}{% if c.part.portion %}Covered{% else %}Confirmed{% endif %} {{ c.ack.acknowledged_at|date_words }} by {{ c.ack.acknowledged_by|person }}{% if c.ack.note %}: {{ c.ack.note }}{% endif %}
       {% elif c.state == "left" %}<strong>Not covered yet</strong>
-      {% elif c.state == "on_submit" %}Asked to cover it once the shift is submitted
-      {% elif c.state == "waiting" %}<strong>Waiting for {{ c.part.pa }}</strong>
+      {% elif c.state == "on_submit" %}Asked to {% if c.part.portion %}cover it{% if c.part.leads %} and confirm as lead{% endif %}{% else %}confirm as lead{% endif %} once the shift is submitted
+      {% elif c.state == "waiting" %}<strong>Waiting for {{ c.part.pa }}</strong>{% if not c.part.portion %} to confirm as lead{% endif %}
       {% else %}Not covered{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>
