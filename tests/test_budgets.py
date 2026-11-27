@@ -437,6 +437,19 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
     assert {f["row"] for f in found if f["table"] == "ProgramCost"} == {2, 3, 4}  # the file's own line numbers
     # the PrgID rules read the program registry: its programs are accepted (before, the engine's copy of CEDARS' programs refused them)
     assert not [f for f in found if f["field"] == "PrgID"]
+    # exactly these findings, each a reject: the PA on each ProgramCost row, and on each measure (the job fills only the columns it
+    # prices) every field CEDARS says should not be empty that the row leaves blank, and its CEInputID without the PA's prefix
+    assert all(f["severity"] == "reject" for f in found)
+    assert sorted((f["row"], f["field"], f["rule_id"]) for f in found if f["table"] == "ProgramCost") == [
+        (2, "PA", "S25eeca"), (3, "PA", "S25eeca"), (4, "PA", "S25eeca"),
+    ]  # fmt: skip
+    measure = [f for f in found if f["table"] == "Measure"]
+    by_row = {r: {f["rule_id"] for f in measure if f["row"] == r} for r in (2, 3, 4)}
+    assert {f["row"] for f in measure} == {2, 3, 4} and by_row[2] == by_row[3] == by_row[4]
+    blank = rs.rules.filter(table="Measure", kind="spec", definition__check="not_empty").exclude(field__in=MEASURE.split("|"))
+    assert by_row[2] == set(blank.values_list("rule_id", flat=True)) | {"S8160a1"}
+    prefix = {f["message"] for f in measure if f["rule_id"] == "S8160a1"}
+    assert prefix == {f"CEInputID should start with UploadPA-YYYY, but is M{i}" for i in (1, 2, 3)}
 
 
 def job_rows(header: str) -> list[dict]:

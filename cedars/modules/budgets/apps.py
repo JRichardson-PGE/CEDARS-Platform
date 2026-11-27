@@ -40,7 +40,7 @@ class BudgetsConfig(AppConfig):
         from . import service as example_checks
 
         register_example_checker(  # a specification version's example files are checked as a filing is
-            "budgets", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE
+            "budgets", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE, values=example_checks.EXAMPLE_VALUES
         )
         from cedars.services.specifications.moving import register_filing_set
 

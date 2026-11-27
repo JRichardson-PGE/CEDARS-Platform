@@ -3,6 +3,7 @@ gets the same findings there as on upload; and each rule set downloads as JSON w
 
 import io
 import json
+import re
 import zipfile
 
 import pytest
@@ -190,8 +191,26 @@ def test_the_checker_s_findings_parse_as_findings(claims_rules):
     assert numeric and numeric[0].record_id == "PGE-2028-001" and numeric[0].fix.startswith("Enter a plain number")
 
 
-def test_how_to_check_describes_every_test_and_condition_table_the_rule_form_offers():
+def _named(text: str) -> set[str]:
+    """The tests a `comparisons` text describes: each sentence names them before its colon, split by commas, slashes and "(or ...)"."""
+    names = set()
+    for sentence in re.split(r"(?<=[.)])\s+(?=[a-z_ /,()]+:)", text):
+        head = re.sub(r"\s*\((?!or )[^)]*\)", "", sentence.split(":", 1)[0])  # a note in parentheses names no test
+        for part in re.split(r",\s*|\s+/\s+|\s*\(or\s+|\)\s*", head):
+            if part.strip():
+                names.add(part.strip())
+    return names
+
+
+def test_how_to_check_describes_exactly_the_tests_and_condition_tables_the_rule_form_offers():
     spec = precheck.CHECK_SPEC["rule_tests"]
-    assert all(op in spec["comparisons"] for op, _label in rules.OPERATORS)
-    assert all(f in spec["condition_tables"] for f in [*rules.PROGRAM_FIELDS, *rules.FILER_FIELDS])
-    assert "UploadDate" in spec["values"] and "group" in spec["form"]
+    offered = {op for op, _label in rules.OPERATORS} | set(rules.ALSO_ACCEPTED)
+    # every test the form offers or the engine accepts, and only those (combo_value_list is CEDARS' own, kept on copied rules)
+    assert _named(spec["comparisons"]) == offered | {"combo_value_list"}
+    program = re.search(r"Program, [^(]*\(([^)]*)\)", spec["condition_tables"]).group(1)
+    assert program.split(", ") == list(rules.PROGRAM_FIELDS)
+    filing = re.search(r"Filer, [^(]*\(([^)]*)\)", spec["condition_tables"]).group(1)
+    assert set(re.findall(r"\b(PA\w*)\b", filing)) == set(rules.FILER_FIELDS)
+    assert "UploadDate" in spec["values"] and "FilingYear" in spec["values"] and "group" in spec["form"]
+    # and every kind of field constraint a rule may be
+    assert set(precheck.CHECK_SPEC["spec_checks"]) == {c for c, _label in rules.CHECKS} | set(rules.ALSO_CHECKED)

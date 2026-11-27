@@ -256,6 +256,36 @@ def test_series_stage(leds):
     assert check(text, leds).findings[0].rule_id == "LS-S01"
 
 
+def _edit(data: bytes, line: int, column: str, value: str) -> bytes:
+    """The CSV with one cell changed (line 1 is the header)."""
+    rows = data.decode().split("\n")
+    cells = rows[line - 1].split(",")
+    cells[loadshapes.COLUMNS.index(column)] = value
+    rows[line - 1] = ",".join(cells)
+    return "\n".join(rows).encode()
+
+
+def test_size_duplicate_header_number_and_series_checks(leds, settings):
+    good = load_shape_csv([({"TechID": "Msr-LED"}, SHAPE["Msr-LED"])])
+    settings.LOAD_SHAPE_MAX_UPLOAD_MB = 0  # a file over the upload limit
+    r = check(good, leds)
+    assert [f.rule_id for f in r.findings] == ["LS-F02"] and r.stages["F"] == "failed" and "the limit is 0 MB" in r.findings[0].message
+    settings.LOAD_SHAPE_MAX_UPLOAD_MB, settings.LOAD_SHAPE_MAX_UNZIPPED_MB = 50, 0  # a ZIP whose CSV is over the unzipped limit
+    r = check(zipped(good), leds, "shapes.zip")
+    assert [f.rule_id for f in r.findings] == ["LS-F02"] and "inside the ZIP" in r.findings[0].message
+    settings.LOAD_SHAPE_MAX_UNZIPPED_MB = 1024
+    r = check(load_shape_csv([], header=[*loadshapes.COLUMNS, "source_year"]), leds)
+    assert [(f.rule_id, f.field) for f in r.findings] == [("LS-T03", "Source Year")] and r.stages["T"] == "failed"
+    r = check(_edit(good, 2, "UECproportion", "n/a"), leds)
+    assert [(f.rule_id, f.row, f.value) for f in r.findings] == [("LS-S03", 2, "n/a")]
+    r = check(_edit(good, 3, "Source Year", "2010"), leds)  # the series' second row
+    assert [(f.rule_id, f.row) for f in r.findings] == [("LS-S05", 3)]
+    r = check(load_shape_csv([({"TechID": "Msr-LED", "Source Year": "09"}, SHAPE["Msr-LED"])]), leds)
+    assert [(f.rule_id, f.value) for f in r.findings] == [("LS-S06", "09")]
+    r = check(load_shape_csv([({"TechID": "Msr-LED", "TechGroup": ""}, SHAPE["Msr-LED"])]), leds)
+    assert [(f.rule_id, f.field) for f in r.findings] == [("LS-S09", "TechGroup")] and r.stages["S"] == "failed" and not r.passed
+
+
 def test_etrm_stage(leds):
     r = check(load_shape_csv([({"TechID": "Msr-Unknown"}, SHAPE["Msr-LED"])]), leds)
     assert r.findings[0].rule_id == "LS-E02" and r.findings[0].field == "TechID"

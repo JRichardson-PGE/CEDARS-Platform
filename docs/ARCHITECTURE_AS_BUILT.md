@@ -794,9 +794,11 @@ draft drops every list it made. `problems` refuses a draft whose new list has no
 
 **Example files** (`examples.py`, the draft's Examples page): each `ExampleSet` holds records per table, checked by the same checks a
 filing gets. A draft copied from a version with no example set gets one CEDARS writes (`generate_rows`: one record per table, the vault's
-aside; each field's example or default, else for a required field a value of its type, a code its value list accepts in the example
-year, the module's example value for a field its checks read, and one value per key field across the tables so they link; an optional
-field stays blank). `check` lays the set on the draft's fields first (`fit`: a renamed field's column moved, a removed one dropped, a
+aside; each field's example or default, else the module's example value (`{year}` the example year) for a field its checks or CEDARS'
+rules read, else for a required field a value of its type or a code its value list accepts in the example year, and one value per key
+field across the tables so they link; any other optional field stays blank). The module's values make the claims and budget examples a
+fully valid filing: no finding from any rule of CEDARS' published rule sets, and the engine's input check passes them
+(`tests/test_valid_filings.py`). `check` lays the set on the draft's fields first (`fit`: a renamed field's column moved, a removed one dropped, a
 new one filled) and stores its report on it (`ExampleSet.report`, migration 0005): the fields' own checks, then the module's checks
 through `register_example_checker` (claims `derive_checks` and its rule-set step, budgets `derive` and its rules, monthly `derive`, each
 with `apply_checks`, as the example PA's filing for this year, with an organization that is never saved so no program is its own); the

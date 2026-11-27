@@ -197,3 +197,24 @@ def test_without_the_pii_grant_the_page_has_no_pii_section(client, make_user, pg
     r = client.get(reverse("claims:period", args=[deadline().pk]))
     assert r.status_code == 200 and b'id="pii-h"' not in r.content
     assert client.post(reverse("claims:pii_download", args=[deadline().pk]), {"org": "PGE"}).status_code == 404
+
+
+def test_a_pii_value_longer_than_its_field_is_refused_without_the_value():
+    fields = {f.name: f for t in vault.layout().tables if t.vault for f in t.fields}
+    n = fields["ContactName"].max_length
+    assert n and fields["SiteAddress"].max_length
+
+    def found(name: str, address: str) -> set:
+        pii = {
+            "PII_Contact": [{"ContactID": "PGE-C1", "ContactName": name}],
+            "PII_Site": [{"SiteID": "PGE-S1", "SiteAddress": address, "ElectricServiceAccountID": "1"}],
+        }
+        out = vault.check(pii, "PGE", {"PII_Contact": {"pge-c1"}, "PII_Site": {"pge-s1"}})
+        assert all(name not in f.message and address not in f.message for f in out)
+        return {(f.table, f.field, f.rule) for f in out}
+
+    assert found("J" * n, "1 Main St") == set()  # as long as the field allows
+    assert found("J" * (n + 1), "9" * (fields["SiteAddress"].max_length + 1)) == {
+        ("PII_Contact", "ContactName", "PII-LEN"),
+        ("PII_Site", "SiteAddress", "PII-LEN"),
+    }
