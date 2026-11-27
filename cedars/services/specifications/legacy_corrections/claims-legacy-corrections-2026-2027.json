@@ -2536,10 +2536,10 @@
    "group": "claims",
    "rule_id": "CLM-ID",
    "severity": "reject",
-   "tables": "Claim, Measure, Site",
-   "fields": "ClaimID, SiteID",
-   "finds": "A ClaimID does not start with the PA code and claim year (or SW and the year), or a SiteID with the PA code (or SW).",
-   "fix": "Start each ClaimID with the PA code and claim year, for example PGE-2027-0001, and each SiteID with the PA code.",
+   "tables": "Claim, Measure, Site, ContactClaim",
+   "fields": "ClaimID, SiteID, ContactID",
+   "finds": "A ClaimID does not start with the PA code and claim year, or a SiteID or ContactID with the PA code (SW is accepted in their place only in the statewide claims filing).",
+   "fix": "Start each ClaimID with the PA code and claim year, for example PGE-2027-0001, and each SiteID and ContactID with the PA code.",
    "settings": {}
   },
   {
@@ -2548,7 +2548,7 @@
    "severity": "reject",
    "tables": "Measure, ProgramCost, Participant",
    "fields": "ClaimYearQuarter, PrgYear",
-   "finds": "ClaimYearQuarter is not a quarter of the claim year up to this upload's quarter, or PrgYear is not the claim year.",
+   "finds": "A measure's ClaimYearQuarter is not a quarter of the claim year up to this upload's quarter, or PrgYear is not the claim year.",
    "fix": "Use the claim year's quarters up to this one; later claims go in their own quarter's upload.",
    "settings": {}
   },
@@ -2657,9 +2657,9 @@
    "rule_id": "CLM-FUELSUB",
    "severity": "reject",
    "tables": "Claim",
-   "fields": "TotalCustomerInfrastructureCosts",
-   "finds": "A fuel substitution claim has no TotalCustomerInfrastructureCosts.",
-   "fix": "Enter the customer's infrastructure costs (0 if there were none) and add its InfrastructureCost record.",
+   "fields": "TotalCustomerInfrastructureCosts, OriginalMeterInstallYear",
+   "finds": "A fuel substitution claim has no TotalCustomerInfrastructureCosts, or one that is not upstream deemed (DeliveryType UpDeemed) has no OriginalMeterInstallYear.",
+   "fix": "Enter the customer's infrastructure costs (0 if there were none) and add its InfrastructureCost record, and the year the original meter was installed.",
    "settings": {}
   },
   {
@@ -2680,6 +2680,46 @@
    "fields": "CCAREN_Flag",
    "finds": "CCAREN_Flag is not 1 on a claim filed by a CCA or REN.",
    "fix": "Enter 1: every claim a CCA or REN files has it.",
+   "settings": {}
+  },
+  {
+   "group": "claims",
+   "rule_id": "CLM-DATES",
+   "severity": "reject",
+   "tables": "Claim",
+   "fields": "InstallationDate, ProjectCompletionDate, CustomerAgreementDate, PaidDate",
+   "finds": "The date is not within 9 years (before or after) of the day the claim is uploaded.",
+   "fix": "Check the date and correct it.",
+   "settings": {}
+  },
+  {
+   "group": "claims",
+   "rule_id": "CLM-HTR",
+   "severity": "reject",
+   "tables": "Claim",
+   "fields": "HTR_Flag and the flags that make a customer hard to reach",
+   "finds": "HTR_Flag is 1 but the claim meets none of the hard-to-reach criteria, or it meets one and HTR_Flag is not 1. The criteria: CA_Flag; OMBCSA_Flag or DAC_Flag with Lang_Flag; OMBCSA_Flag or DAC_Flag with NRSize_Flag, NRLease_Flag or LG_Flag (non-residential) or with ResLI_Flag or ResMFMH_Flag (residential); Lang_Flag with NRSize_Flag and NRLease_Flag, or with ResLI_Flag and ResMFMH_Flag.",
+   "fix": "Set HTR_Flag to 1 exactly when the flags meet one of the criteria.",
+   "settings": {}
+  },
+  {
+   "group": "claims",
+   "rule_id": "CLM-CONTACT",
+   "severity": "reject",
+   "tables": "Claim, ContactClaim",
+   "fields": "ClaimID, SiteID, CMPA_ApplicationID",
+   "finds": "A claim has no ContactClaim record or no SiteID, or a custom claim no CMPA_ApplicationID. Not checked on a claim whose ClaimID ends with Audit or Placeholder, whose measure is Cust-NMEC-Pop, or whose program is in category Energy Savings Assistance or has no segment or the segment Codes and Standards.",
+   "fix": "Add the claim's ContactClaim record and fill in SiteID and, on a custom claim, CMPA_ApplicationID.",
+   "settings": {}
+  },
+  {
+   "group": "claims",
+   "rule_id": "CLM-COUNT",
+   "severity": "reject",
+   "tables": "Participant",
+   "fields": "ParticipantCount",
+   "finds": "ParticipantCount is less than 1.",
+   "fix": "Count at least one participant, or leave the record out.",
    "settings": {}
   },
   {
@@ -2728,7 +2768,7 @@
    "severity": "reject",
    "tables": "PII_Contact, PII_Site",
    "fields": "ContactID, SiteID",
-   "finds": "The key does not start with the PA's code.",
+   "finds": "The key does not start with the PA's code (or SW, in the statewide claims filing).",
    "fix": "Start each ContactID and SiteID with your PA code.",
    "settings": {}
   },

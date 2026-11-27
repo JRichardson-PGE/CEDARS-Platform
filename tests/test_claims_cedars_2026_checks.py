@@ -80,12 +80,11 @@ def test_cedars_2026_claim_rules(filer, year, pge, segmented):
     assert "The claim meets the hard-to-reach criteria (DAC_Flag and ResLI_Flag), but HTR_Flag is not 1" in messages
     assert "Claim PGE-2028-001 has no ContactClaim record" in messages
 
-    # a filing runs them only once its specification version lists them (the starting version does not)
+    # a filing on a version listing them (the starting version, here) gets the same findings
     v = service.upload_claims(filer, deadline(), pge, claims_zip(t), "q1.zip")
     assert v.status == SubmissionVersion.Status.DRAFT
     filed = {(f["table"], f["record_id"].split(" / ")[0], f["field"], f["rule_id"]) for f in service.findings(v)}
-    assert {f for f in filed if f[3] in ("CLM-FUELSUB", "CLM-ID")} == {f for f in got if f[3] in ("CLM-FUELSUB", "CLM-ID")}
-    assert not {f for f in filed if f[3] in ("CLM-CONTACT", "CLM-DATES", "CLM-HTR", "CLM-COUNT")}
+    assert {f for f in filed if f[3] in {g[3] for g in got}} == got
 
 
 def test_the_hard_to_reach_criteria_are_cedars_fifteen():
