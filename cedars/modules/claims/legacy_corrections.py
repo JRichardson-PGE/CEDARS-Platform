@@ -121,7 +121,7 @@ def _program_costs(imported: SubmissionVersion, outputs, lay: spec.Layout) -> up
     pa_code = imported.submission.organisation.code
     rows = []
     for prg in sorted(sums):
-        row = {"PrgID": prg, "PrgYear": str(year_), "ClaimYearQuarter": f"{year_}Q4", "PA": pa_code}
+        row = {"PrgID": prg, "PrgYear": str(year_), "PA": pa_code}
         for f in COSTS.values():
             row[f] = _text(sums[prg].get(f, Decimal(0)))
         if "OnBillFinancing" in lay.columns("ProgramCost"):

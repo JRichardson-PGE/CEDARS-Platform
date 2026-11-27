@@ -1161,6 +1161,35 @@ def problems(draft: SpecificationVersion) -> list[Problem]:
     elif _rules_draft(v) is not None:
         for d in service.rule_differences(v, v.rule_set):
             out.append(Problem("rules", f"{d.text} Change the field, or bring the rules in line with the fields on the Rules tab."))
+        out += _rules_reading_removed_fields(v)
+    return out
+
+
+def _rules_reading_removed_fields(v: SpecificationVersion) -> list[Problem]:
+    """The draft's rules that still read a field the draft removes: a removed field takes its field constraints with it, but a rule
+    comparing it with another field or reading it in a condition would refuse every record once the column is gone, so a person changes
+    or removes it."""
+    from cedars.services.rules import service as rules_service
+
+    if v.based_on_id is None:
+        return []
+    kept = {(t.name, n.lower()) for t in v.tables.prefetch_related("fields") for f in t.fields.all() for n in (f.name, *f.other_names)}
+    removed = [
+        (t.name, f.name)
+        for t in v.based_on.tables.prefetch_related("fields")
+        for f in t.fields.all()
+        if (t.name, f.name.lower()) not in kept
+    ]
+    out = []
+    for r in v.rule_set.rules.order_by("table", "rule_id") if removed else []:
+        for table, name in removed:
+            if rules_service.reads_field(r, table, name):
+                out.append(
+                    Problem(
+                        "rules",
+                        f"Rule {r.rule_id} reads {table}.{name}, which this version removes. Change or remove the rule on the Rules tab.",
+                    )
+                )
     return out
 
 

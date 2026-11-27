@@ -25,7 +25,7 @@ CHECKS = [
       "A ClaimID does not start with the PA code and claim year (or SW and the year), or a SiteID with the PA code (or SW).",
       "Start each ClaimID with the PA code and claim year, for example PGE-2027-0001, and each SiteID with the PA code."),
     C("CLM-YEAR", "reject", "Measure, ProgramCost, Participant", "ClaimYearQuarter, PrgYear",
-      "ClaimYearQuarter is not a quarter of the claim year up to this upload's quarter, or PrgYear is not the claim year.",
+      "A measure's ClaimYearQuarter is not a quarter of the claim year up to this upload's quarter, or PrgYear is not the claim year.",
       "Use the claim year's quarters up to this one; later claims go in their own quarter's upload."),
     C("CLM-PRG", "reject", "Measure, ProgramCost, Participant, InfrastructureCost", "PrgID", "PrgID is not in the program registry.",
       "Use the PrgID of a program in the Programs catalog, or ask for the program to be added first."),

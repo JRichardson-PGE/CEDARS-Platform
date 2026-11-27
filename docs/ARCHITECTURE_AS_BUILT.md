@@ -2650,7 +2650,7 @@ summarize. A pull request that builds part of a service or module updates its su
 
 `cedars.services.rules`, phase 1.
 
-- Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 215 / 221 rules), published versions
+- Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 212 / 218 rules: the engine leaves out CEDARS' rules about ProgramCost.ClaimYearQuarter, a field it does not take), published versions
   never change, the version in force by date (what a specification version without a rule set of its own takes), suggested fixes, set
   comparison, the engine's runner (`recet.filing_rules.check_frame`) over the stored rules, findings in one format.
 - The pre-upload checker (`rules/precheck.py`): each filing module registers the rule-set step its own validation runs (Claims: the table
@@ -2715,10 +2715,13 @@ summarize. A pull request that builds part of a service or module updates its su
     code in force).
   - Fields and the rule set's field constraints kept in step on the tables the rules check field by field (`rule_differences`,
     `align_rules`; tests/test_specification_rules_in_step.py, which also pins where the starting versions and CEDARS' rules differ).
+    A rule that still reads a field the draft removes (comparing it with another field, or in a condition) stops publishing until a
+    person changes or removes it (`rules.reads_field`).
   - Settings (name, summary, engine release, cost-test set).
   - Fields added from the dictionary or new, changed, moved and removed, table names and guidance.
   - Locked fields (`locks`: keys, refused-without columns, the fields each module's code reads by `register_locked_fields`, and the
-    installed engine's pricing inputs).
+    installed engine's pricing inputs). ProgramCost.ClaimYearQuarter is not locked: a program cost's year is its PrgYear (the engine
+    discounts from it and the claims module reads no quarter from ProgramCost), so a new version may remove the field.
   - What changes.
   - Which optional built-in checks run and their severity (`set_checks`).
   - Renaming a field with its rules and the data dictionary following (`rename_field`).

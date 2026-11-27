@@ -21,7 +21,7 @@ LOCKED = {
         **{f: STORED for f in ("NumUnits", "UnitDirectInstallLab", "UnitDirectInstallMat", "UnitEndUserRebate", "UnitIncentiveToOthers")},
     },
     "ProgramCost": {
-        "PrgID": PROGRAM, "PrgYear": PERIOD, "ClaimYearQuarter": PERIOD, "PA": PROGRAM, "OnBillFinancing": STORED,
+        "PrgID": PROGRAM, "PrgYear": PERIOD, "PA": PROGRAM, "OnBillFinancing": STORED,
         **{f: STORED for f in (
             "AdminCostsOverheadAndGA", "AdminCostsOther", "MarketingOutreach", "DIActivity", "DIInstallation", "DIHardwareAndMaterials",
             "DIRebateAndInspection", "EMV", "UserInputIncentive", "CostsRecoveredFromOtherSources",
