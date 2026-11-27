@@ -24,9 +24,11 @@ pytestmark = pytest.mark.django_db
 def segmented(pge_admin, pge, programs):
     """A program with a segment and one in category Energy Savings Assistance (the test programs have neither)."""
     registry.create_program(pge_admin, prg_id="PGE_RA", administrator=pge, valid_from=date(2024, 1, 1), name="Resource",
-                            segment="Resource Acquisition", category="Residential")  # fmt: skip
+                            segment="resource_acquisition", category="Residential")  # fmt: skip
     registry.create_program(pge_admin, prg_id="PGE_ESA", administrator=pge, valid_from=date(2024, 1, 1), name="ESA",
-                            segment="Equity", category="Energy Savings Assistance")  # fmt: skip
+                            segment="equity", category="Energy Savings Assistance")  # fmt: skip
+    registry.create_program(pge_admin, prg_id="PGE_CS", administrator=pge, valid_from=date(2024, 1, 1), name="C&S",
+                            segment="codes_and_standards")  # fmt: skip
 
 
 def test_cedars_2026_claim_rules(filer, year, pge, segmented):
@@ -37,10 +39,11 @@ def test_cedars_2026_claim_rules(filer, year, pge, segmented):
         claim("PGE-2028-003-Audit", prg="PGE_RA"),  # an audit: not checked
         claim("PGE-2028-004", prg="PGE_ESA"),  # Energy Savings Assistance: not checked
         claim("PGE-2028-005"),  # a program without a segment: not checked
+        claim("PGE-2028-009", prg="PGE_CS"),  # codes and standards: not checked
         claim("PGE-2028-006", prg="PGE_RA", MeasImpactType="Cust-NMEC-Pop"),  # a NMEC population claim: not checked
         claim("PGE-2028-007", MeasImpactType="Cust-FuelSub", DeliveryType="DnDeemDI"),  # no OriginalMeterInstallYear
         claim("PGE-2028-008", MeasImpactType="Cust-FuelSub", DeliveryType="UpDeemed"),  # upstream deemed: not required
-        ProgramCost=[row("ProgramCost", PrgID=p) for p in ("PGE_Res", "PGE_RA", "PGE_ESA")],
+        ProgramCost=[row("ProgramCost", PrgID=p) for p in ("PGE_Res", "PGE_RA", "PGE_ESA", "PGE_CS")],
         Site=[row("Site", SiteID="PGE-S1"), row("Site", SiteID="SW-S2")],  # SW only in the statewide claims filing
         ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-002", ContactID="PGE-C1"),
                       row("ContactClaim", ClaimID="PGE-2028-005", ContactID="SCE-C2")],  # another PA's prefix

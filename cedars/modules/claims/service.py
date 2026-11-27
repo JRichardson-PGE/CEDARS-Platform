@@ -1784,7 +1784,9 @@ def _contact_rules(add, own: dict, compiled: dict, measures: dict, on: date) -> 
     found = {}
     for p in Program.objects.filter(prg_id__in=wanted):
         v = registry.version_on(p, on) or registry.current_version(p)
-        found[p.prg_id.lower()] = ((v.segment if v else "").strip().lower(), (v.category if v else "").strip().lower())
+        # the registry keeps a segment's code (codes_and_standards), CEDARS its words (Codes and Standards)
+        segment = (v.segment if v else "").strip().lower().replace("_", " ")
+        found[p.prg_id.lower()] = (segment, (v.category if v else "").strip().lower().replace("_", " "))
     for i, r in enumerate(rows, start=2):
         cid = r.get("ClaimID", "")
         m = measures.get(_claim(r), {})
