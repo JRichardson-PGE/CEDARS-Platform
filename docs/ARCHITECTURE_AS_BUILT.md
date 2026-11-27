@@ -2715,6 +2715,8 @@ summarize. A pull request that builds part of a service or module updates its su
     code in force).
   - Fields and the rule set's field constraints kept in step on the tables the rules check field by field (`rule_differences`,
     `align_rules`; tests/test_specification_rules_in_step.py, which also pins where the starting versions and CEDARS' rules differ).
+    A rule that still reads a field the draft removes (comparing it with another field, or in a condition) stops publishing until a
+    person changes or removes it (`rules.reads_field`).
   - Settings (name, summary, engine release, cost-test set).
   - Fields added from the dictionary or new, changed, moved and removed, table names and guidance.
   - Locked fields (`locks`: keys, refused-without columns, the fields each module's code reads by `register_locked_fields`, and the

@@ -159,3 +159,16 @@ def test_the_rules_page_lists_the_differences_and_brings_the_rules_in_line(cpuc_
     r = client.post(align, {"reason": "The specification decides"}, follow=True)
     page = r.content.decode()
     assert "The rules follow the fields: 23 added, 23 taken out." in page and "The fields and the rules agree." in page
+
+
+def test_a_rule_still_reading_a_removed_field_stops_the_draft(cpuc_admin, draft):
+    reading = [r for r in draft.rule_set.rules.filter(kind="rule", table="Measure") if rules.reads_field(r, "Measure", "MiscCostsDesc")]
+    assert reading  # CEDARS' rule on the miscellaneous costs' description
+    editor.remove_field(cpuc_admin, field(draft, "Measure", "MiscCostsDesc"), reason="Not used")
+    assert found(draft, "Measure", "MiscCostsDesc") == {}  # its field constraints go with it ...
+    texts = [p.text for p in editor.problems(draft) if p.part == "rules"]
+    for r in reading:  # ... but a rule reading it in a comparison or condition is a person's to change or remove
+        assert f"Rule {r.rule_id} reads Measure.MiscCostsDesc, which this version removes." in " ".join(texts)
+    for r in reading:
+        rules.remove_rule(cpuc_admin, r, reason="The field is gone")
+    assert not [t for t in (p.text for p in editor.problems(draft)) if "which this version removes" in t]

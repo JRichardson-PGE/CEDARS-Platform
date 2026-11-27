@@ -641,6 +641,12 @@ def renamed_test(rule_table: str, field: str, definition: dict, table: str, old:
     return field, d
 
 
+def reads_field(rule: Rule, table: str, name: str) -> bool:
+    """Whether a rule tests or reads field `name` of `table`: its own field, a field it is compared with, a key column or a condition's
+    field (the places `renamed_test` rewrites when the field is renamed)."""
+    return renamed_test(rule.table, rule.field, rule.definition, table, name, "\0") != (rule.field, rule.definition)
+
+
 def renamed_words(text: str, old: str, new: str) -> str:
     return re.sub(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])", new, text or "")
 
