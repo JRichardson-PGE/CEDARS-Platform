@@ -158,9 +158,14 @@ def _cell(value) -> str:
 
 
 def check(
-    tables: dict[str, list[dict]], code: str, known: dict[str, set[str]], lay: specifications.VersionLayout | None = None
+    tables: dict[str, list[dict]],
+    code: str,
+    known: dict[str, set[str]],
+    lay: specifications.VersionLayout | None = None,
+    statewide: bool = False,
 ) -> list[Finding]:
-    """CEDARS' PII data rules and the links to the claim: every key starts with the PA code, is filled in, once; lengths, digits-only
+    """CEDARS' PII data rules and the links to the claim: every key starts with the PA code (or SW, in the statewide claims filing,
+    `statewide`), is filled in, once; lengths, digits-only
     phone numbers, an @ in an email, an electric or a gas service account for each site; and each ContactID / SiteID is one the claim's
     ContactClaim / Site records name (`known`: {table: compared keys}). Each table's key, fields, types and lengths are the claims
     filing's specification version's (`lay`). Findings carry the key and field, never a value."""
@@ -178,8 +183,8 @@ def check(
             if not k:
                 add(key, "PII-REQ", f"{key} is blank")
                 continue
-            if not k.upper().startswith(code.upper()):
-                add(key, "PII-ID", f"{key} does not start with {code}")
+            if not k.upper().startswith((code.upper(), "SW") if statewide else code.upper()):
+                add(key, "PII-ID", f"{key} does not start with {code}" + (" (or SW)" if statewide else ""))
             if k.lower() in seen:
                 add(key, "PII-KEY", f"{name} has this {key} on line {seen[k.lower()]} too")
             seen.setdefault(k.lower(), i)
@@ -218,16 +223,17 @@ def store(
     known: dict[str, set[str]],
     assurance: str | None,
     lay: specifications.VersionLayout | None = None,
+    statewide: bool = False,
 ):
     """Check a PII file and keep it as the version's PII when nothing fails; a rejected file keeps only its findings. The version's
     earlier accepted upload is superseded and its records deleted (an open version's PII is replaced, as its claims upload is). `lay`:
-    the claims filing's specification version's layout."""
+    the claims filing's specification version's layout; `statewide`: the statewide claims filing, whose keys may start with SW."""
     _require()
     if not can_upload(actor, organisation, assurance):
         raise AccessDenied(f"You need claims.pii in {organisation.code} to upload PII.")
     lay = layout(lay)
     tables = read(data, filename, lay)
-    findings = check(tables, organisation.code, known, lay)
+    findings = check(tables, organisation.code, known, lay, statewide)
     counts = {name: len(rows) for name, rows in tables.items()}
     sha = hashlib.sha256(data).hexdigest()
     with transaction.atomic(using=VAULT):

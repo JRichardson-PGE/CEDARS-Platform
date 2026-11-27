@@ -9,7 +9,8 @@ ABOUT = (
 )
 CHECKS = [
     C("PII-REQ", "reject", "PII_Contact, PII_Site", "ContactID, SiteID", "The record's key is blank.", "Fill in the ContactID or SiteID."),
-    C("PII-ID", "reject", "PII_Contact, PII_Site", "ContactID, SiteID", "The key does not start with the PA's code.",
+    C("PII-ID", "reject", "PII_Contact, PII_Site", "ContactID, SiteID",
+      "The key does not start with the PA's code (or SW, in the statewide claims filing).",
       "Start each ContactID and SiteID with your PA code."),
     C("PII-KEY", "reject", "PII_Contact, PII_Site", "ContactID, SiteID", "The same key is on two records.", "Keep one record per key."),
     C("PII-REF", "reject", "PII_Contact, PII_Site", "ContactID, SiteID",

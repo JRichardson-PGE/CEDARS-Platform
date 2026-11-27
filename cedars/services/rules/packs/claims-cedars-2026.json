@@ -1,0 +1,367 @@
+{
+ "name": "CEDARS' 2026 claims data rules on measures",
+ "code": "claims",
+ "about": "CEDARS' 2026 claims data rules (https://cedars.cpuc.ca.gov/claims/specification/) where they check a claim's Measure record differently from CEDARS' CET claims rules of 2026-03-12, or check what those rules do not: avoided-cost sectors are not required on a codes and standards claim, RUL below EUL applies when both are above 0, the avoided-cost territory is an IOU, a deemed claim's measure names its EUL_ID, GSIA_ID, Version and (with a remaining life) RUL_ID, NTG_ID except on C&S, the pre-existing and standard descriptions, a second baseline's cost, and the budget filing rules' fuel substitution signs. CEDARS' data rules on the other claims tables are the claims module's built-in checks.",
+ "replaces": {
+  "V398e39": "E3GasSector is not required on a codes and standards claim (line 19)",
+  "Vc9f441": "E3TargetSector is not required on a codes and standards claim (line 24)",
+  "Vefbcee": "RUL below EUL applies when both are above 0 (line 60)"
+ },
+ "rules": [
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "E3GasSector",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "UnitTherm1stBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "DeliveryType",
+      "does not equal",
+      "'C&S'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 19"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "E3TargetSector",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     {
+      "connector": "any",
+      "conds": [
+       [
+        "Measure",
+        "UnitkW1stBaseline",
+        "does not equal",
+        "0"
+       ],
+       [
+        "Measure",
+        "UnitkWh1stBaseline",
+        "does not equal",
+        "0"
+       ],
+       [
+        "Measure",
+        "UnitkWhIOUWater1stBaseline",
+        "does not equal",
+        "0"
+       ]
+      ]
+     },
+     [
+      "Measure",
+      "DeliveryType",
+      "does not equal",
+      "'C&S'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 24"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "RUL_Yrs",
+   "definition": {
+    "rule": "is less than",
+    "value": "EUL_Yrs",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "RUL_Yrs",
+      "greater than",
+      "0"
+     ],
+     [
+      "Measure",
+      "EUL_Yrs",
+      "greater than",
+      "0"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 60"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "IOU_AC_Territory",
+   "definition": {
+    "rule": "in",
+    "value": "['PGE', 'SCE', 'SCG', 'SDGE']",
+    "connector": "all",
+    "conds": []
+   },
+   "source": "CEDARS' 2026 claims data rules, line 77",
+   "fix": "Enter the IOU whose territory the measure is in: PGE, SCE, SCG or SDGE."
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "EUL_ID",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Claim",
+      "ClaimType",
+      "equals",
+      "'Deemed'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 27"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "GSIA_ID",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Claim",
+      "ClaimType",
+      "equals",
+      "'Deemed'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 29"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "Version",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Claim",
+      "ClaimType",
+      "equals",
+      "'Deemed'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 72"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "RUL_ID",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Claim",
+      "ClaimType",
+      "equals",
+      "'Deemed'"
+     ],
+     [
+      "Measure",
+      "RUL_Yrs",
+      "greater than",
+      "0"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 57"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "NTG_ID",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "DeliveryType",
+      "does not equal",
+      "'C&S'"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 45"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "PreDesc",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "RUL_Yrs",
+      "greater than",
+      "0"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 46"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "StdDesc",
+   "definition": {
+    "rule": "is not null",
+    "value": "",
+    "connector": "any",
+    "conds": [
+     [
+      "Measure",
+      "UnitkW1stBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitkWh1stBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitkWhIOUWater1stBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitTherm1stBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitMeaCost1stBaseline",
+      "does not equal",
+      "0"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 63"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "UnitMeaCost2ndBaseline",
+   "definition": {
+    "rule": "is greater than",
+    "value": "0",
+    "connector": "any",
+    "conds": [
+     [
+      "Measure",
+      "UnitkW2ndBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitkWh2ndBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitTherm2ndBaseline",
+      "does not equal",
+      "0"
+     ],
+     [
+      "Measure",
+      "UnitkWhIOUWater2ndBaseline",
+      "does not equal",
+      "0"
+     ]
+    ]
+   },
+   "source": "CEDARS' 2026 claims data rules, line 79"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "UnitTherm1stBaseline",
+   "definition": {
+    "rule": "is greater than",
+    "value": "0",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "MeasImpactType",
+      "ends with string",
+      "FuelSub"
+     ],
+     [
+      "Measure",
+      "UnitkWh1stBaseline",
+      "is less than or equal to",
+      "0"
+     ]
+    ]
+   },
+   "source": "The budget filing rule V9fc8e4 (the sign of a fuel substitution saving is the same on a claim)"
+  },
+  {
+   "severity": "reject",
+   "table": "Measure",
+   "field": "UnitkWh1stBaseline",
+   "definition": {
+    "rule": "is greater than",
+    "value": "0",
+    "connector": "all",
+    "conds": [
+     [
+      "Measure",
+      "MeasImpactType",
+      "ends with string",
+      "FuelSub"
+     ],
+     [
+      "Measure",
+      "UnitTherm1stBaseline",
+      "is less than or equal to",
+      "0"
+     ]
+    ]
+   },
+   "source": "The budget filing rule V87e136 (the sign of a fuel substitution saving is the same on a claim)"
+  }
+ ]
+}

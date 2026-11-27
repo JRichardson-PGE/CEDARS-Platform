@@ -1485,26 +1485,22 @@ def derive_checks(
         for p in specifications.list_problems(lay.version_layout, name, t.rows, year=year):  # a list made for the specification
             add(name, p["index"] + 2, rid_of(name, t.rows[p["index"]]), p["field"], "CLM-LIST", p["message"], p["fix"], p["value"])
 
-    # IDs and years
+    # IDs and years: a key starts with the PA's code, or SW in the statewide claims filing (CEDARS' "SW for statewide claims")
+    prefixes = (code.upper(), "SW") if statewide else (code.upper(),)
+    or_sw = " (or SW)" if statewide else ""
     for name in ("Claim", "Measure"):
         for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
             cid = r.get("ClaimID", "")
-            if cid and not any(cid.upper().startswith(f"{p}-{year}") for p in (code.upper(), "SW")):
-                add(name, i, cid, "ClaimID", "CLM-ID", f"ClaimID {cid} does not start with {code}-{year} (or SW-{year})",
+            if cid and not any(cid.upper().startswith(f"{p}-{year}") for p in prefixes):
+                add(name, i, cid, "ClaimID", "CLM-ID",
+                    f"ClaimID {cid} does not start with {code}-{year}" + (f" (or SW-{year})" if statewide else ""),
                     f"Start each ClaimID with the PA code and claim year, e.g. {code}-{year}-0001.", cid)  # fmt: skip
-    for i, r in enumerate(own.get("Site", upload.Table("Site", [], [])).rows, start=2):
-        sid = r.get("SiteID", "")
-        if sid and not any(sid.upper().startswith(p) for p in (code.upper(), "SW")):
-            add(
-                "Site",
-                i,
-                sid,
-                "SiteID",
-                "CLM-ID",
-                f"SiteID {sid} does not start with {code} (or SW)",
-                f"Start each SiteID with {code}.",
-                sid,
-            )
+    for name, key in (("Site", "SiteID"), ("ContactClaim", "ContactID")):
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            k = r.get(key, "")
+            if k and not any(k.upper().startswith(p) for p in prefixes):
+                add(name, i, rid_of(name, r), key, "CLM-ID", f"{key} {k} does not start with {code}{or_sw}",
+                    f"Start each {key} with {code}.", k)  # fmt: skip
     for name in ("Measure",):  # a quarter is only ever a measure's: ProgramCost's year is its PrgYear
         for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
             raw = r.get("ClaimYearQuarter", "")
@@ -1649,8 +1645,16 @@ def derive_checks(
                         "Check the parent: a true-up adjusts a NMEC claim.", parent, severity="warning")  # fmt: skip
 
     # CEDARS' data rules on the Claim and Site tables
+    today = timezone.localdate()
     for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
-        _claim_rules(add, i, r, measures.get(_claim(r), {}), organisation)
+        _claim_rules(add, i, r, measures.get(_claim(r), {}), organisation, today)
+    _contact_rules(add, own, compiled, measures, today)
+    for i, r in enumerate(own.get("Participant", upload.Table("Participant", [], [])).rows, start=2):
+        raw = r.get("ParticipantCount", "")
+        n = _num(raw)
+        if raw and n is not None and n < 1:
+            add("Participant", i, rid_of("Participant", r), "ParticipantCount", "CLM-COUNT", f"ParticipantCount {raw} is less than 1",
+                "Count at least one participant, or leave the record out.", raw)  # fmt: skip
     for i, r in enumerate(own.get("Site", upload.Table("Site", [], [])).rows, start=2):
         sid = r.get("SiteID", "")
         if r.get("SiteState") and r["SiteState"].strip().upper() != "CA":
@@ -1677,8 +1681,37 @@ def _cycle(start: str, parents: dict[str, str]) -> bool:
     return False
 
 
-def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
-    """The Claim rules of CEDARS' 2026 data rules that need only the claim and its measure."""
+# CEDARS' 2026 data rules: a claim whose customer meets any one of these sets of flags is hard to reach (HTR_Flag 1), and a claim that
+# meets none is not. CA_Flag alone; OMBCSA_Flag or DAC_Flag with Lang_Flag; for a non-residential customer OMBCSA_Flag or DAC_Flag with
+# NRSize_Flag, NRLease_Flag or LG_Flag, or Lang_Flag with NRSize_Flag and NRLease_Flag; for a residential one OMBCSA_Flag or DAC_Flag
+# with ResLI_Flag or ResMFMH_Flag, or Lang_Flag with ResLI_Flag and ResMFMH_Flag.
+HTR_PATHWAYS = (
+    ("CA_Flag",),
+    ("OMBCSA_Flag", "Lang_Flag"), ("DAC_Flag", "Lang_Flag"),
+    ("OMBCSA_Flag", "NRSize_Flag"), ("OMBCSA_Flag", "NRLease_Flag"), ("OMBCSA_Flag", "LG_Flag"),
+    ("DAC_Flag", "NRSize_Flag"), ("DAC_Flag", "NRLease_Flag"), ("DAC_Flag", "LG_Flag"),
+    ("OMBCSA_Flag", "ResLI_Flag"), ("OMBCSA_Flag", "ResMFMH_Flag"), ("DAC_Flag", "ResLI_Flag"), ("DAC_Flag", "ResMFMH_Flag"),
+    ("Lang_Flag", "NRSize_Flag", "NRLease_Flag"), ("Lang_Flag", "ResLI_Flag", "ResMFMH_Flag"),
+)  # fmt: skip
+DATE_WINDOW_YEARS = 9  # CEDARS' 2026 data rules: these dates are within 9 years of the day the claim is uploaded
+WINDOW_DATES = ("InstallationDate", "ProjectCompletionDate", "CustomerAgreementDate", "PaidDate")
+
+
+def _years_from(d: date, n: int) -> date:
+    """The same day `n` years later (earlier when negative); 29 February becomes the 28th in a year without it."""
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:
+        return d.replace(year=d.year + n, day=28)
+
+
+def htr_pathway(r: dict) -> tuple[str, ...] | None:
+    """The first set of flags (HTR_PATHWAYS) that are all 1 on the claim, or None."""
+    return next((p for p in HTR_PATHWAYS if all(_flag(r.get(f, "")) is True for f in p)), None)
+
+
+def _claim_rules(add, i: int, r: dict, measure: dict, organisation, today: date | None = None) -> None:
+    """The Claim rules of CEDARS' 2026 data rules that need only the claim and its measure (`today`: the day of the upload)."""
     cid = r.get("ClaimID", "")
     impact = measure.get("MeasImpactType", "")
     if _flag(r.get("NMEC_TU_Flag", "")) and not r.get("ParentClaimID"):
@@ -1703,6 +1736,11 @@ def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
         add("Claim", i, cid, "TotalCustomerInfrastructureCosts", "CLM-FUELSUB",
             "TotalCustomerInfrastructureCosts is blank on a fuel substitution claim",
             "Enter the customer's infrastructure costs (0 if there were none) and add its InfrastructureCost record.")  # fmt: skip
+    delivery = measure.get("DeliveryType", "").strip()
+    if impact.endswith("FuelSub") and delivery and delivery.lower() != "updeemed" and not r.get("OriginalMeterInstallYear"):
+        add("Claim", i, cid, "OriginalMeterInstallYear", "CLM-FUELSUB",
+            "OriginalMeterInstallYear is blank on a fuel substitution claim that is not upstream deemed",
+            "Enter the year the original meter was installed.")  # fmt: skip
     pct = r.get("PartialPaymentPercent", "")
     n = _num(pct)
     if pct and n is not None and not (0 <= n <= 1):
@@ -1714,6 +1752,62 @@ def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
     if organisation.pa_type in ("CCA", "REN") and _flag(r.get("CCAREN_Flag", "")) is not True:
         add("Claim", i, cid, "CCAREN_Flag", "CLM-CCAREN", f"CCAREN_Flag is not 1 on a {organisation.pa_type}'s claim",
             "Enter 1: every claim a CCA or REN files has it.", r.get("CCAREN_Flag", ""))  # fmt: skip
+    today = today or timezone.localdate()
+    lo, hi = _years_from(today, -DATE_WINDOW_YEARS), _years_from(today, DATE_WINDOW_YEARS)
+    for fld in WINDOW_DATES:
+        d = _date(r.get(fld, ""))  # a blank is CLM-REQ's when the field is required, and a value that is not a date CLM-TYPE's
+        if d is not None and not (lo <= d <= hi):
+            add("Claim", i, cid, fld, "CLM-DATES", f"{fld} {r[fld]} is not within {DATE_WINDOW_YEARS} years of the upload",
+                f"Check the date: it should be between {lo.isoformat()} and {hi.isoformat()}.", r[fld])  # fmt: skip
+    path = htr_pathway(r)
+    flagged = _flag(r.get("HTR_Flag", ""))
+    if flagged is True and path is None:
+        add("Claim", i, cid, "HTR_Flag", "CLM-HTR", "HTR_Flag is 1, but the claim meets none of the hard-to-reach criteria",
+            "Fill in the flags that make the customer hard to reach (for example CA_Flag, or DAC_Flag or OMBCSA_Flag with Lang_Flag), "
+            "or enter 0 in HTR_Flag.", r.get("HTR_Flag", ""))  # fmt: skip
+    elif path is not None and flagged is not True:
+        add("Claim", i, cid, "HTR_Flag", "CLM-HTR",
+            f"The claim meets the hard-to-reach criteria ({' and '.join(path)}), but HTR_Flag is not 1",
+            "Enter 1 in HTR_Flag, or check the flags.", r.get("HTR_Flag", ""))  # fmt: skip
+
+
+def _contact_rules(add, own: dict, compiled: dict, measures: dict, on: date) -> None:
+    """CEDARS' 2026 data rules on a claim's customer records: a claim has a ContactClaim record and a SiteID, and a custom claim its
+    CMPA_ApplicationID, unless its ClaimID ends with Audit or Placeholder, its measure's MeasImpactType starts with Cust-NMEC-Pop, or
+    its program (the measure's PrgID in the registry on `on`) is in category Energy Savings Assistance or has no segment or the
+    segment Codes and Standards."""
+    rows = own.get("Claim", upload.Table("Claim", [], [])).rows
+    if not rows:
+        return
+    contacts = {_claim(r) for r in compiled.get("ContactClaim", upload.Table("ContactClaim", [], [])).rows}
+    wanted = {measures.get(_claim(r), {}).get("PrgID", "").strip() for r in rows} - {""}
+    found = {}
+    for p in Program.objects.filter(prg_id__in=wanted):
+        v = registry.version_on(p, on) or registry.current_version(p)
+        # the registry keeps a segment's code (codes_and_standards), CEDARS its words (Codes and Standards)
+        segment = (v.segment if v else "").strip().lower().replace("_", " ")
+        found[p.prg_id.lower()] = (segment, (v.category if v else "").strip().lower().replace("_", " "))
+    for i, r in enumerate(rows, start=2):
+        cid = r.get("ClaimID", "")
+        m = measures.get(_claim(r), {})
+        segment, category = found.get(m.get("PrgID", "").strip().lower(), ("", ""))
+        if (
+            not cid
+            or cid.strip().lower().endswith(("audit", "placeholder"))
+            or m.get("MeasImpactType", "").strip().lower().startswith("cust-nmec-pop")
+            or category == "energy savings assistance"
+            or segment in ("", "codes and standards")
+        ):
+            continue
+        if _claim(r) not in contacts:
+            add("Claim", i, cid, "ClaimID", "CLM-CONTACT", f"Claim {cid} has no ContactClaim record",
+                "Add a ContactClaim record naming the claim's customer contact (its ContactID), in this upload or an earlier "
+                "confirmed quarter's.", cid)  # fmt: skip
+        if not r.get("SiteID"):
+            add("Claim", i, cid, "SiteID", "CLM-CONTACT", "SiteID is blank", "Give the SiteID of the site the claim is for.")
+        if r.get("ClaimType", "").strip().lower() == "custom" and not r.get("CMPA_ApplicationID"):
+            add("Claim", i, cid, "CMPA_ApplicationID", "CLM-CONTACT", "CMPA_ApplicationID is blank on a custom claim",
+                "Give the custom project's application ID.")  # fmt: skip
 
 
 def _rule_tables(rs) -> list[str]:
@@ -2177,7 +2271,9 @@ def upload_pii(actor, v: SubmissionVersion, data: bytes, filename: str, assuranc
     if not any(keys.values()):
         raise AccessDenied("Upload and check the claims first: the PII file may name only their ContactIDs and SiteIDs.")
     lay = spec.for_filing(v.submission.deadline).version_layout
-    return vault.store(actor, v.submission.organisation, v.pk, data, filename, keys, assurance, lay)
+    return vault.store(
+        actor, v.submission.organisation, v.pk, data, filename, keys, assurance, lay, statewide=is_statewide(v.submission.deadline)
+    )
 
 
 def pii(v: SubmissionVersion):

@@ -1321,11 +1321,12 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         claim("PGE-2028-002", prg="PGE_Res_HVAC", NumUnits="4"),
         ProgramCost=[row("ProgramCost", PrgID="PGE_Res_HVAC")],
         Site=[row("Site", SiteID="PGE-S1")],
-        ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
+        ContactClaim=[row("ContactClaim", ClaimID=c, ContactID="PGE-C1") for c in ("PGE-2028-001", "PGE-2028-002")],
     )
     # the accessibility job runs without the engine, so the claims rule set's findings are left out here (tests/test_claims.py runs them)
     for c in first["Claim"]:
         c["ProjectID"] = "PGE-P1"  # two meters of one project (the project key)
+        c["CMPA_ApplicationID"] = "PGE-APP-1"  # a custom claim's application
     no_rules = mock.patch.object(claims, "_rule_findings", return_value=([], [], ""))
     with no_rules:
         v = claims.upload_claims(analyst, q1, pge, claims_zip(first, full=True), "q1.zip")
@@ -1341,12 +1342,12 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     v2 = claims.request_reopen(analyst, v.submission, "PGE-2028-002 was canceled; PGE-2028-001 had 12 units")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due=reopen)
     kept = claim("PGE-2028-001", prg="PGE_Res_HVAC", NumUnits="12")
-    kept["Claim"][0]["ProjectID"] = "PGE-P1"
+    kept["Claim"][0].update(ProjectID="PGE-P1", CMPA_ApplicationID="PGE-APP-1")
     fixed = tables(
         kept,
         ProgramCost=first["ProgramCost"],
         Site=first["Site"],
-        ContactClaim=first["ContactClaim"],
+        ContactClaim=first["ContactClaim"][:1],  # the withdrawn claim's records are left as they were filed
         Withdrawal=[row("Withdrawal", ClaimID="PGE-2028-002", WithdrawalReason="The customer canceled the project")],
     )
     with no_rules:
@@ -1369,7 +1370,9 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         claim("PGE-2029-001", prg="PGE_Res_HVAC", quarter="2029Q1"),
         ProgramCost=[row("ProgramCost", PrgID="PGE_Res_HVAC", PrgYear="2029", ClaimYearQuarter="2029Q1")],
         Site=first["Site"],
+        ContactClaim=[row("ContactClaim", ClaimID="PGE-2029-001", ContactID="PGE-C1")],
     )
+    priced["Claim"][0]["CMPA_ApplicationID"] = "PGE-APP-2"
     with no_rules:
         q4v = claims.upload_claims(analyst, next_q1, pge, claims_zip(priced, full=True), "2029_q1.zip")
     details = {**details, "job_sha256": q4v.findings["job_sha256"]}

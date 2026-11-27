@@ -224,17 +224,29 @@ CHECK_SPEC = {
         "unique": "The combination of `columns` appears on one record only; every record sharing a combination fails.",
     },
     "rule_tests": {
-        "form": "`definition` = {field, rule, value, connector, conds}. The rule applies to a record when its conditions hold (`conds`, "
-        "each [table, field, rule, value]: all of them when connector is all, any when it is any; no conditions = every record). An "
-        "applying record fails when `field rule value` does not hold.",
-        "values": '`value` is a number; a quoted text (\'Deemed\'); a list (["a", "b"]); FilingYear; another column of the table; or '
-        "a column with arithmetic on a number (EUL_Yrs /2.75). Anything else is text.",
+        "form": "`definition` = {field, rule, value, connector, conds}. The rule applies to a record when its conditions hold (`conds`: "
+        "all of them when connector is all, any when it is any; no conditions = every record). A condition is [table, field, rule, "
+        "value], or a group {connector, conds} of such conditions evaluated the same way (groups nest one level). An applying record "
+        "fails when `field rule value` does not hold.",
+        "condition_tables": "A condition's table is the rule's own table; another table of the filing, read on the record of that "
+        "table sharing the key both tables hold (e.g. a Measure's Claim by ClaimID); Program, the program registry's record for the "
+        "record's own PrgID (PrgID, PA, Statewide, Name, Status, Segment, PrimarySector, Category, Implementer, StartYear, EndYear); or "
+        "Filer, the organization filing (PA, its code, and PAType: IOU, REN or CCA). A condition on a table the file does not hold "
+        "cannot be checked here.",
+        "values": '`value` is a number; a quoted text (\'Deemed\'); a list (["a", "b"]); FilingYear; UploadDate (the day the file is '
+        "checked); a date written YYYY-MM-DD; another column of the table; or a column with arithmetic on a number (EUL_Yrs /2.75). "
+        "Anything else is text.",
         "comparisons": "equals, does not equal, is less than, is less than or equal to, is greater than (or greater than), is greater "
         "than or equal to (or greater than or equal to), less than: numeric when the value is a number (or a column that holds numbers), "
         "else text compared without regard to case. in / not in: the value, ignoring case, is (is not) in the list. is null / is not "
-        "null: blank / filled in. starts with string / ends with string: ignoring case. matches_year_quarter: the field equals the first "
-        "four characters of the column named in value. combo_value_list: the combination of the fields joined by + is an impact "
-        "profile in the CEDARS impact-profile library (checked on CEDARS only).",
+        "null: blank / filled in. starts with string / ends with string / contains / does not contain: the text, ignoring case. "
+        "is true / is not true: the value is (is not) 1, true, yes, y or t, ignoring case, a blank being not true. is before / is on "
+        "or before / is after / is on or after: the field read as a date (YYYY-MM-DD or a US date) against a date, a date column or "
+        "UploadDate. within years of upload: the field's date is no more than `value` years before or after UploadDate. in effect on "
+        "(the test only, not a condition): the field's code is in force, as value_list checks it, in the year of the date in the column "
+        "named in value, on the list the definition's `list` names, else the list named as the field. "
+        "matches_year_quarter: the field equals the first four characters of the column named in value. combo_value_list: the "
+        "combination of the fields joined by + is an impact profile in the CEDARS impact-profile library (checked on CEDARS only).",
         "blanks": "A comparison with a blank on either side is unknown: as a condition it does not hold, and as the test it fails "
         "(except is null and is not null, which test the blank itself).",
     },

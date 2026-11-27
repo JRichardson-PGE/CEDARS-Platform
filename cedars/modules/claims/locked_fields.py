@@ -16,14 +16,19 @@ LOCKED = {
         "ClaimID": LINKS, "ParentClaimID": LINKS, "SiteID": VAULT, "ParticipantID": LINKS, "ProjectID": CHECKED, "ClaimType": CHECKED,
         "SEM_Phase": CHECKED, "MeasImpactCalcType": CHECKED, "MeasDetailID": FILLED, "NMEC_TU_Flag": CHECKED,
         "PartialPaymentPercent": CHECKED, "PartialPaymentFinal_Flag": CHECKED, "CCAREN_Flag": CHECKED,
-        "TotalCustomerInfrastructureCosts": CHECKED,
+        "TotalCustomerInfrastructureCosts": CHECKED, "OriginalMeterInstallYear": CHECKED, "CMPA_ApplicationID": CHECKED,
+        **{f: CHECKED for f in (
+            "InstallationDate", "ProjectCompletionDate", "CustomerAgreementDate", "PaidDate", "HTR_Flag", "CA_Flag", "OMBCSA_Flag",
+            "DAC_Flag", "Lang_Flag", "NRSize_Flag", "NRLease_Flag", "LG_Flag", "ResLI_Flag", "ResMFMH_Flag",
+        )},
         **{f: STORED for f in (
             "TotalFirstYearGrosskW", "TotalFirstYearGrosskWh", "TotalFirstYearGrossTherm", "TotalFirstYearNetkW", "TotalFirstYearNetkWh",
             "TotalFirstYearNetTherm", "TotalLifecycleNetkWh", "TotalLifecycleNetTherm", "TotalGrossMeasureCost", "TotalGrossIncentive",
         )},
     },
     "Measure": {
-        "ClaimID": LINKS, "PrgID": PROGRAM, "ClaimYearQuarter": PERIOD, "MeasImpactType": CHECKED, "Residential_Flag": CHECKED,
+        "ClaimID": LINKS, "PrgID": PROGRAM, "ClaimYearQuarter": PERIOD, "MeasImpactType": CHECKED, "DeliveryType": CHECKED,
+        "Residential_Flag": CHECKED,
         **{f: FILLED for f in (
             "AC_Elec_Impact_Profile", "AC_Elec_Target_Sector", "IOU_AC_Territory", "NumUnits", "UnitDirectInstallLab",
             "UnitDirectInstallMat", "UnitEndUserRebate", "UnitIncentiveToOthers",
@@ -38,7 +43,7 @@ LOCKED = {
     },
     "Site": {"SiteID": VAULT, "SiteState": CHECKED, "SiteZipCode": CHECKED, "Residential_Flag": CHECKED, "NAICSCode": CHECKED},
     "ContactClaim": {"ClaimID": LINKS, "ContactID": VAULT},
-    "Participant": {"PrgID": PROGRAM, "PrgYear": PERIOD, "SiteID": VAULT},
+    "Participant": {"PrgID": PROGRAM, "PrgYear": PERIOD, "SiteID": VAULT, "ParticipantCount": CHECKED},
     "InfrastructureCost": {"ClaimID": LINKS, "SiteID": VAULT, "PrgID": PROGRAM},
     "ClaimSite": {"ClaimID": LINKS, "SiteID": VAULT},
     "Withdrawal": {"ClaimID": LINKS, "WithdrawalReason": WITHDRAWAL, "WithdrawnIn": WITHDRAWAL},

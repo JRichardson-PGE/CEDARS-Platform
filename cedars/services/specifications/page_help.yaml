@@ -206,8 +206,13 @@ specifications/edit_rules:
     - Add a rule, or open a rule to change its test or wording or to take it out.
     - Where the fields and the rules disagree, change the field, or give a reason and bring the rules in line with the fields.
     - What the rules change compares them with the rules of the version the draft was copied from.
+    - Add a set of rules kept as data, such as CEDARS' 2026 claims data rules on measures, with a reason kept with the version.
   see: rules-and-lists
   tour:
+    - target: "#rule-packs"
+      title: Sets of rules to add
+      text: Sets of rules kept as data for this kind of filing, whether the draft has them, and a button that adds them.
+      optional: true
     - target: "#draft-rules"
       title: The draft's rules
       text: Where they come from and how they are published.

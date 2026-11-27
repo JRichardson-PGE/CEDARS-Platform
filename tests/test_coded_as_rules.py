@@ -31,7 +31,9 @@ VALUES = {
     "PartialPaymentPercent": ["", "0", "0.5", "1", "1.2", "-0.1", "abc"],
     "PartialPaymentFinal_Flag": ["", "1", "0"],
     "CCAREN_Flag": ["", "1", "0", "true", "2"],
+    "OriginalMeterInstallYear": ["", "1998"],
 }
+DELIVERY = ["UpDeemed", "DnDeemDI", "", "updeemed", "DnDeemed"]  # a measure's DeliveryType, cycling
 
 
 def corpus():
@@ -47,7 +49,8 @@ def corpus():
                 r.update({"ClaimID": cid, field: value})
                 claims_rows.append(r)
                 if impact is not None:
-                    measures.append({"ClaimID": cid.lower() if n % 3 == 0 else cid, "MeasImpactType": impact})
+                    delivery = DELIVERY[n % len(DELIVERY)]
+                    measures.append({"ClaimID": cid.lower() if n % 3 == 0 else cid, "MeasImpactType": impact, "DeliveryType": delivery})
     return claims_rows, measures
 
 

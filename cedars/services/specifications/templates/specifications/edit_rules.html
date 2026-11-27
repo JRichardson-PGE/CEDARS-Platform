@@ -30,6 +30,27 @@ The draft cannot be published until they agree: change the field, or bring the r
 {% else %}
 <p id="in-step-status">The fields and the rules agree.</p>
 {% endif %}
+{% if packs %}
+<h2 id="rule-packs">Sets of rules to add</h2>
+<p>Rules kept as data that this draft can take in one step. Adding a set takes out the rules it replaces and adds its rules; each
+change is kept with the reason, and the rules reach filings when the version is published.</p>
+{% for st in packs %}
+<section class="card" aria-labelledby="pack-{{ st.pack.slug }}-h">
+  <h3 id="pack-{{ st.pack.slug }}-h">{{ st.pack.name }}</h3>
+  <p>{{ st.pack.about }}</p>
+  {% if st.added %}
+  <p id="pack-{{ st.pack.slug }}-status">The draft has these rules.</p>
+  {% else %}
+  <p id="pack-{{ st.pack.slug }}-status">Adding it adds {{ st.missing|length }} rule{{ st.missing|length|pluralize }}{% if st.replaced %} and takes out {{ st.replaced|join:", " }}, which {{ st.replaced|length|pluralize:"it replaces,they replace" }}{% endif %}.</p>
+  <form method="post" action="{% url 'specifications:add_rule_pack' v.specification.code v.slug %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="pack" value="{{ st.pack.slug }}">
+    {{ pack_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Add these rules</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
 <h2>The draft's rules</h2>
 <p class="actions"><a class="button" href="{% url 'rules:add_rule' v.rule_set.pk %}">Add a rule</a> <a class="button" href="{% url 'rules:differences' %}?a={{ v.based_on.rule_set.pk }}&amp;b={{ v.rule_set.pk }}">What the rules change</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Rules of the draft">
