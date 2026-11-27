@@ -1,0 +1,6 @@
+code,description,start_year,end_year
+Scaled,"Whole-building energy impacts are specified by a reference to a ""Scalable"" Energy Impact ID along with a Scale Value",2013,
+CrossMeasWtd,Cross-Measure Weighted: Energy impacts for multiple measures are weighted to create a new set of measure impacts.,2013,
+DirectIE,"Energy impacts are specified with ""Direct Impacts"" and modified by Interactive-Effects tables",2013,
+Standard,Energy impact are looked up in the Energy Impact table based on a specified EnergyImpactID,2013,
+ScaledDirectIE,"End-Use energy impacts are specified by a reference to a ""Scalable"" Energy Impact ID along with a Scale Value, Whole Building impacts are deteremined by applying a specified Interactive-Effects tables to the end-use impacts.",2013,

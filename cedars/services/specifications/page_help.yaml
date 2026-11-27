@@ -158,6 +158,7 @@ specifications/edit_fields:
     - Select Change beside a field to change its requirement, type, value list, wording or place, to rename it, or to remove it.
     - A field another specification renamed in the data dictionary is listed at the top: rename it here too, or keep the name.
     - The value lists made in the draft for new codes are listed at the top; open one to change its codes or load them from a CSV.
+    - Add a set of value lists kept as data, such as CEDARS' 2026 claims value lists, with a reason kept with the version.
     - Change a table's other accepted names and the guidance shown above its fields.
   see: rules-and-lists
   tour:
@@ -174,6 +175,10 @@ specifications/edit_fields:
     - target: "#made-lists"
       title: New value lists
       text: The lists made in this draft for new codes, published with it.
+      optional: true
+    - target: "#list-packs"
+      title: Sets of value lists to add
+      text: Code lists kept as data for this kind of filing, whether the draft's fields take them, and a button that adds them.
       optional: true
     - target: main section.spec-table
       title: A table and its fields

@@ -25,6 +25,29 @@ one stays required. {% if not engine %}The engine is not installed here, so the 
     {{ m.codes }} code{{ m.codes|pluralize }}{% if m.fields %}, for {{ m.fields|join:", " }}{% else %}, named by no field{% endif %}</li>{% endfor %}</ul>
 </section>
 {% endif %}
+{% if list_packs %}
+<h2 id="list-packs">Sets of value lists to add</h2>
+<p>Code lists kept as data that this draft's fields can take in one step. Adding a set makes each list in the data dictionary, published
+with this version, and points its field at it; each change is kept with the reason.</p>
+{% for st in list_packs %}
+<section class="card" aria-labelledby="lists-{{ st.pack.slug }}-h">
+  <h3 id="lists-{{ st.pack.slug }}-h">{{ st.pack.name }}</h3>
+  <p>{{ st.pack.about }}</p>
+  {% if st.added %}
+  <p id="lists-{{ st.pack.slug }}-status">The draft's fields take their codes from these lists.</p>
+  {% else %}
+  <p id="lists-{{ st.pack.slug }}-status">Adding it gives {{ st.missing|length }} field{{ st.missing|length|pluralize }} a value list:
+    {% for x in st.missing %}{{ x.table }}.{{ x.field }} ({{ x.name }}){% if not forloop.last %}, {% endif %}{% endfor %}.{% if st.absent %}
+    The draft has no {{ st.absent|join:", " }}, so {{ st.absent|length|pluralize:"its list is,their lists are" }} not added.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:add_value_list_pack' v.specification.code v.slug %}" class="stack form-narrow">{% csrf_token %}
+    <input type="hidden" name="pack" value="{{ st.pack.slug }}">
+    {{ list_pack_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Add these value lists</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
 <nav aria-labelledby="draft-tables-h" class="contents">
   <h2 id="draft-tables-h">Tables</h2>
   <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}</ul>

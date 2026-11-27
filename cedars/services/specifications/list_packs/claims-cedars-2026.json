@@ -1,0 +1,16 @@
+{
+ "name": "CEDARS' 2026 claims value lists",
+ "code": "claims",
+ "about": "The code lists CEDARS' 2026 claims specification (https://cedars.cpuc.ca.gov/claims/specification/) gives nine Claim and Participant fields that have none here: FundingCycle, BldgLoc, BldgVint, BldgHVAC, DEER_Sector, DEER_MeasureID, MeasImpactCalcType, SEM_Phase and ParticipantType. Each code keeps the years it is in force (CEDARS' start and end dates, by year). The CMPA application IDs and measure codes are not here: those lists change as projects go into the CMPA tool outside CEDARS.",
+ "lists": [
+  {"table": "Claim", "field": "FundingCycle", "name": "funding_cycle", "file": "funding_cycle.csv"},
+  {"table": "Claim", "field": "BldgLoc", "name": "bldg_loc", "file": "bldg_loc.csv"},
+  {"table": "Claim", "field": "BldgVint", "name": "bldg_vint", "file": "bldg_vint.csv"},
+  {"table": "Claim", "field": "BldgHVAC", "name": "bldg_hvac", "file": "bldg_hvac.csv"},
+  {"table": "Claim", "field": "DEER_Sector", "name": "deer_sector", "file": "deer_sector.csv"},
+  {"table": "Claim", "field": "DEER_MeasureID", "name": "deer_measure_id", "file": "deer_measure_id.csv"},
+  {"table": "Claim", "field": "MeasImpactCalcType", "name": "meas_impact_calc_type", "file": "meas_impact_calc_type.csv"},
+  {"table": "Claim", "field": "SEM_Phase", "name": "sem_phase", "file": "sem_phase.csv"},
+  {"table": "Participant", "field": "ParticipantType", "name": "participant_type", "file": "participant_type.csv"}
+ ]
+}

@@ -790,7 +790,13 @@ module checks the field itself (CLM-LIST, BUD-LIST, MON-LIST, CEDARS' own proces
 `specifications.list_problems` against the codes of the version in force (`value_lists.codes_for_check`), each accepted from its
 first to its last year. The list's first version is published only with the specification version, taking effect the same day (the
 value-list pages refuse to publish or discard it on its own); a list no field names any more is dropped then, and discarding the
-draft drops every list it made. `problems` refuses a draft whose new list has no codes, or that names another draft's unpublished list.
+draft drops every list it made. `problems` refuses a draft whose new list has no codes, or that names another draft's unpublished list. The Tables and fields page also offers **sets of value lists kept as data** (`list_packs.py`, one JSON file per set in
+`list_packs/` naming the specification it is for, each list's field and name, with its codes in a CSV beside it), such as CEDARS'
+2026 claims value lists (nine Claim and Participant fields; the CMPA tool's lists are never kept as data, because they change as
+projects go into that tool). `editor.add_value_list_pack` makes each list the draft's fields do not name yet as a list made in the
+draft (`create_list`, then its codes by `upload_codes`) and points its field at it, a locked field included (its lock keeps its type
+and requirement; the module reads whether it is filled, not its codes); a list the data dictionary already has is named as it is
+(`change_field`). Each list and the set are audited (`specification.value_list_made`, `specification.value_list_pack_added`).
 
 **Example files** (`examples.py`, the draft's Examples page): each `ExampleSet` holds records per table, checked by the same checks a
 filing gets. A draft copied from a version with no example set gets one CEDARS writes (`generate_rows`: one record per table, the vault's
@@ -2736,6 +2742,7 @@ summarize. A pull request that builds part of a service or module updates its su
   - Which optional built-in checks run and their severity (`set_checks`).
   - Renaming a field with its rules and the data dictionary following (`rename_field`).
   - New value lists for new codes, published with the version and checked by the filing modules (`new_value_list`).
+  - Sets of value lists kept as data, added to a draft in one step (`list_packs.py`, `add_value_list_pack`).
   - Example files generated from the fields and checked as a filing with a report of what needs a person (`examples.py`).
   - The impact test on the latest confirmed filings (`impact.py`).
   - Choosing a version when a filing set is set up and moving a set to a later version (`moving.py`).
