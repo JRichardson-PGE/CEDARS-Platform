@@ -33,12 +33,15 @@ COSTS = "PrgID|PrgYear|ClaimYearQuarter|PA|AdminCostsOverheadAndGA|AdminCostsOth
 MEASURE = "CEInputID|PrgID|ClaimYearQuarter|NumUnits|UnitEndUserRebate|UnitIncentiveToOthers|UnitDirectInstallLab|UnitDirectInstallMat"
 
 
+COST_ROWS = [
+    "PGE_Res_HVAC|2028|2028Q1|PGE|1000|500|200|0|0|0|0|100|0|5000|0",
+    "PGE_Res_HVAC|2029|2029Q1|PGE|1100|500|200|0|0|0|0|100|0|0|0",
+    "PGE_Com_Ltg|2028|2028Q1|PGE|300|0|0|0|0|0|0|0|0|0|0",
+]
+
+
 def job(costs=None, measures=None, extra=None) -> bytes:
-    costs = costs or [
-        "PGE_Res_HVAC|2028|2028Q1|PGE|1000|500|200|0|0|0|0|100|0|5000|0",
-        "PGE_Res_HVAC|2029|2029Q1|PGE|1100|500|200|0|0|0|0|100|0|0|0",
-        "PGE_Com_Ltg|2028|2028Q1|PGE|300|0|0|0|0|0|0|0|0|0|0",
-    ]
+    costs = costs or COST_ROWS
     measures = measures or [
         "M1|PGE_Res_HVAC|2028Q1|10|20|30|5|5",
         "M2|PGE_Res_HVAC|2029Q2|2|100|0|0|0",
@@ -407,16 +410,17 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
 
     rs = rules.import_from_engine(cpuc_admin, "budget_filing")
     rules.publish(cpuc_admin, rs)
-    v = service.upload(filer, filing, pge, job(), "tual.zip")  # a Measure table without the specification's columns
+    costs = [c.replace("|PGE|", "|NOPE|") for c in COST_ROWS]  # a PA code not in the PA list: a finding of the rules, on every row
+    v = service.upload(filer, filing, pge, job(costs=costs), "tual.zip")  # a Measure table without the specification's columns
     found = service.findings(v)
     assert {f["table"] for f in found if f["rule_id"] == "BUD-COL"} == {"Measure"} and v.status == "draft"
     assert [n for n in v.findings["notes"] if "Measure rules were not run" in n]
     # the ProgramCost table has every column (its key rule "PrgID + PrgYear" names two of them), so its rules ran
     assert not [n for n in v.findings["notes"] if "ProgramCost rules were not run" in n]
-    assert [f for f in found if f["table"] == "ProgramCost" and f["rule_id"] != "BUD-COL"]
+    assert {f["field"] for f in found if f["table"] == "ProgramCost" and f["rule_id"] != "BUD-COL"} == {"PA"}
     assert [r for r in v.findings["by_rule"] if r["rule_id"] == "BUD-COL"][0]["unit"] == "columns"  # columns, not records (F24)
     tables = {}
-    for table, rows in (("ProgramCost", job_rows(COSTS)), ("Measure", job_rows(MEASURE))):
+    for table, rows in (("ProgramCost", [dict(r, PA="NOPE") for r in job_rows(COSTS)]), ("Measure", job_rows(MEASURE))):
         spec = rules.spec_columns(rs, table)  # the key rule "PrgID + PrgYear" names two columns, not one
         assert not [c for c in spec if "+" in c] and {"PrgID", "PrgYear"} <= set(spec) or table == "Measure"
         cols = list(dict.fromkeys(list(rows[0]) + spec))
@@ -431,6 +435,8 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
     # a cycle filing spans four years: CEDARS' single-year rules run per year, so no 2029 row is rejected for not being 2028
     assert not [f for f in found if f["table"] == "ProgramCost" and f["field"] == "PrgYear"]
     assert {f["row"] for f in found if f["table"] == "ProgramCost"} == {2, 3, 4}  # the file's own line numbers
+    # the PrgID rules read the program registry: its programs are accepted (before, the engine's copy of CEDARS' programs refused them)
+    assert not [f for f in found if f["field"] == "PrgID"]
 
 
 def job_rows(header: str) -> list[dict]:

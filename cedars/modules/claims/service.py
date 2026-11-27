@@ -1476,6 +1476,7 @@ def derive_checks(
                     why = _type_problem(f, value)
                     if why:
                         add(name, i, rid, f.name, "CLM-TYPE", f"{f.name} {why}", _type_fix(f), value)
+            if checked or len(lay.KEYS[name]) == 1:  # a rule set checks keys of two or more columns, never one-column keys
                 k = _key(lay, name, r)
                 if name not in lay.BY_CLAIM and k in seen:
                     add(name, i, rid, ", ".join(lay.KEYS[name]), "CLM-KEY", f"{name} has this key on line {seen[k]} too",
