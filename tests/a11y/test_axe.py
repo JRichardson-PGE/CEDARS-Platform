@@ -420,6 +420,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
     legacy_years = _legacy()
     downloads = _downloads(community)
+    _specification_rules_in_step(cpuc_admin)
     _specification_proposed(cpuc_admin, pge, pge_admin)  # last: a specification with a proposed version takes no other draft
     return {
         "next_month": f"{timezone.localdate() + timedelta(days=30):%Y-%m}",  # the calendar's month with the TUAL due in it
@@ -533,6 +534,16 @@ def _specification_draft(cpuc_admin):
             "cleared": 0,
         },
     )  # fmt: skip
+
+
+def _specification_rules_in_step(cpuc_admin):
+    """A draft of the claims specification (Claims 2032) whose rule set, copied from the scene's published claims rules, disagrees
+    with its fields, for the Rules page's list of differences and its Bring the rules in line form."""
+    from cedars.services.specifications import editor
+    from cedars.services.specifications import service as specifications
+    from cedars.services.specifications.models import Specification
+
+    editor.start_draft(cpuc_admin, specifications.current(Specification.objects.get(code="claims")), "Claims 2032", "2032")
 
 
 def _specification_proposed(cpuc_admin, pge, pge_admin):

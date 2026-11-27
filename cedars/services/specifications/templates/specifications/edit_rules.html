@@ -7,11 +7,33 @@
 {% if v.rule_set %}
 <p id="draft-rules">The draft's rules are a copy of {% if v.based_on.rule_set %}the {{ v.based_on.rule_set.label }} rules of {{ v.based_on.name }}{% else %}the earlier rules{% endif %}, kept in the rule
 library as <a href="{% url 'rules:detail' v.rule_set.pk %}">a draft</a>. Add a rule, or change or remove one from its page; the rules
-are published with this version and take effect the same day. Field requirements, types, lengths and value lists are checked from the
-fields themselves.</p>
+are published with this version and take effect the same day.</p>
+<h2 id="in-step">Fields and rules in step</h2>
+<p>On the tables the rules check field by field ({{ in_step_tables|default:"none yet" }}), a field's requirement, type,
+largest length and value list are checked by the rule set's field constraints, so the two are kept in step: adding, changing or removing
+a field changes its field constraints here. Other tables' fields are checked from the fields themselves.</p>
+{% if differences %}
+<p id="in-step-status"><strong>The fields and the rules disagree in {{ differences|length }} place{{ differences|length|pluralize }}.</strong>
+The draft cannot be published until they agree: change the field, or bring the rules in line with the fields (the fields decide).</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Where the fields and the rules disagree">
+<table class="list" id="in-step-differences">
+  <caption class="sr-only">Where the fields and the rules disagree</caption>
+  <thead><tr><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Difference</th><th scope="col">Bringing the rules in line</th></tr></thead>
+  <tbody>{% for d in differences %}<tr><td>{{ d.table }}</td><th scope="row">{{ d.field }}</th><td>{{ d.text }}</td>
+    <td>{% if d.extra %}Takes out {{ d.extra|join:", " }}{% endif %}{% if d.extra and d.wanted %}; {% endif %}{% if d.wanted %}Adds a rule that it is {{ d.wanted_words }}{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+<form method="post" action="{% url 'specifications:align_rules' v.specification.code v.slug %}" class="stack form-narrow" id="align-form">{% csrf_token %}
+  {{ align_form.reason.as_field_group }}
+  <div class="actions"><button type="submit">Bring the rules in line with the fields</button></div>
+</form>
+{% else %}
+<p id="in-step-status">The fields and the rules agree.</p>
+{% endif %}
+<h2>The draft's rules</h2>
 <p class="actions"><a class="button" href="{% url 'rules:add_rule' v.rule_set.pk %}">Add a rule</a> <a class="button" href="{% url 'rules:differences' %}?a={{ v.based_on.rule_set.pk }}&amp;b={{ v.rule_set.pk }}">What the rules change</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Rules of the draft">
-<table class="list">
+<table class="list" id="draft-rules-table">
   <caption class="sr-only">Rules of the draft, by table and field</caption>
   <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Rule and suggested fix</th></tr></thead>
   <tbody>{% for r in rules %}<tr><th scope="row"><a href="{% url 'rules:rule' v.rule_set.pk r.rule_id %}">{{ r.rule_id }}</a>{% if r.replaces %}<br><span class="small muted">replaces {{ r.replaces }}</span>{% endif %}</th>

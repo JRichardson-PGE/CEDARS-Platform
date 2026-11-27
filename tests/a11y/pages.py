@@ -117,6 +117,8 @@ PAGES = [
     ("specification-draft-version", "/specifications/monthly/monthly-reports-2029/", "cpuc_admin"),
     ("specification-draft", "/specifications/monthly/monthly-reports-2029/edit/", "cpuc_admin"),
     # a version proposed for comment (Claims 2031): a filer reads it and comments, the CPUC answers and manages the comment period
+    # a claims draft whose rule set disagrees with its fields: the Rules page lists where, with the form that brings them in line
+    ("specification-draft-rules-in-step", "/specifications/claims/claims-2032/edit/rules/", "cpuc_admin"),
     ("specification-proposed", "/specifications/budget_filing/budget-filings-2031/", "pge_admin"),
     ("specification-proposed-admin", "/specifications/budget_filing/budget-filings-2031/", "cpuc_admin"),
     ("specification-proposed-comments", "/specifications/budget_filing/budget-filings-2031/edit/comments/", "cpuc_admin"),

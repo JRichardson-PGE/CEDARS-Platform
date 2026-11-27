@@ -144,7 +144,31 @@ def edit_rules(request, code: str, slug: str):
     if away:
         return away
     rules = list(v.rule_set.rules.order_by("table", "field", "rule_id")) if v.rule_set_id else []
-    return _page(request, "edit_rules.html", v, "edit_rules", rules=rules)
+    differences = service.rule_differences(v, v.rule_set) if v.rule_set_id else []
+    named = {r.table for r in rules if r.kind == "spec"}
+    tables = [t for t in v.tables.order_by("position").values_list("name", flat=True) if t in named]
+    return _page(request, "edit_rules.html", v, "edit_rules", rules=rules, differences=differences,
+                 in_step_tables=" and ".join(tables), align_form=forms.ReasonForm(auto_id="align-%s"))  # fmt: skip
+
+
+@login_required
+@require_POST
+def align_rules(request, code: str, slug: str):
+    """Bring the draft's field constraints in line with its fields (editor.align_rules)."""
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why the rules are brought in line with the fields: the reason is kept with the version.")
+    else:
+        try:
+            added, removed = editor.align_rules(request.user, v, form.cleaned_data["reason"])
+        except (AccessDenied, editor.EditError) as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"The rules follow the fields: {len(added)} added, {len(removed)} taken out.")
+    return redirect("specifications:edit_rules", v.specification.code, v.slug)
 
 
 @login_required

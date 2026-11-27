@@ -1,3 +1,4 @@
+# ruff: noqa: F811 - fixtures imported from other test files
 """One finding per problem (rules.repeats): a rule testing a field that already fails its own constraint, the other half of a rule CEDARS
 states both ways, and the rule set repeating a module's own check are left out, and the list says so; which records are rejected does
 not change."""
@@ -68,7 +69,7 @@ def test_rates_that_exclude_each_other_are_one_finding(budget_rules):
     assert len(rate) == 1  # before: both "InstallationRatekW should equal 1 when ..." and "RealizationRatekWh should equal 1 when ..."
 
 
-def test_the_module_check_is_kept_and_the_rule_sets_repeat_left_out(filer, filing, pge, programs, budget_rules):  # noqa: F811
+def test_the_module_check_is_kept_and_the_rule_sets_repeat_left_out(filer, filing, pge, programs, budget_rules):
     from cedars.modules.budgets import service as budgets
 
     v = budgets.upload(filer, filing, pge, job(measures=["M1|PGE_Res_HVAC|2028Q1|abc|20|30|5|5"]), "num.zip")

@@ -1049,3 +1049,163 @@ def list_problems(lay: VersionLayout, table: str, rows, *, year=None, year_of=No
                     }
                 )
     return out
+
+
+# --- the rule set's field constraints, kept in step with the fields
+
+IN_STEP_CHECKS = ("not_empty", "numeric", "bit", "year_quarter", "max_length", "value_list")
+REGISTRY_LISTS = {"prgid"}  # checked against the program registry, which no field names as a value list
+TEXT_TYPES = ("text", "phone", "email")
+
+
+def _check_words(d: dict) -> str:
+    c = d.get("check")
+    if c == "not_empty":
+        return "filled in"
+    if c == "numeric":
+        return "a number"
+    if c == "bit":
+        return "0 or 1"
+    if c == "year_quarter":
+        return "a year and quarter"
+    if c == "max_length":
+        return f"at most {d.get('n')} characters"
+    if c == "value_list":
+        return f"in the {d.get('list')} value list"
+    return c or ""
+
+
+@dataclass(frozen=True)
+class RuleDifference:
+    """Where a version's fields and its rule set's field constraints disagree on one check of one field: the constraint the field asks
+    for (`wanted`, None when it asks for none) and the rules of that check on the field that it does not ask for (`extra`, rule IDs)."""
+
+    table: str
+    field: str
+    check: str
+    wanted: dict | None
+    extra: tuple[str, ...]
+    extra_words: tuple[str, ...] = ()
+
+    @property
+    def wanted_words(self) -> str:
+        return _check_words(self.wanted or {})
+
+    @property
+    def text(self) -> str:
+        where = f"{self.table}.{self.field}"
+        has = " or ".join(self.extra_words)
+        if self.wanted and self.extra:
+            return f"The field says {where} should be {_check_words(self.wanted)}; the rule set checks it is {has}."
+        if self.wanted:
+            return f"The field says {where} should be {_check_words(self.wanted)}; no rule checks it."
+        return f"The rule set checks that {where} is {has}; the field does not ask for it."
+
+
+def wanted_constraints(table: TableLayout, f: FieldLayout, made_lists: set[str]) -> dict[str, dict]:
+    """The field constraints a field asks of its table's rules, by check: required (not empty), a number, a flag, a year and quarter, a
+    largest length (text), a value list the engine checks (not one made for a specification, which the filing module checks). A field
+    CEDARS fills in asks for none."""
+    if f.requirement == "system":
+        return {}
+    out: dict[str, dict] = {}
+    if f.required:
+        out["not_empty"] = {"check": "not_empty"}
+    if f.type in ("number", "integer"):
+        out["numeric"] = {"check": "numeric"}
+    elif f.type == "flag":
+        out["bit"] = {"check": "bit"}
+    elif f.type == "year_quarter":
+        out["year_quarter"] = {"check": "year_quarter"}
+    elif f.type in TEXT_TYPES and f.max_length:
+        out["max_length"] = {"check": "max_length", "n": int(f.max_length)}
+    if f.value_list and f.value_list.lower() not in made_lists and f.value_list.lower() not in REGISTRY_LISTS:
+        out["value_list"] = {"check": "value_list", "list": f.value_list}
+    return out
+
+
+def _same(check: str, want: dict, have: dict) -> bool:
+    if check == "max_length":
+        return str(want.get("n")) == str(have.get("n"))
+    if check == "value_list":
+        try:
+            from recet.filing_rules import VALUE_LIST_FILES
+        except ImportError:
+            VALUE_LIST_FILES = {}  # noqa: N806
+        name = str(have.get("list") or "").lower()
+        return VALUE_LIST_FILES.get(name, name) == str(want.get("list") or "").lower()
+    return True
+
+
+def _canonical(name: str) -> str:
+    from cedars.services.rules import service as rules_service
+
+    try:
+        return rules_service.canonical_field(name)
+    except (rules_service.EngineMissing, ImportError):
+        return name
+
+
+def differences_in(lay: VersionLayout, spec_rules: list, made_lists: set[str] | None = None) -> list[RuleDifference]:
+    """The differences between a layout's fields and a rule set's field constraints (`spec_rules`: its rules of kind spec), on the
+    tables the rule set gives field constraints for. A rule over two columns (a key) and the checks a field cannot state (a range, a
+    pattern, uniqueness) are the rule set's own and not compared."""
+    canonical_field = _canonical
+    if made_lists is None:
+        from cedars.services.dictionary import value_lists
+
+        made_lists = {n.lower() for n in value_lists.made_here_names()}
+    by_table: dict[str, list] = {}
+    for r in spec_rules:
+        d = r.definition or {}
+        if "+" in (r.field or "") or d.get("check") not in IN_STEP_CHECKS:
+            continue
+        if d.get("check") == "value_list" and str(d.get("list") or "").lower() in REGISTRY_LISTS:
+            continue
+        by_table.setdefault(r.table, []).append(r)
+    out: list[RuleDifference] = []
+    for t in lay.tables:
+        rules_here = by_table.get(t.name)
+        if t.vault or not rules_here:
+            continue
+        names = {}
+        for f in t.fields:
+            for n in (*f.other_names, f.name):
+                names[canonical_field(n).lower()] = f.name
+        have: dict[tuple[str, str], list] = {}
+        strays = []
+        for r in rules_here:
+            name = names.get(canonical_field(r.field).lower())
+            if name is None:
+                strays.append(r)
+            else:
+                have.setdefault((name, r.definition["check"]), []).append(r)
+        for f in t.fields:
+            wanted = wanted_constraints(t, f, made_lists)
+            for check in IN_STEP_CHECKS:
+                want, rules_of = wanted.get(check), have.get((f.name, check), [])
+                matching = [r for r in rules_of if want is not None and _same(check, want, r.definition)]
+                extra = [r for r in rules_of if r not in matching[:1]]
+                if (want is None or matching) and not extra:
+                    continue
+                out.append(
+                    RuleDifference(
+                        t.name,
+                        f.name,
+                        check,
+                        None if matching else want,
+                        tuple(r.rule_id for r in extra),
+                        tuple(_check_words(r.definition) for r in extra),
+                    )
+                )
+        for r in strays:
+            out.append(RuleDifference(t.name, r.field, r.definition["check"], None, (r.rule_id,), (_check_words(r.definition),)))
+    return out
+
+
+def rule_differences(version, rule_set=None) -> list[RuleDifference]:
+    """Where a version's fields and its rule set's field constraints disagree (`differences_in`); [] when it takes no rule set."""
+    rs = rule_set if rule_set is not None else rule_set_of(version)
+    if rs is None:
+        return []
+    return differences_in(layout(version), list(rs.rules.filter(kind="spec")))
