@@ -66,7 +66,14 @@ def state(rs: RuleSet, p: Pack) -> PackState:
 
 
 def for_rule_set(rs: RuleSet) -> list[PackState]:
-    """The packs for a rule set's code, with what adding each would change."""
+    """The packs for a rule set's code, with what adding each would change; none where the engine, which gives a rule its ID, is not
+    installed."""
+    from . import service
+
+    try:
+        service.require_engine()
+    except service.EngineMissing:
+        return []
     return [state(rs, p) for p in packs() if p.code == rs.code]
 
 

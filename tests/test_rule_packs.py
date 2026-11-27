@@ -2,7 +2,6 @@
 its Rules tab. Adding the set takes out the rules of CEDARS' files it replaces and adds its own, each audited; the rules then check a
 filing like any other; the published rules do not change."""
 
-import pandas as pd
 import pytest
 from django.urls import reverse
 
@@ -74,6 +73,8 @@ def test_the_2026_claims_pack_replaces_three_of_cedars_rules_and_adds_fourteen(c
 
 
 def test_the_pack_s_rules_check_a_claim(cpuc_admin, draft):
+    import pandas as pd
+
     editor.add_rule_pack(cpuc_admin, draft, SLUG, "CEDARS' 2026 claims data rules")
     rs = draft.rule_set
     cols = rules.spec_columns(rs, "Measure")
