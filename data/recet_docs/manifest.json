@@ -1,12 +1,12 @@
 {
   "engine": {
-    "version": "0.1.103",
-    "commit": "4bb171aad12d4eeef1058ce70f80a1128637b551"
+    "version": "0.1.104",
+    "commit": "fa35018c39b273e81bfdacddfe9b71f3b47b1d25"
   },
   "documents": {
     "INPUT_FORMATS.md": "5b69d084c0d534f8f7e30c78807e71e9c278eadfdfa85a484bd556c05e94af87",
     "INPUT_FIELDS.md": "fd4dd41c1bba6489994ebce650fd4a4c417c8c4ec7d4e9e82d0eeb0bfa4dedbe",
-    "OUTPUT_FIELDS.md": "ee2bc3b393fb44067e45b7e86ba9472f690972930c2a2adb9204a2f8b030b97f",
+    "OUTPUT_FIELDS.md": "36068b238345e5042b5ab6e365a6b0e2dae1a41e845392366629b407f043d73e",
     "CALCULATIONS.md": "27598a71f6e8bb27e825a51a35787e5f12ce9dec4cc76791c975884aab930a5b",
     "COST_TESTS.md": "0feee33d17c812e50fb258743fe0766bacdd42e8aa1218edbf9008a2cd35ec94",
     "USER_GUIDE.md": "304a98eaf6d614c9c37b1954bcb4ce9400aca81e1e2554e6067c9fa41aedf8a1",

@@ -1014,6 +1014,7 @@ def check(
         filing_rules, _ = _engine()
         value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
         ctx = (context or CheckContext()).engine(filing_rules, filing_year, library_available())
+        ctx.lists = jobs.program_list([{"definition": r.definition or {}} for r in rs.rules.filter(table=table)], df) or None
         results, notes = filing_rules.check_frame(_engine_rule_set(rs, skip), table, df, ctx)
         failing = []
         for res in results:

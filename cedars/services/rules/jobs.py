@@ -207,6 +207,9 @@ def _strings(value) -> set[str]:
     return set()
 
 
+SPEC_MARKS = ("claim_spec", "filing_spec")  # a code's marks for the kinds of filing that may use it, as the engine reads them
+
+
 def _lists(rules: list[dict]) -> dict[str, list[dict]]:
     """The value lists in force here that the rules name, under each name they use (a list's own name or the CET field name the engine
     knows it by), as the engine reads a list given with a check: the worker checks exactly this website's codes, whatever its release
@@ -219,6 +222,8 @@ def _lists(rules: list[dict]) -> dict[str, list[dict]]:
     except ImportError:
         VALUE_LIST_FILES = {}
     words = _strings([[r["field"], r["definition"]] for r in rules])
+    if any((r.get("definition") or {}).get("check") == "starts_with" for r in rules):
+        words.add("pa")  # UploadPA-YYYY reads the PA list
     out: dict[str, list[dict]] = {}
     for name in ValueList.objects.filter(made_for="").values_list("name", flat=True):
         names = {name.lower()} | {k for k, v in VALUE_LIST_FILES.items() if v == name.lower()}
@@ -228,10 +233,30 @@ def _lists(rules: list[dict]) -> dict[str, list[dict]]:
         codes = value_lists.codes_in_force(name)
         if codes is None:
             continue
-        rows = [{"code": c["code"], "start_year": c.get("start_year"), "end_year": c.get("end_year")} for c in codes]
+        rows = [
+            {"code": c["code"], "start_year": c.get("start_year"), "end_year": c.get("end_year")}
+            | {k: (c.get("extra") or {})[k] for k in SPEC_MARKS if k in (c.get("extra") or {})}
+            for c in codes
+        ]
         for n in sorted(hit):
             out[n] = rows
     return out
+
+
+def program_list(rules: list[dict], df) -> dict[str, list[dict]]:
+    """The PrgID value list a rule names, as the program registry holds it: the registry's programs among the PrgIDs of the table
+    checked (`df`), under the name the rule uses. Given with every check, here or by a worker, so the rules accept exactly the programs
+    the registry has, never the engine's shipped copy of CEDARS' program list. Empty when no rule checks PrgID against a list."""
+    from cedars.services.registry.models import Program
+
+    names = {str((r.get("definition") or {}).get("list") or "") for r in rules if (r.get("definition") or {}).get("check") == "value_list"}
+    names = {n for n in names if n.lower() == "prgid"}
+    if not names or df is None or "PrgID" not in df.columns:
+        return {}
+    named = {str(p).strip() for p in df["PrgID"].dropna() if str(p).strip()}
+    found = Program.objects.filter(prg_id__in=named).values_list("prg_id", flat=True) if named else []
+    rows = [{"code": p, "start_year": None, "end_year": None} for p in sorted(found)]
+    return dict.fromkeys(sorted(names), rows)
 
 
 def _linked(rules: list[dict], table: str, context) -> dict[str, object]:
@@ -279,7 +304,7 @@ def prepare(run: EngineRun, rs, table: str, df, *, filing_year=None, skip=(), co
             ctx["keys"] = {k: list(v) for k, v in context.keys.items()}
         if context.programs is not None:
             ctx["programs"] = [{k: "" if v is None else str(v) for k, v in p.items()} for p in context.programs]
-    lists = _lists(rules)
+    lists = _lists(rules) | program_list(rules, df)
     if lists:
         ctx["lists"] = lists
     ctx = {k: v for k, v in ctx.items() if v is not None}

@@ -299,8 +299,9 @@ def _prefix(v: SubmissionVersion) -> str:
 def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], list[Problem], int]:
     """The version's budget lines {prg_id, year, pa, program_costs, on_bill_financing, rebates_and_incentives, measures} from its
     tables, the module's own checks, and the number of records. Module checks: each ProgramCost year and measure claim year in the
-    cycle, every PrgID in the program registry and the organization's own (or statewide), the cost and unit fields numbers, and a
-    warning for measures whose program has no ProgramCost row that year (priced with no program costs)."""
+    cycle, every PrgID in the program registry and the organization's own (or statewide), the cost and unit fields numbers, one
+    ProgramCost row per program and year and one measure per CEInputID, and a warning for measures whose program has no ProgramCost
+    row that year (priced with no program costs)."""
     problems: list[Problem] = []
     _, costs = jobfile.rows(tables["ProgramCost"])
     _, measures = jobfile.rows(tables["Measure"])
@@ -410,9 +411,28 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
             "measures": 0,
         }
     without_costs: dict[tuple[str, int], int] = defaultdict(int)
+    first_line: dict[str, int] = {}
     for i, r in enumerate(measures, start=2):
         rid, prg, raw = jobfile.get(r, "CEInputID"), jobfile.get(r, "PrgID"), jobfile.get(r, "ClaimYearQuarter")
         year = jobfile.year_of(raw)
+        if rid.strip():  # pricing refuses a job with one CEInputID twice; a blank one is the rules' NotEmpty finding
+            k = rid.strip().lower()
+            if k in first_line:
+                problems.append(
+                    Problem(
+                        i,
+                        rid,
+                        "Measure",
+                        "CEInputID",
+                        "BUD-DUP",
+                        "reject",
+                        f"CEInputID {rid} is on line {first_line[k]} too",
+                        "Give each measure its own CEInputID.",
+                        rid,
+                    )
+                )
+                continue
+            first_line[k] = i
         if not (program_ok("Measure", i, rid, prg) & year_ok("Measure", i, rid, "ClaimYearQuarter", year, raw)):
             continue
         units = jobfile.number(jobfile.get(r, "NumUnits"))

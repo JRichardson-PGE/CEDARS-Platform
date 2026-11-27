@@ -2139,9 +2139,10 @@ One row per record that fails at least one CEDARS upload check, written by prefl
 
 How the rules are read, where CEDARS' own code is not published: a rule applies to the records its `Where` conditions select (all of them, or any for `Where_connector = any`);
 a blank value makes a comparison unknown, as in SQL, so a condition on it does not hold and a test on it fails; text compares case-insensitively; a value list is checked for the
-record's claim year. CET's `AvoidedCostCombo` list (22 MB) is not shipped: that rule is checked against the CEDARS impact-profile library (exact end use, IOU and target sector),
-and reported as not checked when the library is not installed. `UploadPA-YYYY` (budget filing `CEInputID`) is a prefix: a PA code, a dash and the filing year, as in
-`PGE-2028-...` or `PGE-2028Q4-...`. Checked on the 100,000 records of PG&E's 2028-2031 consolidated filings, which CEDARS accepted: no record is rejected under either set.
+record's claim year, and only the codes the list marks for the kind of filing count (`claim_spec` for claims, `filing_spec` for budget filings: BldgType `Any`
+is not a claim code). A number reads as written: `2027.0` is `2027` in a list, a text test and a year test. CET's `AvoidedCostCombo` list (22 MB) is not shipped: that rule is checked against the CEDARS impact-profile library (exact end use, IOU and target sector),
+and reported as not checked when the library is not installed. `UploadPA-YYYY` (budget filing `CEInputID`) is a prefix: a PA code in effect that year (the filer's own, or `SW`, when the
+check says who files), a dash and the filing year, then anything but another digit, as in `PGE-2028-...` or `PGE-2028Q4-...` (not `PGE-20281`). Checked on the 100,000 records of PG&E's 2028-2031 consolidated filings, which CEDARS accepted: no record is rejected under either set.
 
 ### 2.11 `field_definitions_acc<version>`
 

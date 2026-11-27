@@ -1306,7 +1306,9 @@ names, as its pricing is, so upgrading the website's own copy of the engine neve
 (`cedars/services/rules/jobs.py`, `CheckJob`). A module opens an engine run for the release (`rules.engine_run`) around its check;
 inside it each `rules.check` of a table becomes a check job: the table, the tables its conditions read (a claims filing's year to date
 beside the upload's own records), and a check spec (the table's rules, who files, the programs' records, the day of the upload, the
-value lists in force here that the rules name, given whole so the worker checks this website's codes whatever its release ships) go to
+value lists in force here that the rules name, given whole with each code's claim and filing marks so the worker checks this website's
+codes whatever its release ships, the PA list when a rule checks an ID's PA prefix, and for a rule on the PrgID list the registry's
+programs among the table's PrgIDs, `jobs.program_list`, which the website gives its own copy of the engine too) go to
 the results store under `checks/<id>/`, and the job row is written through the `jobs` database connection so a worker sees it before
 the request's transaction ends. Calculations' dispatcher (`register_dispatcher`) queues it for the local worker, which takes check jobs
 of its release before runs, or submits it to AWS Batch. A filing's check does not wait: the version is recorded as being checked
@@ -3655,7 +3657,10 @@ summarize. A pull request that builds part of a service or module updates its su
   Confirming a budget version checks that the priced job is the version's current upload.
 - Budget filings run CEDARS' budget filing rules per program year: CEDARS' rules take one filing year (PrgYear and CEInputID must
   name it), and a cycle filing spans four. A file without the specification's columns is rejected on those columns before the rules
-  run. The module's own checks (`BUD-*`) are in `budgets/service.derive`.
+  run. The module's own checks (`BUD-*`) are in `budgets/service.derive`; they include one measure per CEInputID (`BUD-DUP`), since the
+  rule set checks only keys of two or more columns and pricing refuses a job with a CEInputID twice. A CEInputID starts with the
+  filer's PA code (or SW), which the rules read from who files. The claims module checks a one-column key (Measure's ClaimID) itself
+  for the same reason (`CLM-KEY`), with or without a rule set.
 - Claims are uploaded quarter by quarter, as in CEDARS: each confirmation's upload holds its new and changed records, and is compiled
   over the standing version of the year's latest earlier confirmation (records replace the earlier ones by primary key; a claim's
   ContactClaim and infrastructure cost rows replace its earlier rows as a set). The compiled year to date is what is checked against
