@@ -41,7 +41,7 @@ from .models import CheckSetting, ExampleSet, SpecField, SpecificationVersion, S
 from .service import FIELD_ATTRS, SpecificationError
 
 NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-TEXT_TYPES = ("text", "phone", "email")
+TEXT_TYPES = service.TEXT_TYPES
 EDITABLE = ["requirement", "type", "max_length", "decimals", "value_list", "default", "example", "unit", "definition", "guidance"]
 AREA = {"claims": "claims", "budgets": "budgets", "monthly": "monthly"}  # the release notes' part of CEDARS, by module
 DICTIONARY_TYPES = {
@@ -232,13 +232,14 @@ def start_draft(actor, based_on: SpecificationVersion, name: str, reason: str) -
         raise EditError("Say why the new version is made: the reason is kept with it.")
     name, slug = _check_name(spec, name)
     rule_set = None
-    if based_on.rule_set_id is not None:
+    checked_by = service.rule_set_of(based_on)  # its own, or (a version that names none) the one of its code in force
+    if checked_by is not None:
         from cedars.services.rules import service as rules_service
 
         rule_set = rules_service.new_version(
             actor,
-            based_on.rule_set,
-            _rule_set_date(based_on.rule_set.code),
+            checked_by,
+            _rule_set_date(checked_by.code),
             f"The rules of the draft {spec.name} version {name}: {reason.strip()}",
         )
     v = SpecificationVersion.objects.create(
@@ -514,6 +515,7 @@ def add_field(actor, draft: SpecificationVersion, table_name: str, name: str, *,
     _place(table, f, position)
     f.refresh_from_db()
     audit.record("specification.field_added", obj=v, after={"table": table.name, **_field_snapshot(f)}, reason=reason, actor=actor)
+    _keep_in_step(actor, v, table.name, f.name, reason or f"{table.name}.{f.name} is added")
     return f
 
 
@@ -549,6 +551,9 @@ def change_field(actor, field: SpecField, *, position=None, reason: str = "", **
     if after != before:
         audit.record("specification.field_changed", obj=v, before={"table": f.table.name, **before}, after={"table": f.table.name, **after},
                      reason=reason, actor=actor)  # fmt: skip
+        changed = {k for k in IN_STEP_ATTRS if before.get(k) != after.get(k)}
+        if changed:
+            _keep_in_step(actor, v, f.table.name, f.name, reason or f"{f.table.name}.{f.name} is changed", attrs=changed)
     return f
 
 
@@ -592,6 +597,7 @@ def remove_field(actor, field: SpecField, reason: str = "") -> None:
     f.delete()
     _renumber(table, [x.pk for x in table.fields.order_by("position")])
     audit.record("specification.field_removed", obj=v, before=before, reason=reason, actor=actor)
+    _keep_in_step(actor, v, table.name, before["name"], f"{table.name}.{before['name']} is removed: {reason}")
 
 
 @transaction.atomic
@@ -1009,6 +1015,84 @@ def write_as_rules(actor, draft: SpecificationVersion, rule_id: str, reason: str
     return written
 
 
+# --- the rule set's field constraints, in step with the fields
+
+IN_STEP_ATTRS = {
+    "requirement": ("not_empty",),
+    "type": ("numeric", "bit", "year_quarter", "max_length"),
+    "max_length": ("max_length",),
+    "value_list": ("value_list",),
+    "other_names": service.IN_STEP_CHECKS,
+}
+
+
+def _rules_draft(v: SpecificationVersion):
+    """The draft's rule set when it is a draft that can change, else None."""
+    if v.rule_set_id is None or v.rule_set.status != v.rule_set.Status.DRAFT:
+        return None
+    return v.rule_set
+
+
+def _align(actor, v: SpecificationVersion, differences, reason: str) -> tuple[list, list[str]]:
+    """Make the draft's rule set give the field constraints `differences` say the fields ask for: each rule the field does not ask
+    for is taken out and the one it asks for added. Returns (rules added, rule IDs taken out)."""
+    from cedars.services.rules import service as rules
+
+    rs = v.rule_set
+    added, removed = [], []
+    for d in differences:
+        for rid in d.extra:
+            r = rs.rules.filter(rule_id=rid).first()
+            if r is not None:
+                rules.remove_rule(actor, r, reason)
+                removed.append(rid)
+        if d.wanted and not rs.rules.filter(kind="spec", table=d.table, field=d.field, definition=d.wanted).exists():
+            added.append(rules.add_rule(actor, rs, kind="spec", severity="reject", table=d.table, field=d.field, definition=d.wanted,
+                                        reason=reason))  # fmt: skip
+    return added, removed
+
+
+def _keep_in_step(actor, v: SpecificationVersion, table: str, field: str, reason: str, attrs=None) -> None:
+    """After a field of the draft is added, changed or removed, its field constraints in the draft's rule set follow it: only the
+    checks of the attributes that changed (`attrs`; all of them for a field added or removed)."""
+    if _rules_draft(v) is None:
+        return
+    canonical_field = service._canonical
+    checks = set(service.IN_STEP_CHECKS) if attrs is None else {c for a in attrs for c in IN_STEP_ATTRS.get(a, ())}
+    name = canonical_field(field).lower()
+    mine = [
+        d for d in service.rule_differences(v, v.rule_set)
+        if d.table == table and canonical_field(d.field).lower() == name and d.check in checks
+    ]  # fmt: skip
+    if mine:
+        _align(actor, v, mine, f"The rules follow the field: {reason}")
+
+
+@transaction.atomic
+def align_rules(actor, draft: SpecificationVersion, reason: str = "") -> tuple[list, list[str]]:
+    """Make the draft's rule set give exactly the field constraints its fields ask for (required, a number, a flag, a year and quarter,
+    a largest length, a value list; `service.rule_differences`): the fields decide. Returns (rules added, rule IDs taken out)."""
+    _require(actor)
+    v = _draft(SpecificationVersion.objects.select_for_update().get(pk=draft.pk))
+    if not (reason or "").strip():
+        raise EditError("Say why the rules are brought in line with the fields: the reason is kept with the version.")
+    if _rules_draft(v) is None:
+        raise EditError("This draft has no rule set to change.")
+    differences = service.rule_differences(v, v.rule_set)
+    if not differences:
+        return [], []
+    added, removed = _align(actor, v, differences, f"The rules follow the fields: {reason}")
+    audit.record(
+        "specification.rules_aligned",
+        obj=v,
+        before={"rules": removed},
+        after={"rules": [r.rule_id for r in added]},
+        reason=reason,
+        actor=actor,
+    )
+    return added, removed
+
+
 # --- the checks before publishing
 
 
@@ -1074,6 +1158,9 @@ def problems(draft: SpecificationVersion) -> list[Problem]:
         and v.rule_set_id != v.based_on.rule_set_id
     ):
         out.append(Problem("rules", "Its rule set is already published on its own; start the draft again."))
+    elif _rules_draft(v) is not None:
+        for d in service.rule_differences(v, v.rule_set):
+            out.append(Problem("rules", f"{d.text} Change the field, or bring the rules in line with the fields on the Rules tab."))
     return out
 
 

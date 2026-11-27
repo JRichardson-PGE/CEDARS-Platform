@@ -478,6 +478,18 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
     return list(lines.values()), problems, len(costs) + len(measures)
 
 
+# the module's checks the rule set repeats: its finding is kept, the rule set's on the same record and field left out
+REPEATED_BY_RULES = {"BUD-NUM": "numeric", "BUD-PRG": "value_list", "BUD-DUP": "unique"}
+
+
+def _without_module_repeats(rs, problems: list, found: list, notes: list | None = None) -> list:
+    """The rule set's findings less those that repeat one of the module's checks on the same record (rules.repeats)."""
+    kept, left_out = rules.without_module_repeats(rs, problems, found, REPEATED_BY_RULES)
+    if left_out and notes is not None and rules.REPEATS_NOTE not in notes:
+        notes.append(rules.REPEATS_NOTE)
+    return kept
+
+
 def _rule_findings(tables: dict[str, bytes], cycle, rs, organisation=None, upload_date=None) -> tuple[list, list[str], str]:
     """Budget filing rule set `rs` (CEDARS' own rules, run by the engine: the filing's specification version's), year by year: CEDARS'
     rules take a single filing year, and a cycle filing spans four. Findings keep the file's own line numbers. A condition on the other
@@ -661,6 +673,7 @@ def _store_and_check(
             found, notes, rule_set, rechecked = rescope
         else:
             found, notes, rule_set = _rule_findings(tables, cycle, rs, v.submission.organisation, timezone.localtime(v.created_at).date())
+    found = _without_module_repeats(rs, problems, found, notes)
     problems = specifications.apply_checks_for_filing(v.submission.deadline, problems + found)  # built-in checks as its version has them
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
@@ -1365,8 +1378,9 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     _lines, problems, _records = derive(tables, org, cycle)
     problems += list_problems(tables, None, lay=specifications.layout(version))
     with rules.engine_run(specifications.engine_release_of(version), purpose="example"):  # the version's release runs its rules
-        found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET), org)
-    return specifications.apply_checks(version, problems + found)
+        rs = specifications.rule_set_of(version, RULE_SET)
+        found, _notes, _label = _rule_findings(tables, cycle, rs, org)
+    return specifications.apply_checks(version, problems + _without_module_repeats(rs, problems, found))
 
 
 def _example_table(rows: list[dict]) -> bytes:
@@ -1406,10 +1420,9 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     _lines, problems, _records = derive(tables, v.submission.organisation, cycle)
     problems += list_problems(tables, v.submission.deadline, lay=specifications.layout(version))
     with rules.engine_run(specifications.engine_release_of(version), purpose="impact test"):  # the version's release runs its rules
-        found, _notes, _label = _rule_findings(
-            tables, cycle, specifications.rule_set_of(version, RULE_SET), v.submission.organisation, timezone.localtime(v.created_at).date()
-        )
-    return specifications.apply_checks(version, problems + found)
+        rs = specifications.rule_set_of(version, RULE_SET)
+        found, _notes, _label = _rule_findings(tables, cycle, rs, v.submission.organisation, timezone.localtime(v.created_at).date())
+    return specifications.apply_checks(version, problems + _without_module_repeats(rs, problems, found))
 
 
 # --- moving a filing set to another specification version (specifications.moving)

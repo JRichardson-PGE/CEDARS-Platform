@@ -198,16 +198,28 @@ specifications/edit_rules:
   guide:
     - The rules a filing on the draft version will be checked against. They are a draft copy of the rules of the version it was copied
       from, kept in the rule library and published with the version on the day it takes effect.
-    - Field requirements, types, lengths and value lists are checked from the fields themselves and need no rule.
+    - On the tables the rules check field by field (Measure and ProgramCost), a field's requirement, type, largest length and value
+      list are checked by the rule set's field constraints, which follow the fields when a field is added, changed or removed. Any
+      place where they disagree is listed, and the draft cannot be published until they agree. Other tables' fields are checked from
+      the fields themselves.
   how:
     - Add a rule, or open a rule to change its test or wording or to take it out.
+    - Where the fields and the rules disagree, change the field, or give a reason and bring the rules in line with the fields.
     - What the rules change compares them with the rules of the version the draft was copied from.
   see: rules-and-lists
   tour:
     - target: "#draft-rules"
       title: The draft's rules
       text: Where they come from and how they are published.
-    - target: main table.list
+    - target: "#in-step-status"
+      title: Fields and rules in step
+      text: Whether the fields and the rule set's field constraints agree, and where they do not.
+      optional: true
+    - target: "#align-form"
+      title: Bring the rules in line
+      text: Takes out the field constraints the fields do not ask for and adds the ones they do, with a reason kept with the version.
+      optional: true
+    - target: "#draft-rules-table"
       title: Rules
       text: Each rule with its severity, table, field, message and suggested fix.
       optional: true

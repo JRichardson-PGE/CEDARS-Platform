@@ -76,7 +76,7 @@ def _bytes(f) -> bytes:
 @pytest.fixture
 def fake_rules(monkeypatch):
     """A rule set in force whose one rule rejects a measure with NumUnits "bad": the budget filing rules without the engine."""
-    rs = SimpleNamespace(label="Test rules", effective_from="2026-01-01")
+    rs = SimpleNamespace(label="Test rules", effective_from="2026-01-01", rules=SimpleNamespace(filter=lambda **kw: []))  # no stored rules
 
     def on(frames, covers, _rs, context=None):
         out = []

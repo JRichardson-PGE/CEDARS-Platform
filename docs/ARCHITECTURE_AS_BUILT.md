@@ -704,15 +704,22 @@ anyone signed in; a draft, CPUC system administrators. Every page, download and 
 withdrawn versions only.
 
 **Editing a specification** (`specifications/editor.py`, `editor_views.py`). A CPUC system administrator starts a draft from a
-published version (`start_draft`, one draft per specification): its rows are copied, and its rule set is copied as a draft in the rule
-library (`rules.new_version`), linked to the draft and published only with it (`rules.publish` refuses it on its own). The draft has a
+published version (`start_draft`, one draft per specification): its rows are copied, and the rule set its filings are checked against
+(`rule_set_of`: the one it names, else the one of its code in force) is copied as a draft in the rule library (`rules.new_version`),
+linked to the draft and published only with it (`rules.publish` refuses it on its own). On the tables the rule set gives field
+constraints for (Measure and ProgramCost), a field's requirement, type, largest length and value list are checked by those constraints
+rather than by the module, so the two are **kept in step** (`specifications.rule_differences`, `editor.align_rules`): a field added,
+changed or removed takes its field constraints with it (only the checks of the attributes that changed), every place where they still
+disagree is listed on the draft's Rules page and stops it being published, and "Bring the rules in line with the fields" makes the rule
+set give exactly what the fields ask for, with a reason (`specification.rules_aligned`). The fields decide; ranges, patterns,
+uniqueness and two-column keys are the rule set's own. The draft has a
 page per part (Settings, Tables and fields, Rules, Built-in checks, Examples, Impact test, Workbook, Changes, Comments, Publish) and a form per field and table; every change is
 audited with its reason (`specification.*` actions). A field's type is chosen from the fixed list. A **locked** field (`locks`) is a
 table's key, a column an upload is refused without, a field a module's code reads (`register_locked_fields`) or one the installed
 engine reads to price a Measure or ProgramCost record (`recet.editor.CALC_COLUMNS`): it is never removed or retyped, and a required one
 stays required. **Publishing** (`publish`) needs the checks of `problems` passed (a summary, a registered active engine release if one
 is named, a published cost-test set, keys and refused-without columns that are fields, known value lists, valid examples, every
-locked field of the version it was copied from kept, and at least one change) and a day it takes effect after today, with the release
+locked field of the version it was copied from kept, fields and rules in step, and at least one change) and a day it takes effect after today, with the release
 notes' notice (`CEDARS_RELEASE_NOTICE_DAYS`) unless a reason is given. It publishes the draft rule set to take effect that day, a
 release note (one specification change, in the module's part of CEDARS) and the version, frozen with its fingerprint. New filing sets
 take the newest published version in effect (`current`: `effective_on` passed or blank); a version announced but not yet in effect
@@ -2662,6 +2669,13 @@ summarize. A pull request that builds part of a service or module updates its su
   alone or in up to two groups joined by all or any; tests include contains, true or not, date comparisons with a date, a date field or
   the upload date, a date within a number of years of the upload and a code in effect on a date), changes a rule's test or wording, or
   takes a rule out, from `/rules/<set>/add/` and each rule's page.
+- One finding per problem (`rules/repeats.py`): `rules.check` leaves out the findings that only repeat another on the same record, and
+  says so in its notes (`repeats.NOTE`): a rule testing a field that already fails its own field constraint (a blank RUL_Yrs is "should
+  not be empty", not that and the rules that fail on the blank), and the other half of a rule CEDARS states both ways (`repeats.pairs`:
+  each condition of one is the other's test turned round; the half kept is the one with fewer conditions). A module's own check of the
+  same thing keeps its finding and the rule set's is left out (`rules.without_module_repeats`; Budgets: its number, PrgID and duplicate
+  checks). A finding is left out only beside one at least as severe, so which records are rejected never changes; the rule set itself
+  is unchanged.
 - A rule is run once on a blank record by the engine before it is saved, its ID is the engine's content hash of its test, and a changed
   test takes the new ID and records the one it `replaces`, which the set comparison lists as changed.
 - Published sets and their rules never change (database triggers, migration 0002).
@@ -2697,7 +2711,10 @@ summarize. A pull request that builds part of a service or module updates its su
   keys, fields and the columns an upload is refused without from it (`layout_for_filing`), and run the built-in checks it lists with the
   severities it gives (`apply_checks`: CEDARS' own processing always runs; an optional check only when the version lists it).
 - The editor (`editor.py`, `editor_views.py`, `forms.py`):
-  - Drafts copied from a published version with a draft copy of its rule set.
+  - Drafts copied from a published version with a draft copy of its rule set (or, for a version that names none, of the one of its
+    code in force).
+  - Fields and the rule set's field constraints kept in step on the tables the rules check field by field (`rule_differences`,
+    `align_rules`; tests/test_specification_rules_in_step.py, which also pins where the starting versions and CEDARS' rules differ).
   - Settings (name, summary, engine release, cost-test set).
   - Fields added from the dictionary or new, changed, moved and removed, table names and guidance.
   - Locked fields (`locks`: keys, refused-without columns, the fields each module's code reads by `register_locked_fields`, and the

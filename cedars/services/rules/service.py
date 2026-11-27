@@ -14,9 +14,11 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import jobs
+from . import jobs, repeats
 from .jobs import CheckNotRun, engine_run  # noqa: F401 - the modules' way in
 from .models import Rule, RuleSet
+from .repeats import NOTE as REPEATS_NOTE  # noqa: F401 - the modules' way in
+from .repeats import without_module_repeats  # noqa: F401 - the modules' way in
 
 MODULES_FOR = {"claims": ["claims", "calculations"], "budget_filing": ["budgets", "calculations"]}
 LABELS = {"claims": "Quarterly claims", "budget_filing": "Budget and application filings"}
@@ -1026,6 +1028,9 @@ def check(
         if run is not None and run.note:
             notes = [*notes, run.note]
     notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]
+    failing, left_out = repeats.without_repeats(rs, table, df, failing, filing_year=filing_year, context=context)
+    if left_out:
+        notes = [*notes, repeats.NOTE]
     return _findings(rs, table, df, failing, id_column), notes
 
 
