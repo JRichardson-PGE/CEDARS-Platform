@@ -407,7 +407,7 @@ NEW_MEASURE_LIKE = [
     "Sector",
     "Version",
 ]
-NEW_PROGRAMCOST_LIKE = ["PrgID", "PrgYear", "ClaimYearQuarter", "PA"]
+NEW_PROGRAMCOST_LIKE = ["PrgID", "PrgYear", "PA"]
 MAX_GRID_BODY = 8 * 1024 * 1024  # a 500-measure job is about 0.5 MB of JSON
 
 

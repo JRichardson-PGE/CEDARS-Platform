@@ -1,15 +1,15 @@
 {
   "engine": {
-    "version": "0.1.104",
-    "commit": "4ef530ca3a100bf1204327e1d9aeb192316d86d7"
+    "version": "0.1.105",
+    "commit": "072157b3010621bd9b8ace55340f0be7d2447ce5"
   },
   "documents": {
     "INPUT_FORMATS.md": "5b69d084c0d534f8f7e30c78807e71e9c278eadfdfa85a484bd556c05e94af87",
-    "INPUT_FIELDS.md": "fd4dd41c1bba6489994ebce650fd4a4c417c8c4ec7d4e9e82d0eeb0bfa4dedbe",
-    "OUTPUT_FIELDS.md": "36068b238345e5042b5ab6e365a6b0e2dae1a41e845392366629b407f043d73e",
-    "CALCULATIONS.md": "27598a71f6e8bb27e825a51a35787e5f12ce9dec4cc76791c975884aab930a5b",
+    "INPUT_FIELDS.md": "ca4b3edcd6f059d395421b89cd210312e1af7cd46e4094d60f3776174046a583",
+    "OUTPUT_FIELDS.md": "f673c3049257f7d695e0aea66d01317a6dbcb50e8acefb102da684eeaf190866",
+    "CALCULATIONS.md": "4864b5d1ac28e50cec269d7ab56a72c900f5f290367b2c6ba5aeeb1f55a64371",
     "COST_TESTS.md": "0feee33d17c812e50fb258743fe0766bacdd42e8aa1218edbf9008a2cd35ec94",
-    "USER_GUIDE.md": "304a98eaf6d614c9c37b1954bcb4ce9400aca81e1e2554e6067c9fa41aedf8a1",
+    "USER_GUIDE.md": "d6dcf374f535fc0959b916c7fd42aca649d7ebfee03c65626ae37f019acf009e",
     "WORKER.md": "6bf0c043c4ad176cbb15abfd0f01c3c3d317c4a203a87ddc2f6b29222a5bcf20",
     "ARCHITECTURE.md": "29b0cd17692ab630261ffab3ba64153470797f39f0230fc7bf2bde0d44b04418"
   },

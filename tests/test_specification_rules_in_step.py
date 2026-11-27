@@ -33,7 +33,7 @@ KNOWN = {
         ("Measure", "EUL_ID", "max_length"), ("Measure", "RUL_ID", "max_length"), ("Measure", "GSIA_ID", "max_length"),
         ("Measure", "MiscCostsDesc", "max_length"), ("Measure", "MiscBensDesc", "max_length"), ("Measure", "Comments", "max_length"),
         ("ProgramCost", "PrgYear", "numeric"), ("ProgramCost", "PrgYear", "max_length"),
-        ("ProgramCost", "ClaimYearQuarter", "year_quarter"), ("ProgramCost", "ClaimYearQuarter", "max_length"),
+        ("ProgramCost", "ClaimYearQuarter", "not_empty"), ("ProgramCost", "ClaimYearQuarter", "max_length"),
     },
     "budget_filing": {
         ("Measure", "CEInputID", "not_empty"), ("Measure", "Sector", "not_empty"), ("Measure", "DeliveryType", "not_empty"),
@@ -45,7 +45,7 @@ KNOWN = {
         ("Measure", "UnitDirectInstallLab", "not_empty"), ("Measure", "UnitDirectInstallMat", "not_empty"),
         ("Measure", "UnitEndUserRebate", "not_empty"), ("Measure", "UnitIncentiveToOthers", "not_empty"),
         ("Measure", "UnitTaxCredits", "not_empty"), ("Measure", "MeasInflation", "not_empty"),
-        ("ProgramCost", "ClaimYearQuarter", "not_empty"), ("ProgramCost", "AdminCostsOverheadAndGA", "not_empty"),
+        ("ProgramCost", "ClaimYearQuarter", "year_quarter"), ("ProgramCost", "AdminCostsOverheadAndGA", "not_empty"),
         ("ProgramCost", "AdminCostsOther", "not_empty"), ("ProgramCost", "MarketingOutreach", "not_empty"),
         ("ProgramCost", "DIActivity", "not_empty"), ("ProgramCost", "DIInstallation", "not_empty"),
         ("ProgramCost", "DIHardwareAndMaterials", "not_empty"), ("ProgramCost", "DIRebateAndInspection", "not_empty"),
@@ -109,9 +109,9 @@ def test_a_draft_whose_fields_and_rules_disagree_cannot_be_published_until_broug
     assert found(draft, "Measure", "TechGroup")["not_empty"] == [{"check": "not_empty"}]
     assert "max_length" not in found(draft, "Measure", "MeasDescription")  # the field gives no largest length
     assert found(draft, "ProgramCost", "PrgYear").get("numeric") == [{"check": "numeric"}]
-    assert (len(added), len(removed)) == (22, 24)  # 32 differences: 14 rules changed, 8 added only, 10 taken out only
+    assert (len(added), len(removed)) == (23, 23)  # 32 differences: 14 rules changed, 9 added only, 9 taken out only
     event = AuditEvent.objects.filter(action="specification.rules_aligned").get()
-    assert event.reason == "The specification decides" and len(event.after["rules"]) == 22
+    assert event.reason == "The specification decides" and len(event.after["rules"]) == 23
     # the published claims rules, and the filings checked against them, do not change
     assert specifications.rule_differences(current("claims"))
 
@@ -158,4 +158,4 @@ def test_the_rules_page_lists_the_differences_and_brings_the_rules_in_line(cpuc_
     assert "Say why the rules are brought in line" in r.content.decode()
     r = client.post(align, {"reason": "The specification decides"}, follow=True)
     page = r.content.decode()
-    assert "The rules follow the fields: 22 added, 24 taken out." in page and "The fields and the rules agree." in page
+    assert "The rules follow the fields: 23 added, 23 taken out." in page and "The fields and the rules agree." in page

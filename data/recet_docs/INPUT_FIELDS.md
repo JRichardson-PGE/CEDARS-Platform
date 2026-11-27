@@ -184,8 +184,7 @@ blank = 0.
 |---|---|---|
 | `PrgID` | text | The unique and persistent program identifier. The ProgramCost primary key is `PrgID` and `PrgYear` in combination. |
 | `PA` | `PGE` `SCE` `SDGE` `SCG` (or `SW`) | The program administrator; A SW (statewide) row is treated as SCE unless statewide allocation is on (which sets it to each IOU). **In ReCET:** Selects the discount rate for this row's costs; a PA with no run parameters at the run's ACC (a REN or CCA on the 2022 ACC and later) is discounted at SCE's, as CEDARS passes it to CET (C11.1). |
-| `PrgYear` | year | The claim year. The ProgramCost primary key is `PrgID` and `PrgYear` in combination, must match the year in `ClaimYearQuarter`. |
-| `ClaimYearQuarter` | `YYYYQn` | The year and claim quarter, e.g. '2023Q1'. **In ReCET:** Its year is the year the cost is incurred and discounted from (C11.1). |
+| `PrgYear` | year | The claim year. The ProgramCost primary key is `PrgID` and `PrgYear` in combination. **In ReCET:** The year the cost is incurred and discounted from (C11.1). ProgramCost has no `ClaimYearQuarter`: a file that has one is read and the column ignored (C17, deliberate difference 12). |
 | `AdminCostsOverheadAndGA` | Dollars | Program-level general administration costs and overhead. |
 | `AdminCostsOther` | Dollars | Program-level other administration costs (not general administration or overhead). |
 | `MarketingOutreach` | Dollars | Program-level marketing outreach costs. |

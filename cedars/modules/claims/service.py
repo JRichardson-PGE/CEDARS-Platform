@@ -1505,7 +1505,7 @@ def derive_checks(
                 f"Start each SiteID with {code}.",
                 sid,
             )
-    for name in ("Measure", "ProgramCost"):
+    for name in ("Measure",):  # a quarter is only ever a measure's: ProgramCost's year is its PrgYear
         for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
             raw = r.get("ClaimYearQuarter", "")
             m = YEAR_QUARTER.match(raw.strip())

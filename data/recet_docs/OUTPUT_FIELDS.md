@@ -819,7 +819,7 @@ V_elec_SB = SUM over k = 0 ... n-1 of
 V_elec_SH: the same with the SCT High row
 ```
 
-For TOU end uses these differ from CET's by design: CET's TOU societal values keep the cap-and-trade carbon component alongside the social cost of carbon (counting carbon twice)
+For TOU end uses these differ from CET's by design: CET's TOU societal values on the 2024 ACC add back the cap-and-trade carbon component the adopted model leaves out of the SCT
 and carry its TOU T&D error; ReCET prices them on the ACC's own SCT rows like every other end use (CALCULATIONS.md C17, deliberate difference 8).
 **Inputs:** those of `ElecBen`; the ACC's `SCT Base` / `SCT High` rows; `DiscountRateQtr_SCT`.
 
@@ -2190,7 +2190,7 @@ allocation scales, added up before allocation and over each IOU's allocated rows
 | Column | Meaning |
 |---|---|
 | `table` | `Measure` or `ProgramCost`. |
-| `Year` | The year the factors are looked up by: the claim year (`ClaimYearQuarter`), or `PrgYear` for a `ProgramCost` row without one. |
+| `Year` | The year the factors are looked up by: a measure's claim year (`ClaimYearQuarter`), a `ProgramCost` row's `PrgYear`. |
 | `PrgID` | The statewide program as filed (`SW_...`). |
 | `field` | The allocated field, e.g. `UnitkWh1stBaseline` or `AdminCostsOther`. |
 | `factor` | Its rule: `Electric Factor`, `Gas Factor` or `Weighted Factor`. |

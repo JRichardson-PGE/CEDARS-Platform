@@ -528,7 +528,7 @@ WaterEnergyBenGross{,_SB,_SH}     = ratio( WaterEnergyBen{...},     NTGRkWh + ME
 
 `ProgramCost.csv` costs belong to a *program*, not a measure, and are spread over the program's measures in proportion to their positive benefits.
 
-**C11.1 Program totals.** For each `ProgramCost` row `r` (with `Year` = the first four characters of its `ClaimYearQuarter`; a `PA` of `SW` is treated as `SCE`, what CET did in the real runs, and so is any `PA` with no run parameters at the run's ACC: a REN or CCA from the 2022 ACC on, whose rows CET's table stops carrying; CEDARS passes those program costs to CET as SCE's, checked in CET_UI job 123406, where ProgramCost rows filed under BAY and MCE came back as SCE. A PA with its own rows, built-in or supplied, keeps them):
+**C11.1 Program totals.** For each `ProgramCost` row `r` (with `Year` = its `PrgYear`, deliberate difference 12; a `PA` of `SW` is treated as `SCE`, what CET did in the real runs, and so is any `PA` with no run parameters at the run's ACC: a REN or CCA from the 2022 ACC on, whose rows CET's table stops carrying; CEDARS passes those program costs to CET as SCE's, checked in CET_UI job 123406, where ProgramCost rows filed under BAY and MCE came back as SCE. A PA with its own rows, built-in or supplied, keeps them):
 
 ```text
 T_r = AdminCostsOverheadAndGA + AdminCostsOther + MarketingOutreach + DIActivity + DIInstallation + DIHardwareAndMaterials + DIRebateAndInspection + EMV + UserInputIncentive
@@ -761,7 +761,7 @@ With "Allocate statewide programs" on, each statewide program's rows are split a
 | Electric factor (x `ElectricFactor`) | `UnitkW1stBaseline`, `UnitkWh1stBaseline`, `UnitkW2ndBaseline`, `UnitkWh2ndBaseline`, `UnitkWhIOUWater1stBaseline`, `UnitkWhIOUWater2ndBaseline` | - |
 | Gas factor (x `GasFactor`) | `UnitTherm1stBaseline`, `UnitTherm2ndBaseline` | - |
 | Weighted factor (x `WeightedFactor`) | the unit costs and benefits (`UnitMeaCost...`, `UnitDirectInstall...`, `UnitEndUserRebate`, `UnitIncentiveToOthers`, `UnitGasInfraBens`, `UnitRefrigCosts`, `UnitRefrigBens`, `UnitMiscCosts`, `UnitMiscBens`, `UnitTaxCredits`) | all ten cost fields and `OnBillFinancing` |
-| Pass through (unchanged) | everything else | `PA`, `PrgID`, `PrgYear`, `ClaimYearQuarter` |
+| Pass through (unchanged) | everything else | `PA`, `PrgID`, `PrgYear` |
 
 The factors are the built-in table, with the rows of a supplied SW allocation factors file replacing matching (`Year`, `ProgramID`) rows and adding new ones.
 For every IOU with a non-zero factor, one row is made with `<IOU>_` prepended to `CEInputID` and `PrgID` (program-cost `PA` is set to that IOU). A measure is still priced on its own `IOU_AC_Territory`; a program's costs are shared
@@ -836,7 +836,7 @@ statewide programs unallocated; First Year = claim year; 0% market effects), pri
 | `FirstYearNetGasCO2`, `FirstYearNetElecNOx`, `FirstYearNetGasNOx`, `FirstYearNetElecPM10` | 1.0000 | |
 | `ElecBen` | 1.5072 | TOU end uses 1.5297 (5,700 measures, 97% of CET's `ElecBen`), DEER end uses 0.9782 (15,670 measures). The TOU gap is deliberate difference 7: CET's TOU T&D is about 1,000 times too small |
 | `ElecSupplyCost` | 0.9484 | TOU 1.5427, DEER 0.9456 |
-| `ElecBen_SB`, `ElecBen_SH` | 1.3383 / 1.3383 | TOU 1.349 / 1.347 (difference 7, and CET's TOU SCT double-counts cap-and-trade carbon); DEER 1.0018 / 1.0531 (difference 4) |
+| `ElecBen_SB`, `ElecBen_SH` | 1.3383 / 1.3383 | TOU 1.349 / 1.347 (difference 7, and CET's TOU SCT adds back the cap-and-trade carbon the adopted 2024 ACC leaves out); DEER 1.0018 / 1.0531 (difference 4) |
 | `WaterEnergyBen` | 0.9742 | `_SB` 1.0156, `_SH` 1.0293 (CET holds `_SB` = `_SH` here) |
 | `TotalSystemBenefit` | 1.2632 | **1.0013 without the TOU end uses** |
 | portfolio `TRC` / `PAC` / `RIM` ratio (receipt definition) | 2.0369 / 11.1496 / 0.6450 vs CET 1.6153 / 8.8097 / 0.5157 | without the TOU end uses the TRC ratio is 0.9997 of CET's |
@@ -859,9 +859,11 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 7. Every electric measure is priced from an 8,760 with the 2018 calendar alignment of C4.2 (2026-10-02). CET instead prices TOU end uses from CEDARS' TOU calculators (Gen at
    full-year period means; T&D on kW with a duplicate /1000, about 1,000 times too small) and shifts other profiles to each forecast year's weekdays with a one-day error on
    negative offsets; it prices SCG from its own quarterly table.
-8. **TOU societal (`_SB` / `_SH`) electric values** are priced like every other end use, on the ACC's own `SCT Base` / `SCT High` rows (which leave out the cap-and-trade carbon component).
-   CET's TOU societal values keep the cap-and-trade component alongside the social cost of carbon, so carbon is counted twice (about $21/MWh, 13% of the price), and they carry its TOU
-   T&D error (item 7). This is a deliberate departure from CET, confirmed 2026-10-23; it is why TOU `ElecBen_SB` / `_SH` differ from CET's in the table above.
+8. **TOU societal (`_SB` / `_SH`) electric values** are priced like every other end use, on the ACC's own `SCT Base` / `SCT High` rows. ReCET follows each ACC model exactly
+   as adopted, and the adopted 2024 ACC turns the cap-and-trade carbon component off and the air quality adder on for the SCT. CET's TOU societal values add the cap-and-trade
+   component back (about $21/MWh, 13% of the price), because the ACC's own CET export macro switches every component on before it writes the generation values; they also carry
+   CET's TOU T&D error (item 7). This is why TOU `ElecBen_SB` / `_SH` differ from CET's in the table above. The 2026 ACC
+   includes cap-and-invest under the SCT, so nothing is added back there.
 9. `LevBenElec` is `ElecBen / DiscountedSavingsNetkWh`. CET's exported `LevBenElec` is `ElecBen_SB / DiscountedSavingsNetkWh` on every measure: CalcCost's `LevelizedCost` step names its
    three `LevBenElec` columns in a different order from the values it selects, so the TRC value lands under another name.
 10. `DiscountedSavingsGross...` on early-replacement measures (`RUL_Yrs` > 0): ReCET's is the net formula without NTG (C19.5). CET's gross kWh counts one 2nd-baseline year too many
@@ -870,6 +872,11 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 11. **PrgIDs that do not line up between `Measure.csv` and `ProgramCost.csv`** do not stop the run (0.1.59). CET stops the job on either kind. A measure whose program
    has no `ProgramCost.csv` row is priced with no program costs (C11: its share is of a program total of 0), and a `ProgramCost.csv` row whose program has no measures is charged to
    none; preflight warns about both (`measures_without_program_costs`, `program_costs_without_measures`, with the costs left out). A job whose PrgIDs all line up gives CET's results.
+12. **A program cost row's year is its `PrgYear`** (0.1.105, Jake 2026-11-27). `ProgramCost` has no `ClaimYearQuarter` of its own: a quarter is only ever a measure's. CET
+   discounts a program cost row from the year of its `ClaimYearQuarter`; CEDARS requires that year to equal `PrgYear`, so the two agree on every filed row, and results
+   differ only for a file whose rows give two different years. A file that still has the column is read and the column ignored, and CEDARS' rules that test or read
+   `ProgramCost.ClaimYearQuarter` are left out of the rule sets ReCET ships (`filing_rules.NOT_TAKEN`). The CET replicas (`recet/cet_versions`) still read it as CET did when
+   a file has it, else `PrgYear`.
 
 **Limitations.**
 
