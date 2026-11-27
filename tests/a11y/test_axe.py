@@ -420,7 +420,6 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
     legacy_years = _legacy()
     downloads = _downloads(community)
-    _specification_rules_in_step(cpuc_admin)
     _specification_proposed(cpuc_admin, pge, pge_admin)  # last: a specification with a proposed version takes no other draft
     return {
         "next_month": f"{timezone.localdate() + timedelta(days=30):%Y-%m}",  # the calendar's month with the TUAL due in it
@@ -534,16 +533,6 @@ def _specification_draft(cpuc_admin):
             "cleared": 0,
         },
     )  # fmt: skip
-
-
-def _specification_rules_in_step(cpuc_admin):
-    """A draft of the claims specification (Claims 2032) whose rule set, copied from the scene's published claims rules, disagrees
-    with its fields, for the Rules page's list of differences and its Bring the rules in line form."""
-    from cedars.services.specifications import editor
-    from cedars.services.specifications import service as specifications
-    from cedars.services.specifications.models import Specification
-
-    editor.start_draft(cpuc_admin, specifications.current(Specification.objects.get(code="claims")), "Claims 2032", "2032")
 
 
 def _specification_proposed(cpuc_admin, pge, pge_admin):
@@ -1890,6 +1879,30 @@ def test_the_workbook_preview_axe_clean(browser, axe_source, site, scene, scheme
     found = _violations(page, axe_source, header_menus=False)
     context.close()
     assert not found, f"workbook preview ({scheme}): " + json.dumps(found, indent=1)
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_rules_page_with_fields_and_rules_out_of_step_axe_clean(browser, axe_source, site, scene, django_db_blocker, scheme):
+    """A claims draft whose rule set, copied from the scene's published claims rules, disagrees with its fields: the Rules page lists
+    where, with the form that brings them in line. Made for this test and discarded after it (a specification has one draft, and the
+    import preview loads a claims package)."""
+    from cedars.services.specifications import editor
+    from cedars.services.specifications import service as specifications
+    from cedars.services.specifications.models import Specification
+
+    with django_db_blocker.unblock():
+        admin = scene["cpuc_admin"]
+        v = editor.start_draft(admin, specifications.current(Specification.objects.get(code="claims")), "Claims 2032", "2032")
+    try:
+        context, page = _open(browser, site, scene, f"/specifications/claims/{v.slug}/edit/rules/", "cpuc_admin", color_scheme=scheme,
+                              bypass_csp=True)  # fmt: skip
+        assert page.locator("#in-step-differences").count() == 1 and page.locator("#align-form").count() == 1
+        found = _violations(page, axe_source, header_menus=False)
+        context.close()
+    finally:
+        with django_db_blocker.unblock():
+            editor.discard(admin, v, "Only for the accessibility check")
+    assert not found, f"rules page out of step ({scheme}): " + json.dumps(found, indent=1)
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
