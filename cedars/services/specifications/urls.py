@@ -27,6 +27,7 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/edit/settings/", editor_views.edit_settings, name="edit_settings"),
     path("<slug:code>/<slug:slug>/edit/rules/", editor_views.edit_rules, name="edit_rules"),
     path("<slug:code>/<slug:slug>/edit/rules/align/", editor_views.align_rules, name="align_rules"),
+    path("<slug:code>/<slug:slug>/edit/rules/add-set/", editor_views.add_rule_pack, name="add_rule_pack"),
     path("<slug:code>/<slug:slug>/edit/checks/", editor_views.edit_checks, name="edit_checks"),
     path("<slug:code>/<slug:slug>/edit/checks/as-rules/", editor_views.write_check_as_rules, name="write_check_as_rules"),
     path("<slug:code>/<slug:slug>/edit/examples/", editor_views.edit_examples, name="edit_examples"),

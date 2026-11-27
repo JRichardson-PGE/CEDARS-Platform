@@ -47,8 +47,8 @@ class Finding:
 def test_only_the_data_rules_and_cost_warnings_are_optional():
     known = coded.by_id()
     optional = {i for i, c in known.items() if c.optional}
-    assert optional == {"CLM-SITE", "CLM-NMEC", "CLM-SEM", "CLM-DEEMED", "CLM-FUELSUB", "CLM-PAYMENT", "CLM-CCAREN", "BUD-NOCOST",
-                        "MON-NOCOST", "MON-YTD"}  # fmt: skip
+    assert optional == {"CLM-SITE", "CLM-NMEC", "CLM-SEM", "CLM-DEEMED", "CLM-FUELSUB", "CLM-PAYMENT", "CLM-CCAREN", "CLM-DATES",
+                        "CLM-HTR", "CLM-CONTACT", "CLM-COUNT", "BUD-NOCOST", "MON-NOCOST", "MON-YTD"}  # fmt: skip
     assert all(known[i].severities == ("reject", "warning") for i in optional)
     assert not any(c.severities for i, c in known.items() if i not in optional)  # CEDARS' own processing keeps its severity
 

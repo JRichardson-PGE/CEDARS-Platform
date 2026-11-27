@@ -157,7 +157,9 @@ def test_the_rule_set_downloads_as_json_with_how_to_check_it(client, signed_in, 
     checks = {r["definition"]["check"] for r in d["rules"] if r["kind"] == "spec"}
     assert checks <= set(d["how_to_check"]["spec_checks"])
     tests = {r["definition"]["rule"] for r in d["rules"] if r["kind"] == "rule"}
-    tests |= {c[2].lower() for r in d["rules"] if r["kind"] == "rule" for c in r["definition"]["conds"]}
+    conds = [c for r in d["rules"] if r["kind"] == "rule" for c in r["definition"]["conds"]]
+    conds += [g for c in conds if isinstance(c, dict) for g in c["conds"]]  # a group holds plain conditions
+    tests |= {c[2].lower() for c in conds if not isinstance(c, dict)}
     assert all(t in d["how_to_check"]["rule_tests"]["comparisons"] for t in tests), tests
     # the value lists the rules read are in the file, retired codes kept with their end year
     lists = {r["definition"]["list"] for r in d["rules"] if r["kind"] == "spec" and r["definition"]["check"] == "value_list"}
@@ -186,3 +188,10 @@ def test_the_checker_s_findings_parse_as_findings(claims_rules):
     result = precheck.check("claims", "Measure", table_of(content, "Measure"), filing_year=2028)
     numeric = [f for f in result.findings if f.field == "NumUnits" and f.value == "abc"]
     assert numeric and numeric[0].record_id == "PGE-2028-001" and numeric[0].fix.startswith("Enter a plain number")
+
+
+def test_how_to_check_describes_every_test_and_condition_table_the_rule_form_offers():
+    spec = precheck.CHECK_SPEC["rule_tests"]
+    assert all(op in spec["comparisons"] for op, _label in rules.OPERATORS)
+    assert all(f in spec["condition_tables"] for f in [*rules.PROGRAM_FIELDS, *rules.FILER_FIELDS])
+    assert "UploadDate" in spec["values"] and "group" in spec["form"]

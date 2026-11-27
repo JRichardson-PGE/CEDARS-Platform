@@ -507,6 +507,7 @@ def add_rule(
     fix: str = "",
     modules: list[str] | None = None,
     reason: str = "",
+    source: str = "Added by an administrator",
 ) -> Rule:
     """A new rule in a draft. Its ID is the content hash of its test; the wording is written from the test unless given."""
     _require_admin(actor)
@@ -530,7 +531,7 @@ def add_rule(
         message=message,
         fix=(fix or "").strip() or suggested_fix(kind, canonical_field(field), definition, message),
         modules=modules if modules is not None else MODULES_FOR.get(rs.code, []),
-        source="Added by an administrator",
+        source=source,
     )
     audit.record("rule.added", obj=r, after=audit.snapshot(r, ["rule_id", *TEST, *WORDING]), reason=reason, actor=actor)
     return r
@@ -1115,3 +1116,18 @@ def findings_csv(findings: list[Finding]) -> str:
     for f in findings:
         w.writerow([f.row, f.record_id, f.table, f.field, f.rule_id, f.severity, f.message, f.fix])
     return out.getvalue()
+
+
+# --- rule packs (`packs.py`): sets of rules kept as data files that a draft takes in one step
+
+
+def rule_packs(rs: RuleSet):
+    from . import packs
+
+    return packs.for_rule_set(rs)
+
+
+def add_rule_pack(actor, rs: RuleSet, slug: str, reason: str = ""):
+    from . import packs
+
+    return packs.add(actor, rs, slug, reason)

@@ -1069,6 +1069,30 @@ def _keep_in_step(actor, v: SpecificationVersion, table: str, field: str, reason
 
 
 @transaction.atomic
+def add_rule_pack(actor, draft: SpecificationVersion, slug: str, reason: str = ""):
+    """Add a set of rules kept as data (the rules service's packs: CEDARS' 2026 claims data rules on measures) to the draft's rules:
+    the rules it replaces leave, its rules join. Its rules then run on the draft's filings once the version is published."""
+    from cedars.services.rules import service as rules_service
+
+    _require(actor)
+    v = _draft(draft)
+    rs = _rules_draft(v)
+    if rs is None:
+        raise EditError("The draft has no rules of its own to add them to.")
+    try:
+        return rules_service.add_rule_pack(actor, rs, slug, reason)
+    except rules_service.RuleError as e:
+        raise EditError(str(e)) from e
+
+
+def rule_packs(v: SpecificationVersion) -> list:
+    """The sets of rules kept as data that the draft's rules can take, with what each would change."""
+    from cedars.services.rules import service as rules_service
+
+    rs = _rules_draft(v)
+    return rules_service.rule_packs(rs) if rs is not None else []
+
+
 def align_rules(actor, draft: SpecificationVersion, reason: str = "") -> tuple[list, list[str]]:
     """Make the draft's rule set give exactly the field constraints its fields ask for (required, a number, a flag, a year and quarter,
     a largest length, a value list; `service.rule_differences`): the fields decide. Returns (rules added, rule IDs taken out)."""

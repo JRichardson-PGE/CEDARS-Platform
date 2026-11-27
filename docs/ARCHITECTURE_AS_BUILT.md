@@ -712,7 +712,13 @@ rather than by the module, so the two are **kept in step** (`specifications.rule
 changed or removed takes its field constraints with it (only the checks of the attributes that changed), every place where they still
 disagree is listed on the draft's Rules page and stops it being published, and "Bring the rules in line with the fields" makes the rule
 set give exactly what the fields ask for, with a reason (`specification.rules_aligned`). The fields decide; ranges, patterns,
-uniqueness and two-column keys are the rule set's own. The draft has a
+uniqueness and two-column keys are the rule set's own. A rule that still reads a field the draft removes (in its test or a condition,
+`rules.reads_field`) stops the draft until a person changes or removes it. The Rules page also offers **sets of rules kept as data**
+(`rules/packs.py`, one JSON file per set in `rules/packs/`, for one rule-set code), such as CEDARS' 2026 claims data rules on
+measures: "Add these rules" (`editor.add_rule_pack`, `rules.add_rule_pack`) takes out of the draft the rules of CEDARS' files the set
+replaces and adds the set's rules it lacks, each audited as any rule added or removed (`rule.removed`, `rule.added`, with the set's
+source), then `rule_set.pack_added`; a published rule set never changes, so a set reaches filings with the version it is added to.
+The draft has a
 page per part (Settings, Tables and fields, Rules, Built-in checks, Examples, Impact test, Workbook, Changes, Comments, Publish) and a form per field and table; every change is
 audited with its reason (`specification.*` actions). A field's type is chosen from the fixed list. A **locked** field (`locks`) is a
 table's key, a column an upload is refused without, a field a module's code reads (`register_locked_fields`) or one the installed
@@ -1659,9 +1665,13 @@ factors, each of which covers its portion from its own programs (section 8.1). A
   **compiled** over the standing version of the year's latest earlier confirmation (records replace earlier ones by primary key); the
   compiled year to date is what is checked, priced and published. Confirmations go in order, and a later confirmed quarter blocks
   un-confirming or reopening an earlier one. A legacy claim year's correction (a version after an imported one, with no earlier
-  confirmation) is compiled over the imported records instead (`legacy_corrections.base_tables`).
+  confirmation) is compiled over the imported records instead (`legacy_corrections.base_tables`). Keys (ClaimID, SiteID, ContactID,
+  and the PII file's) start with the PA's code; SW is accepted in their place only in the statewide claims filing.
 - Checks: the module's `CLM-*` checks (columns, types, keys, quarters, registry programs, references between tables, NMEC, SEM, deemed,
-  fuel substitution, payments, CCA/REN rules, eTRM by Measure Detail ID with blank deemed fields filled from the eTRM pack) and CEDARS'
+  fuel substitution, payments, CCA/REN rules, eTRM by Measure Detail ID with blank deemed fields filled from the eTRM pack, and CEDARS'
+  2026 data rules on the Claim, ContactClaim and Participant tables: dates within 9 years of the upload, the hard-to-reach criteria, a
+  claim's ContactClaim record, SiteID and custom application ID by its measure's program in the registry, at least one participant;
+  these four run only when the version lists them) and CEDARS'
   claims rule set (the specification version's: CEDARS' own rules cover Measure and ProgramCost, and a version's rules may test any claim table).
 - Pricing: the year to date on the claim year's ACC (default: the ACC of the year's final budget filing, from the engine's table), with
   the year's allocation version and cost-test set, `acc_purpose = claims`.

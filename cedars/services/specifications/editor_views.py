@@ -148,7 +148,28 @@ def edit_rules(request, code: str, slug: str):
     named = {r.table for r in rules if r.kind == "spec"}
     tables = [t for t in v.tables.order_by("position").values_list("name", flat=True) if t in named]
     return _page(request, "edit_rules.html", v, "edit_rules", rules=rules, differences=differences,
-                 in_step_tables=" and ".join(tables), align_form=forms.ReasonForm(auto_id="align-%s"))  # fmt: skip
+                 in_step_tables=" and ".join(tables), align_form=forms.ReasonForm(auto_id="align-%s"),
+                 packs=editor.rule_packs(v), pack_form=forms.ReasonForm(auto_id="pack-%s"))  # fmt: skip
+
+
+@login_required
+@require_POST
+def add_rule_pack(request, code: str, slug: str):
+    """Add a set of rules kept as data to the draft's rules (editor.add_rule_pack)."""
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why the rules are added: the reason is kept with the version.")
+    else:
+        try:
+            st = editor.add_rule_pack(request.user, v, request.POST.get("pack", ""), form.cleaned_data["reason"])
+        except (AccessDenied, editor.EditError) as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"Added {st.pack.name}: {len(st.missing)} rules added, {len(st.replaced)} replaced.")
+    return redirect("specifications:edit_rules", v.specification.code, v.slug)
 
 
 @login_required
