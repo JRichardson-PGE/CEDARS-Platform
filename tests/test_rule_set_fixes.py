@@ -83,6 +83,17 @@ def test_a_budget_measure_filed_twice_is_refused(budget_filer, filing, pge, budg
     assert v.status == "draft"
 
 
+def test_a_budget_program_year_filed_twice_is_refused(budget_filer, filing, pge, budget_programs):
+    costs = ["PGE_Res_HVAC|2028|2028Q1|PGE|1000|0|0|0|0|0|0|0|0|0|0", "PGE_Res_HVAC|2028|2028Q2|PGE|5|0|0|0|0|0|0|0|0|0|0",
+             "PGE_Res_HVAC|2029|2029Q1|PGE|1100|0|0|0|0|0|0|0|0|0|0"]  # fmt: skip
+    v = budgets.upload(budget_filer, filing, pge, job(costs=costs, measures=["M1|PGE_Res_HVAC|2028Q1|10|20|30|5|5"]), "dup.zip")
+    dup = [f for f in budgets.findings(v) if f["rule_id"] == "BUD-DUP"]
+    assert [(f["table"], f["row"], f["field"], f["severity"]) for f in dup] == [("ProgramCost", 3, "PrgYear", "reject")]
+    assert "two ProgramCost rows for 2028" in dup[0]["message"] and v.status == "draft"
+    # the first row is the one kept: the filing's 2028 costs are its own
+    assert v.budget_lines.get(prg_id="PGE_Res_HVAC", year=2028).program_costs["AdminCostsOverheadAndGA"] == "1000"
+
+
 def test_a_claim_measure_filed_twice_is_refused_under_a_rule_set(filer, year, pge, programs, claims_rules):
     """The rule set checks keys of two or more columns only: Measure's one-column key is the module's to check, as pricing refuses it."""
     t = tables(

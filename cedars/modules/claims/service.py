@@ -2953,9 +2953,8 @@ def setup_link(deadline) -> str:
 # --- the specification's example files
 
 
-# what the module's own checks accept for the fields they read (a site in California, a measure that is not fuel substitution)
-EXAMPLE_VALUES = {"SiteState": "CA", "SiteZipCode": "94105", "MeasImpactType": "Cust-Gen"}
-EXAMPLE_REFERENCE = ("CLM-PRG", "CLM-SW", "CLM-ORG", "CLM-ETRM", "CLM-CHAIN", "CLM-WD")  # need the registry, eTRM or the year so far
+# need the registry, eTRM or the year so far
+EXAMPLE_REFERENCE = ("CLM-PRG", "CLM-SW", "CLM-ORG", "CLM-ETRM", "CLM-CHAIN", "CLM-WD", "CLM-CONTACT")
 
 
 def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -> list[Problem]:

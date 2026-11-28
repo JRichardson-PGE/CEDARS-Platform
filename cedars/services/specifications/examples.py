@@ -60,7 +60,8 @@ def example_year() -> int:
 class Checker:
     """How a module checks example records: `run(version, rows, year, pa)` gives findings as dicts (row, record_id, table, field,
     rule_id, severity, message, fix); `reference` names the module's built-in checks that need real reference data; `values` are
-    example values its own checks accept ({field: value}), taken where the version gives the field no example or default."""
+    example values its own checks and CEDARS' rules accept ({field: value}, "{year}" standing for the example's year), taken where the
+    version gives the field no example or default, an optional field included."""
 
     run: object
     reference: frozenset[str]
@@ -107,14 +108,15 @@ def _id(name: str, year: int, n: int) -> str:
 
 
 def value_for(f, version, year: int, n: int = 1, *, fill: bool = False) -> str:
-    """A valid value for field `f` (a FieldLayout or SpecField) in record `n` of an example for `year`. An optional field is blank
-    unless it has an example or default, or `fill` (a field that links tables) asks for a value."""
+    """A valid value for field `f` (a FieldLayout or SpecField) in record `n` of an example for `year`: its example or default, else the
+    value the module gives for it (`register_example_checker` values, "{year}" standing for the year). An optional field is otherwise
+    blank, unless `fill` (a field that links tables) asks for a value."""
     if f.requirement == "system":
         return ""  # CEDARS fills it in
     codes = _codes(f.value_list, version, year) if f.value_list and f.value_list.lower() != "prgid" else None
     checker = _checkers.get(version.specification.module)
-    hint = checker.values.get(f.name, "") if checker is not None else ""
-    for given in (f.example, f.default, hint if f.required or fill else ""):
+    hint = (checker.values.get(f.name, "") if checker is not None else "").replace("{year}", str(year))
+    for given in (f.example, f.default, hint):
         if given and not service.value_problem(f, given) and (codes is None or given.lower() in {c.lower() for c in codes}):
             return given
     if f.name.upper() == "PA":

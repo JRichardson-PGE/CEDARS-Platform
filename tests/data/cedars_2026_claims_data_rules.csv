@@ -1,0 +1,166 @@
+line,table,field,rule,checked_by,note
+1,program_cost,claim_year_quarter,ProgramCost.ClaimYearQuarter is for the current claim year.,CLM-YEAR,ProgramCost has no ClaimYearQuarter; CLM-YEAR checks PrgYear is the claim year
+2,program_cost,claim_year_quarter,ProgramCost.ClaimYearQuarter is for the current or earlier submission quarter.,,"Not applicable: ProgramCost has no ClaimYearQuarter (its year is PrgYear, which CLM-YEAR checks)"
+3,program_cost,claim_year_quarter,ProgramCost.ClaimYearQuarter is in the format '2023Q1'.,,"Not applicable: ProgramCost has no ClaimYearQuarter (its year is PrgYear, which CLM-YEAR checks)"
+4,program_cost,pa,ProgramCost.PA is in the PA valuelist.,S25eeca,
+5,program_cost,prg_id,ProgramCost.PrgID is in the Program valuelist.,CLM-PRG,
+6,program_cost,prg_id,ProgramCost.PrgID starts with the PA code of the program administrator or 'SW' for statewide claims.,CLM-ORG CLM-SW,
+7,program_cost,prg_year,ProgramCost.PrgYear matches the year of ProgramCost.ClaimYearQuarter.,CLM-YEAR,ProgramCost has no ClaimYearQuarter; CLM-YEAR checks PrgYear is the claim year
+8,measure,claim_year_quarter,Measure.ClaimYearQuarter is for the current claim year.,CLM-YEAR,
+9,measure,claim_year_quarter,Measure.ClaimYearQuarter is for the current or earlier submission quarter.,CLM-YEAR,
+10,measure,claim_year_quarter,Measure.ClaimYearQuarter is in the format '2023Q1'.,Se464b9,
+11,measure,bldg_type,Measure.BldgType is in the BldgType valuelist.,S29f643,
+12,measure,combustion_type,Measure.CombustionType is empty or is in the CombustionType valuelist.,S65682a,
+13,measure,delivery_type,Measure.DeliveryType is in the DeliveryType valuelist.,Sdf3bf7,
+14,measure,e3_climate_zone,Measure.E3ClimateZone is in the E3ClimateZone valuelist.,S8cc6c4,
+15,measure,e3_climate_zone,(Measure.IOU_AC_Territory + Measure.E3TargetSector + Measure.E3MeaElecEndUseShape + Measure.E3ClimateZone) is an Avoided Cost Combo when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,V36c54d Vf96534 V663e2f,
+16,measure,e3_gas_sav_profile,Measure.E3GasSavProfile is empty or is in the E3GasSavProfile valuelist.,S82782d,
+17,measure,e3_gas_sav_profile,Measure.E3GasSavProfile is required when Measure.UnitTherm1stBaseline does not equal 0 and Measure.DeliveryType does not equal 'C&S'.,V41dff2,
+18,measure,e3_gas_sector,Measure.E3GasSector is empty or is in the E3GasSector valuelist.,Sf65a58,
+19,measure,e3_gas_sector,Measure.E3GasSector is required when Measure.UnitTherm1stBaseline does not equal 0 and Measure.DeliveryType does not equal 'C&S'.,Vcd8b12,
+20,measure,e3_mea_elec_end_use_shape,Measure.E3MeaElecEndUseShape is empty or is in the E3MeaElecEndUseShape valuelist.,V36c54d Vf96534 V663e2f,Partly: the Avoided Cost Combo rules check the value when the measure has electric savings; on another measure a value outside the list is not caught
+21,measure,e3_mea_elec_end_use_shape,Measure.E3MeaElecEndUseShape is required when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,V7c934f Vc677f1 V0fe7e0,
+22,measure,e3_mea_elec_end_use_shape,(Measure.IOU_AC_Territory + Measure.E3TargetSector + Measure.E3MeaElecEndUseShape + Measure.E3ClimateZone) is an Avoided Cost Combo when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,V36c54d Vf96534 V663e2f,
+23,measure,e3_target_sector,Measure.E3TargetSector is empty or is in the E3TargetSector valuelist.,V36c54d Vf96534 V663e2f,Partly: the Avoided Cost Combo rules check the value when the measure has electric savings; on another measure a value outside the list is not caught
+24,measure,e3_target_sector,Measure.E3TargetSector is required when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,Vee7e2b,
+25,measure,e3_target_sector,(Measure.IOU_AC_Territory + Measure.E3TargetSector + Measure.E3MeaElecEndUseShape + Measure.E3ClimateZone) is an Avoided Cost Combo when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,V36c54d Vf96534 V663e2f,
+26,measure,eul_id,Measure.EUL_ID is empty or is in the EUL valuelist.,S165b05,
+27,measure,eul_id,Measure.EUL_ID is required when Claim.ClaimType equals 'Deemed'.,V56d6ef,
+28,measure,gsia_id,Measure.GSIA_ID is empty or is in the GSIA valuelist.,S9ef296,
+29,measure,gsia_id,Measure.GSIA_ID is required when Claim.ClaimType equals 'Deemed'.,V2a158b,
+30,measure,installation_rate_kw,Measure.InstallationRatekW is greater than 0.,Sc36103,
+31,measure,installation_rate_kw,Measure.InstallationRatekW is less than or equal to 1.,Sc36103,
+32,measure,installation_rate_kwh,Measure.InstallationRatekWh is greater than 0.,Sfe7c5a,
+33,measure,installation_rate_kwh,Measure.InstallationRatekWh is less than or equal to 1.,Sfe7c5a,
+34,measure,installation_rate_therm,Measure.InstallationRateTherm is greater than 0.,S8c3b99,
+35,measure,installation_rate_therm,Measure.InstallationRateTherm is less than or equal to 1.,S8c3b99,
+36,measure,meas_app_type,Measure.MeasAppType is in the MeasAppType valuelist.,Seaf616,
+37,measure,meas_impact_type,Measure.MeasImpactType is in the MeasImpactType valuelist.,S1c5f39,
+38,measure,meas_impact_type,"Measure.MeasImpactType equals one of ('Cust-SEM', 'Cust-SEM-FuelSub') when Claim.SEM_Phase is populated.",CLM-SEM,
+39,measure,meas_inflation,Measure.MeasInflation is empty or is greater than or equal to 0.,S2c340e,
+40,measure,meas_inflation,Measure.MeasInflation is empty or is less than or equal to 1.,S2c340e,
+41,measure,misc_bens_desc,Measure.MiscBensDesc is required when Measure.UnitMiscBens does not equal 0.,V265a12,
+42,measure,misc_costs_desc,Measure.MiscCostsDesc is required when Measure.UnitMiscCosts does not equal 0.,V6b1f3f,
+43,measure,norm_unit,Measure.NormUnit is in the NormUnit valuelist.,S0be853,
+44,measure,ntg_id,Measure.NTG_ID is empty or is in the NTG valuelist.,S1f383e,
+45,measure,ntg_id,Measure.NTG_ID is required when Measure.DeliveryType does not equal 'C&S'.,V1c9f94,
+46,measure,pre_desc,Measure.PreDesc is required when Measure.RUL_Yrs is greater than 0.,V8febd5,
+47,measure,prg_id,Measure.PrgID is in the Program valuelist.,CLM-PRG,
+48,measure,rate_schedule_elec,Measure.RateScheduleElec is empty or is in the RateScheduleElec valuelist.,S5ec610,
+49,measure,rate_schedule_gas,Measure.RateScheduleGas is empty or is in the RateScheduleGas valuelist.,S2e0710,
+50,measure,realization_rate_kw,Measure.RealizationRatekW is greater than 0.,S015614,
+51,measure,realization_rate_kw,Measure.RealizationRatekW is less than or equal to 2.,S015614,
+52,measure,realization_rate_kwh,Measure.RealizationRatekWh is greater than 0.,Sc4bb0d,
+53,measure,realization_rate_kwh,Measure.RealizationRatekWh is less than or equal to 2.,Sc4bb0d,
+54,measure,realization_rate_therm,Measure.RealizationRateTherm is greater than 0.,S458b12,
+55,measure,realization_rate_therm,Measure.RealizationRateTherm is less than or equal to 2.,S458b12,
+56,measure,rul_id,Measure.RUL_ID is empty or is in the EUL valuelist.,Sfac44c,
+57,measure,rul_id,Measure.RUL_ID is required when Claim.ClaimType equals 'Deemed' and Measure.RUL_Yrs is greater than 0.,V5c2449,
+58,measure,rul_yrs,Measure.RUL_Yrs equals 0 when Measure.MeasAppType does not equal 'AR'.,Vbaa0ce,
+59,measure,rul_yrs,Measure.RUL_Yrs is greater than 0 when Measure.UnitkW2ndBaseline does not equal 0 or Measure.UnitkWh2ndBaseline does not equal 0 or Measure.UnitTherm2ndBaseline does not equal 0 or Measure.UnitMeaCost2ndBaseline does not equal 0 or Measure.UnitkWhIOUWater2ndBaseline does not equal 0.,V22b388,
+60,measure,rul_yrs,Measure.RUL_Yrs is less than the value of Measure.EUL_Yrs when Measure.RUL_Yrs is greater than 0 and Measure.EUL_Yrs is greater than 0.,Va88f0b,
+61,measure,rul_yrs,Measure.RUL_Yrs is greater than 0 when Measure.MeasAppType equals 'AR' and Measure.MeasImpactType does not start with 'Cust-NMEC'.,Vac69e1,
+62,measure,sector,Measure.Sector is in the Sector valuelist.,S43a79a,
+63,measure,std_desc,Measure.StdDesc is required when Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0 or Measure.UnitTherm1stBaseline does not equal 0 or Measure.UnitMeaCost1stBaseline does not equal 0.,Vaec61d,
+64,measure,tech_group,Measure.TechGroup is in the TechGroup valuelist.,Sfddd83,
+65,measure,tech_type,Measure.TechType is in the TechType valuelist.,Sc3f576,
+66,measure,unit_kw_2nd_baseline,Measure.UnitkW2ndBaseline equals 0 when Measure.RUL_Yrs equals 0.,V018280,
+67,measure,unit_kwh_2nd_baseline,Measure.UnitkWh2ndBaseline equals 0 when Measure.RUL_Yrs equals 0.,V5fedcc,
+68,measure,unit_therm_2nd_baseline,Measure.UnitTherm2ndBaseline equals 0 when Measure.RUL_Yrs equals 0.,Vf7fcf6,
+69,measure,use_category,Measure.UseCategory is in the UseCategory valuelist.,S507bab,
+70,measure,use_sub_category,Measure.UseSubCategory is in the UseSubCategory valuelist.,S44b1c4,
+71,measure,version,Measure.Version is empty or is in the Version valuelist.,S09013a,
+72,measure,version,Measure.Version is required when Claim.ClaimType equals 'Deemed'.,V2f0c35,
+73,measure,water_use,Measure.WaterUse is empty or is in the WaterUse valuelist.,S6dd879,
+74,measure,water_use,Measure.WaterUse is required when Measure.UnitkWhIOUWater1stBaseline does not equal 0 or Measure.UnitkWhIOUWater2ndBaseline does not equal 0.,Vd14c4e,
+75,measure,eul_yrs,Measure.EUL_Yrs is less than or equal to 40.,Sbea038,
+76,measure,iou_ac_territory,(Measure.IOU_AC_Territory + Measure.E3TargetSector + Measure.E3MeaElecEndUseShape + Measure.E3ClimateZone) is an Avoided Cost Combo when (Measure.UnitkW1stBaseline does not equal 0 or Measure.UnitkWh1stBaseline does not equal 0 or Measure.UnitkWhIOUWater1stBaseline does not equal 0) and (Measure.DeliveryType does not equal 'C&S').,V36c54d Vf96534 V663e2f,
+77,measure,iou_ac_territory,"Measure.IOU_AC_Territory is an IOU (PGE, SCE, SCG or SDGE).",V91df94,
+78,measure,fuel_id,Measure.FuelID is empty or is in the FuelID valuelist.,S2ff0bb,
+79,measure,unit_mea_cost_2nd_baseline,Measure.UnitMeaCost2ndBaseline is greater than 0 when Measure.UnitkW2ndBaseline does not equal 0 or Measure.UnitkWh2ndBaseline does not equal 0 or Measure.UnitTherm2ndBaseline does not equal 0 or Measure.UnitkWhIOUWater2ndBaseline does not equal 0.,Vaa731c,
+80,claim,total_first_year_gross_kw,Claim.TotalFirstYearGrosskW is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+81,claim,total_first_year_gross_kwh,Claim.TotalFirstYearGrosskWh is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+82,claim,total_first_year_gross_therm,Claim.TotalFirstYearGrossTherm is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+83,claim,total_first_year_net_kw,Claim.TotalFirstYearNetkW is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+84,claim,total_first_year_net_kwh,Claim.TotalFirstYearNetkWh is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+85,claim,total_first_year_net_therm,Claim.TotalFirstYearNetTherm is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+86,claim,total_gross_incentive,Claim.TotalGrossIncentive is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+87,claim,total_gross_measure_cost,Claim.TotalGrossMeasureCost is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+88,claim,total_gross_measure_cost_er,Claim.TotalGrossMeasureCost_ER is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+89,claim,total_lifecycle_gross_kw,Claim.TotalLifecycleGrosskW is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+90,claim,total_lifecycle_gross_kwh,Claim.TotalLifecycleGrosskWh is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+91,claim,total_lifecycle_gross_therm,Claim.TotalLifecycleGrossTherm is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+92,claim,total_lifecycle_net_kw,Claim.TotalLifecycleNetkW is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+93,claim,total_lifecycle_net_kwh,Claim.TotalLifecycleNetkWh is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+94,claim,total_lifecycle_net_therm,Claim.TotalLifecycleNetTherm is accurate to within 0.1%.,,Not done: a claim total within 0.1% of its measures needs CEDARS' way of adding them up
+95,claim,application_date,"Claim.ApplicationDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when ((Claim.ShipmentDate is empty and Measure.DeliveryType equals 'UpDeemed' and Measure.Upstream_Flag equals 'True') or (Claim.SalesDate is empty and Measure.DeliveryType equals 'UpDeemed' and Measure.Upstream_Flag equals 'False') or (Claim.ApplicationDate is before Claim.ComplianceCertDate and Claim.ComplianceCertDate is populated and Claim.PermitIssuanceDate is empty and Measure.DeliveryType equals 'DnDeemed') or (Claim.ApplicationDate is before Claim.InstallationDate and Claim.ComplianceCertDate is empty and Claim.PermitIssuanceDate is empty and Measure.DeliveryType equals 'DnDeemed') or (Claim.ApplicationDate is before Claim.InstallationDate and Claim.PermitIssuanceDate is empty and Measure.DeliveryType equals 'DnDeemDI')) and (Claim.ApplicationDate is after 12/31/2023).",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+96,claim,claim_id,"Claim.ClaimID matches at least one ContactClaim.ClaimID when Claim.ClaimID does not end with one of ('Audit', 'Placeholder') and Measure.MeasImpactType does not start with 'Cust-NMEC-Pop' and Program.ProgramCategory does not equal 'Energy Savings Assistance' and Program.ProgramSegment is populated and Program.ProgramSegment does not equal 'Codes and Standards'.",CLM-CONTACT,
+97,claim,claim_id,"Claim.ClaimID starts with the PA code of the program administrator or 'SW' for statewide claims, then a dash, then the claim year, e.g. PGE-2023.",CLM-ID,
+98,claim,cmpa_application_id,"Claim.CMPA_ApplicationID is required when Claim.ClaimID does not end with one of ('Audit', 'Placeholder') and Claim.ClaimType equals 'Custom' and Measure.MeasImpactType does not start with 'Cust-NMEC-Pop' and Program.ProgramCategory does not equal 'Energy Savings Assistance' and Program.ProgramSegment is populated and Program.ProgramSegment does not equal 'Codes and Standards'.",CLM-CONTACT,
+99,claim,cmpa_application_id,Claim.CMPA_ApplicationID is empty or is in the ApplicationID valuelist. [WARNING ONLY],,Not done: the list changes as projects go into the CMPA tool outside CEDARS; it needs a sync with that tool
+100,claim,compliance_cert_date,"Claim.ComplianceCertDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when Claim.PermitIssuanceDate is empty and Claim.ComplianceCertDate is populated and Measure.DeliveryType equals 'DnDeemed' and Claim.ComplianceCertDate is on or before Claim.ApplicationDate and Claim.ComplianceCertDate is after 12/31/2023.",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+101,claim,installation_date,"Claim.InstallationDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when ((Claim.InstallationDate is on or before Claim.ApplicationDate and Claim.PermitIssuanceDate is empty and Measure.DeliveryType equals 'DnDeemDI') or (Claim.ComplianceCertDate is empty and Claim.InstallationDate is on or before Claim.ApplicationDate and Claim.PermitIssuanceDate is empty and Measure.DeliveryType equals 'DnDeemed')) and (Claim.InstallationDate is after 12/31/2023).",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+102,claim,installation_date,Claim.InstallationDate is within 9 years of the date the claim is uploaded.,CLM-DATES,
+103,claim,meas_detail_id,Claim.MeasDetailID is not 'a restricted permutation' when Claim.ClaimType equals 'Deemed' and Program.ProgramSegment is populated and Program.ProgramSegment does not equal 'Equity' and Claim.ApplicationDate is after 12/31/2023.,,Not done: a deemed claim's measure detail that is a restricted permutation needs eTRM's list of them
+104,claim,meas_detail_id,Claim.MeasDetailID is empty or is in the MeasDetailID valuelist.,CLM-ETRM,"On a deemed claim, eTRM's permutations of its measure"
+105,claim,meas_detail_id,Claim.MeasDetailID is required when Claim.ClaimType equals 'Deemed'.,CLM-DEEMED,
+106,claim,original_meter_install_year,Claim.OriginalMeterInstallYear is required when Measure.DeliveryType does not equal 'UpDeemed' and Measure.MeasImpactType ends with 'FuelSub'.,CLM-FUELSUB,
+107,claim,permit_issuance_date,"Claim.PermitIssuanceDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when Claim.PermitIssuanceDate is populated and Measure.DeliveryType starts with 'DnDeem' and Claim.PermitIssuanceDate is after 12/31/2023.",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+108,claim,sales_date,"Claim.SalesDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when Claim.SalesDate is populated and Measure.DeliveryType equals 'UpDeemed' and Measure.Upstream_Flag equals false and Claim.SalesDate is after 12/31/2023.",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+109,claim,shipment_date,"Claim.ShipmentDate is within the start and end dates of all the values supplied of Claim.BldgHVAC, Claim.DEER_MeasureID, Claim.MeasDetailID, Measure.BldgType, Measure.EUL_ID, Measure.MeasImpactType, Measure.NTG_ID, Measure.TechGroup and Measure.TechType when Claim.ShipmentDate is populated and Measure.DeliveryType equals 'UpDeemed' and Measure.Upstream_Flag equals true and Claim.ShipmentDate is after 12/31/2023.",,Not done: a date within the dates each code it names is in effect needs the codes' effective dates
+110,claim,site_id,"Claim.SiteID is required when Claim.ClaimID does not end with one of ('Audit', 'Placeholder') and Measure.MeasImpactType does not start with 'Cust-NMEC-Pop' and Program.ProgramCategory does not equal 'Energy Savings Assistance' and Program.ProgramSegment is populated and Program.ProgramSegment does not equal 'Codes and Standards'.",CLM-CONTACT,
+111,claim,total_customer_infrastructure_costs,Claim.TotalCustomerInfrastructureCosts is required when Measure.MeasImpactType ends with 'FuelSub'.,CLM-FUELSUB,
+112,claim,nmec_tu_flag,Claim.NMEC_TU_Flag is populated when Measure.MeasImpactType contains 'NMEC'.,CLM-NMEC,
+113,claim,participant_id,Claim.ParticipantID is required when Measure.MeasImpactType equals 'Cust-SEM' or Measure.MeasImpactType equals 'Cust-SEM-FuelSub'.,CLM-SEM,
+114,claim,sem_phase,Claim.SEM_Phase is populated when Measure.MeasImpactType equals 'Cust-SEM' or Measure.MeasImpactType equals 'Cust-SEM-FuelSub'.,CLM-SEM,
+115,claim,sem_phase,Claim.SEM_Phase is empty or is in the SEM_Phase valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+116,site,naics_code,Site.NAICSCode is required when Site.Residential_Flag equals false.,CLM-SITE,
+117,site,site_id,Site.SiteID starts with the PA code of the program administrator or 'SW' for statewide claims.,CLM-ID,
+118,site,site_state,Site.SiteState equals 'CA'.,CLM-SITE,
+119,site,site_zip_code,Site.SiteZipCode is a California zip code.,CLM-SITE,
+120,claim,bldg_hvac,Claim.BldgHVAC is in the BldgHVAC valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+121,claim,bldg_loc,Claim.BldgLoc is in the BldgLoc valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+122,claim,bldg_vint,Claim.BldgVint is in the BldgVint valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+123,claim,ccaren_flag,Claim.CCAREN_Flag equals true when UploadPA is a CCA/REN.,CLM-CCAREN,
+124,claim,customer_agreement_date,Claim.CustomerAgreementDate is empty or is within 9 years of the date the claim is uploaded.,CLM-DATES,
+125,claim,deer_measure_id,Claim.DEER_MeasureID is empty or is in the DEER_MeasureID valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+126,claim,deer_sector,Claim.DEER_Sector is in the DEER_Sector valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+127,claim,funding_cycle,Claim.FundingCycle is in the FundingCycle valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+128,claim,installed_norm_unit,Claim.InstalledNormUnit is empty or is in the NormUnit valuelist.,,Not done yet: InstalledNormUnit has no code list in the claims specification (the NormUnit list could be given it)
+129,claim,meas_impact_calc_type,Claim.MeasImpactCalcType is empty or is in the MeasImpactCalcType valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+130,claim,meas_impact_calc_type,Claim.MeasImpactCalcType is required when Claim.ClaimType equals 'Deemed'.,CLM-DEEMED,
+131,claim,paid_date,Claim.PaidDate is empty or is within 9 years of the date the claim is uploaded.,CLM-DATES,
+132,claim,partial_payment_percent,Claim.PartialPaymentPercent is empty or is greater than or equal to 0.,CLM-PAYMENT,
+133,claim,partial_payment_percent,Claim.PartialPaymentPercent is empty or is less than or equal to 1.,CLM-PAYMENT,
+134,claim,partial_payment_percent,Claim.PartialPaymentPercent is required when Claim.PartialPaymentFinal_Flag equals true.,CLM-PAYMENT,
+135,claim,project_completion_date,Claim.ProjectCompletionDate is within 9 years of the date the claim is uploaded.,CLM-DATES,
+136,claim,project_id,Claim.ProjectID is required when Claim.ClaimType equals 'Deemed'.,CLM-DEEMED,
+137,claim,cmpa_measure_code,Claim.CMPA_MeasureCode is empty or is in the MeasureCode valuelist. [WARNING ONLY],,Not done: the list changes as projects go into the CMPA tool outside CEDARS; it needs a sync with that tool
+138,claim,parent_claim_id,Claim.ParentClaimID is required when Claim.NMEC_TU_Flag equals true.,CLM-NMEC,
+139,claim,htr_flag,(Option 1),CLM-HTR,
+140,claim,htr_flag,- HTR_Flag is true if CA_Flag is true,CLM-HTR,
+141,claim,htr_flag,(Option 2),CLM-HTR,
+142,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and Lang_Flag is true,CLM-HTR,
+143,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and Lang_Flag is true,CLM-HTR,
+144,claim,htr_flag,(non-res),CLM-HTR,
+145,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and NRSize_Flag is true,CLM-HTR,
+146,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and NRLease_Flag is true,CLM-HTR,
+147,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and LG_Flag is true,CLM-HTR,
+148,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and NRSize_Flag is true,CLM-HTR,
+149,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and NRLease_Flag is true,CLM-HTR,
+150,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and LG_Flag is true,CLM-HTR,
+151,claim,htr_flag,(res),CLM-HTR,
+152,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and ResLI_Flag is true,CLM-HTR,
+153,claim,htr_flag,- HTR_Flag is true if OMBCSA_Flag is true and ResMFMH_Flag is true,CLM-HTR,
+154,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and ResLI_Flag is true,CLM-HTR,
+155,claim,htr_flag,- HTR_Flag is true if DAC_Flag is true and ResMFMH_Flag is true,CLM-HTR,
+156,claim,htr_flag,(Option 3),CLM-HTR,
+157,claim,htr_flag,(non-res),CLM-HTR,
+158,claim,htr_flag,- HTR_Flag is true if Lang_Flag is true and NRSize_Flag is true and NRLease_Flag is true,CLM-HTR,
+159,claim,htr_flag,(res),CLM-HTR,
+160,claim,htr_flag,- HTR_Flag is true if Lang_Flag is true and ResLI_Flag is true and ResMFMH_Flag is true,CLM-HTR,
+161,contact_claim,contact_id,ContactClaim.ContactID starts with the PA code of the program administrator or 'SW' for statewide claims.,CLM-ID,
+162,participant,prg_id,Participant.PrgID is in the Program valuelist.,CLM-PRG,
+163,participant,prg_year,Participant.PrgYear is for the current claim year.,CLM-YEAR,
+164,participant,participant_type,Participant.ParticipantType is in the ParticipantType valuelist.,,"Not done yet: the code list comes with CEDARS' 2026 value lists, added to a claims draft as data"
+165,participant,participant_count,Participant.ParticipantCount is greater than or equal to 1.,CLM-COUNT,

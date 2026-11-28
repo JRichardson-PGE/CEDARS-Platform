@@ -181,14 +181,14 @@ MODULES = {
 @pytest.mark.parametrize("module", sorted(MODULES))
 def test_every_field_a_modules_code_names_is_locked(module):
     """A field name the module's code names (a string literal that is a field of its specification) is in its locked list, so a draft
-    cannot take away a field the code reads. The lists of checks only describe fields, so they are left out."""
+    cannot take away a field the code reads. The lists of checks and the example values only describe fields, so they are left out."""
     v = specifications.for_module(module)
     names = {f.name for t in v.tables.prefetch_related("fields") for f in t.fields.all()}
     declared = {f for fs in editor.declared_locks(module).values() for f in fs}
     named = set()
     for folder in MODULES[module]:
         for path in sorted((ROOT / folder).rglob("*.py")):
-            if "migrations" in path.parts or path.name in ("coded_checks.py", "locked_fields.py"):
+            if "migrations" in path.parts or path.name in ("coded_checks.py", "locked_fields.py", "example_values.py"):
                 continue
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                 if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.fullmatch(r"[A-Za-z_]\w*", node.value):
