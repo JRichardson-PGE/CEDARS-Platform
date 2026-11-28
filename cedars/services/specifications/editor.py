@@ -825,6 +825,67 @@ def new_value_list(actor, field: SpecField, name: str, *, codes: str = "", reaso
     return draft.value_list
 
 
+def value_list_packs(v: SpecificationVersion) -> list:
+    """The sets of value lists kept as data (list_packs) that the draft can take, with what each would change."""
+    from . import list_packs
+
+    return list_packs.for_version(v)
+
+
+@transaction.atomic
+def add_value_list_pack(actor, draft: SpecificationVersion, slug: str, reason: str = ""):
+    """Add a set of value lists kept as data (list_packs: CEDARS' 2026 claims value lists) to the draft: each list the draft's fields
+    do not name yet is made in the data dictionary with the set's codes, as a list made in the draft, and its field takes its codes
+    from it; a list of that name that is already in the data dictionary is named as it is. A field the draft does not have is passed
+    over. Returns the set's state before it was added."""
+    from cedars.services.dictionary import value_lists
+
+    from . import list_packs
+
+    _require(actor)
+    v = _draft(SpecificationVersion.objects.select_for_update().get(pk=draft.pk))
+    p = list_packs.pack(slug)
+    if p is None or p.code != v.specification.code:
+        raise EditError(f"There is no such set of value lists for {v.specification.name}.")
+    if not (reason or "").strip():
+        raise EditError("Say why the value lists are added: the reason is kept with the version.")
+    st = list_packs.state(v, p)
+    made, named = [], []
+    for x in st.missing:
+        field = SpecField.objects.get(table__version=v, table__name=x.table, name=x.field)
+        why = f"{p.name}: {reason}"
+        if x.name in value_list_names():  # a list the data dictionary already has (an earlier version published it)
+            change_field(actor, field, value_list=x.name, reason=why)
+            named.append(x.name)
+            continue
+        try:
+            list_draft = value_lists.create_list(actor, x.name, label=field.name, made_for=made_for(v), made_in=made_in(v), reason=why)
+            counts = value_lists.upload_codes(actor, list_draft, x.content(p.slug), reason=why)
+        except value_lists.ValueListError as e:
+            raise EditError(f"{x.table}.{x.field}: {e}") from e
+        before = field.value_list
+        field.value_list = x.name
+        field.save(update_fields=["value_list"])
+        audit.record(
+            "specification.value_list_made",
+            obj=v,
+            before={"table": x.table, "field": x.field, "value_list": before},
+            after={"table": x.table, "field": x.field, "value_list": x.name, "codes": counts["added"]},
+            reason=why,
+            actor=actor,
+        )
+        made.append(x.name)
+    if made or named:
+        audit.record(
+            "specification.value_list_pack_added",
+            obj=v,
+            after={"pack": p.slug, "made": made, "named": named, "absent": st.absent},
+            reason=reason,
+            actor=actor,
+        )
+    return st
+
+
 def _drop_list(actor, vl, reason: str) -> None:
     from cedars.services.dictionary import value_lists
 

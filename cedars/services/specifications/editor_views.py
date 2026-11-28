@@ -104,8 +104,29 @@ def edit(request, code: str, slug: str):
         tables.append({"t": t, "fields": [{"f": f, "lock": lock.get((t.name, f.name), "")} for f in t.fields.all()]})
     return _page(
         request, "edit_fields.html", v, "edit", tables=tables, engine=editor.engine_available(), pending=editor.pending_renames(v),
-        made=editor.made_lists(v),
+        made=editor.made_lists(v), list_packs=editor.value_list_packs(v), list_pack_form=forms.ReasonForm(auto_id="lists-%s"),
     )  # fmt: skip
+
+
+@login_required
+@require_POST
+def add_value_list_pack(request, code: str, slug: str):
+    """Add a set of value lists kept as data to the draft (editor.add_value_list_pack)."""
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why the value lists are added: the reason is kept with the version.")
+    else:
+        try:
+            st = editor.add_value_list_pack(request.user, v, request.POST.get("pack", ""), form.cleaned_data["reason"])
+        except (AccessDenied, editor.EditError) as e:
+            messages.error(request, str(e))
+        else:
+            n = len(st.missing)
+            messages.success(request, f"Added {st.pack.name}: {n} value list{'s' if n != 1 else ''} given to the draft's fields.")
+    return redirect(f"{_edit_url(v)}#list-packs")
 
 
 @login_required
